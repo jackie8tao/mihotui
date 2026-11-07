@@ -60,9 +60,33 @@
 
 ---
 
-## 📦 编译、打包与安装
+## 📦 安装与运行
 
-### 1. 一键构建 Linux 发布包 (推荐)
+### 方式 1：Linux 在线一键安装 (推荐)
+
+在 Linux 服务器终端直接运行一键安装脚本（自动检测当前系统 CPU 架构，拉取对应构建包并注册至 `/usr/local/bin`）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/<your-username>/mihomo-tui/master/scripts/install.sh | bash
+```
+
+### 方式 2：下载 Release 手动安装
+
+从 GitHub Releases 页面下载对应架构的 `.tar.gz`：
+
+```bash
+# 解压并进入目录
+tar -zxvf mihomo-tui-v0.1.0-linux-amd64.tar.gz
+
+# 执行安装
+sudo ./install.sh
+```
+
+---
+
+## 🛠️ 本地构建与打包
+
+### 1. 本地一键打包
 
 项目自带跨平台的自动化发布打包工具，支持在 Windows / macOS / Linux 任意环境下执行：
 
