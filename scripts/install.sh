@@ -56,21 +56,36 @@ if [ -f "./$BIN_NAME" ]; then
     SRC_BIN="./$BIN_NAME"
 elif [ -f "./${BIN_NAME}-${TARGET_ARCH}" ]; then
     SRC_BIN="./${BIN_NAME}-${TARGET_ARCH}"
+elif [ -f "./dist/${BIN_NAME}-${TARGET_ARCH}" ]; then
+    SRC_BIN="./dist/${BIN_NAME}-${TARGET_ARCH}"
+elif [ -f "./build/${BIN_NAME}-${TARGET_ARCH}" ]; then
+    SRC_BIN="./build/${BIN_NAME}-${TARGET_ARCH}"
 fi
 
+# If binary not found locally, try downloading from GitHub Releases
 if [ -z "$SRC_BIN" ]; then
-    echo -e "${YELLOW}Notice:${NC} Local pre-built binary not found. Searching in build/ or dist/ directory..."
-    if [ -f "./dist/${BIN_NAME}-${TARGET_ARCH}" ]; then
-        SRC_BIN="./dist/${BIN_NAME}-${TARGET_ARCH}"
-    elif [ -f "./build/${BIN_NAME}-${TARGET_ARCH}" ]; then
-        SRC_BIN="./build/${BIN_NAME}-${TARGET_ARCH}"
+    REPO=${GITHUB_REPO:-"mihomo-tui/mihomo-tui"}
+    echo -e "${YELLOW}Notice:${NC} Local binary not found. Attempting to fetch latest release from GitHub (${REPO})..."
+
+    TMP_DIR=$(mktemp -d)
+    trap 'rm -rf "$TMP_DIR"' EXIT
+
+    LATEST_TAG=$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$LATEST_TAG" ]; then
+        LATEST_TAG="v0.1.0"
     fi
-fi
 
-if [ -z "$SRC_BIN" ]; then
-    echo -e "${RED}Error:${NC} Could not find prebuilt binary for ${TARGET_ARCH}."
-    echo "Please run the build script first or extract a release package."
-    exit 1
+    TAR_NAME="mihomo-tui-${LATEST_TAG}-${TARGET_ARCH}.tar.gz"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${TAR_NAME}"
+
+    echo -e "${BLUE}==>${NC} Downloading ${GREEN}${DOWNLOAD_URL}${NC}..."
+    if curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL"; then
+        tar -zxf "${TMP_DIR}/${TAR_NAME}" -C "$TMP_DIR"
+        SRC_BIN="${TMP_DIR}/${BIN_NAME}"
+    else
+        echo -e "${RED}Error:${NC} Failed to download release package. Please compile locally or check network."
+        exit 1
+    fi
 fi
 
 echo -e "${BLUE}==>${NC} Installing binary to ${INSTALL_DIR}/${BIN_NAME}..."
