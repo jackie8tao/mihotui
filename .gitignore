@@ -1,0 +1,10 @@
+# Binaries and archives
+*.exe
+mihomo-tui-linux-*
+dist/
+build/
+
+# Local config & subs
+config.yaml
+subscriptions.yaml
+*.tmp
