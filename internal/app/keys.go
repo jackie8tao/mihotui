@@ -1,26 +1,26 @@
-package ui
+package app
 
 import "github.com/charmbracelet/bubbles/key"
 
 // KeyMap defines keybindings for the application.
 type KeyMap struct {
-	Up          key.Binding
-	Down        key.Binding
-	Left        key.Binding
-	Right       key.Binding
-	Tab         key.Binding
-	Enter       key.Binding
-	TestDelay   key.Binding
-	TestAll     key.Binding
-	SwitchMode  key.Binding
-	Refresh     key.Binding
-	UpdateSub   key.Binding
-	UpdateAll   key.Binding
-	AddSub      key.Binding
-	DeleteSub   key.Binding
-	Esc         key.Binding
-	Quit        key.Binding
-	Help        key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	Left       key.Binding
+	Right      key.Binding
+	Tab        key.Binding
+	Enter      key.Binding
+	TestDelay  key.Binding
+	TestAll    key.Binding
+	SwitchMode key.Binding
+	Refresh    key.Binding
+	UpdateSub  key.Binding
+	UpdateAll  key.Binding
+	AddSub     key.Binding
+	DeleteSub  key.Binding
+	Esc        key.Binding
+	Quit       key.Binding
+	Help       key.Binding
 }
 
 // DefaultKeyMap returns the default keybindings.
@@ -92,3 +92,4 @@ func DefaultKeyMap() KeyMap {
 		),
 	}
 }
+

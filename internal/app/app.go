@@ -1,4 +1,4 @@
-package ui
+package app
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"mihomo-tui/internal/app/theme"
+	"mihomo-tui/internal/app/views"
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/profile"
@@ -27,18 +29,18 @@ const (
 	TabConfigs
 )
 
-type FocusPane int
+type FocusPane = views.FocusPane
 
 const (
-	PaneGroups FocusPane = iota
-	PaneNodes
+	PaneGroups = views.PaneGroups
+	PaneNodes  = views.PaneNodes
 )
 
-type ModalType int
+type ModalType = views.ModalType
 
 const (
-	ModalNone ModalType = iota
-	ModalAddSub
+	ModalNone   = views.ModalNone
+	ModalAddSub = views.ModalAddSub
 )
 
 // Messages
@@ -50,7 +52,7 @@ type (
 		memory  *model.Memory
 		err     error
 	}
-	trafficMsg model.Traffic
+	trafficMsg     model.Traffic
 	delayResultMsg struct {
 		proxyName string
 		delay     int
@@ -129,6 +131,11 @@ type AppModel struct {
 	// Status / Notifications
 	statusMsg string
 	isError   bool
+}
+
+// New initializes and returns a new AppModel.
+func New(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager) *AppModel {
+	return NewAppModel(cli, cfg, mgr)
 }
 
 // NewAppModel initializes the AppModel.
@@ -697,27 +704,27 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *AppModel) View() string {
 	// Top Header with Tabs
-	title := TitleStyle.Render(" Mihomo TUI ")
+	title := theme.TitleStyle.Render(" Mihomo TUI ")
 
-	tab1 := TabInactiveStyle.Render("1. Overview")
-	tab2 := TabInactiveStyle.Render("2. Proxies")
-	tab3 := TabInactiveStyle.Render("3. Configs & Subs")
+	tab1 := theme.TabInactiveStyle.Render("1. Overview")
+	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
+	tab3 := theme.TabInactiveStyle.Render("3. Configs & Subs")
 
 	switch m.activeTab {
 	case TabOverview:
-		tab1 = TabActiveStyle.Render("1. Overview")
+		tab1 = theme.TabActiveStyle.Render("1. Overview")
 	case TabProxies:
-		tab2 = TabActiveStyle.Render("2. Proxies")
+		tab2 = theme.TabActiveStyle.Render("2. Proxies")
 	case TabConfigs:
-		tab3 = TabActiveStyle.Render("3. Configs & Subs")
+		tab3 = theme.TabActiveStyle.Render("3. Configs & Subs")
 	}
 
 	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3)
 
 	modeBadge := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(ColorDark).
-		Background(ColorSecondary).
+		Foreground(theme.ColorDark).
+		Background(theme.ColorSecondary).
 		Padding(0, 1).
 		Render(strings.ToUpper(m.config.Mode))
 
@@ -727,17 +734,42 @@ func (m *AppModel) View() string {
 	var body string
 	switch m.activeTab {
 	case TabOverview:
-		body = renderOverview(m)
+		body = views.RenderOverview(views.OverviewProps{
+			Width:     m.width,
+			Traffic:   m.traffic,
+			TotalUp:   m.totalUp,
+			TotalDown: m.totalDown,
+			Config:    m.config,
+			Version:   m.version,
+			Memory:    m.memory,
+		})
 	case TabProxies:
-		body = renderProxies(m)
+		body = views.RenderProxies(views.ProxiesProps{
+			Width:       m.width,
+			Height:      m.height,
+			FocusPane:   m.focusPane,
+			Groups:      m.groups,
+			Proxies:     m.proxies,
+			GroupCursor: m.groupCursor,
+			NodeCursor:  m.nodeCursor,
+		})
 	case TabConfigs:
-		body = renderConfigs(m)
+		body = views.RenderConfigs(views.ConfigsProps{
+			Width:            m.width,
+			Height:           m.height,
+			ConfigDir:        m.profileMgr.ConfigDir(),
+			Profiles:         m.profiles,
+			ProfileCursor:    m.profileCursor,
+			ModalActive:      m.modalActive,
+			SubNameInputView: m.subNameInput.View(),
+			SubURLInputView:  m.subURLInput.View(),
+		})
 	}
 
 	// Bottom Status & Help
-	statusColor := ColorMuted
+	statusColor := theme.ColorMuted
 	if m.isError {
-		statusColor = ColorError
+		statusColor = theme.ColorError
 	}
 	status := lipgloss.NewStyle().Foreground(statusColor).Render(" " + m.statusMsg)
 
@@ -747,7 +779,7 @@ func (m *AppModel) View() string {
 	} else if m.activeTab == TabConfigs {
 		helpText = "[↑/↓] Move | [Enter] Apply | [u] Update | [U] Update All | [a] Add Sub | [d] Delete | " + helpText
 	}
-	helpBar := lipgloss.NewStyle().Foreground(ColorMuted).Render(helpText)
+	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 
 	footer := lipgloss.JoinVertical(lipgloss.Left, status, helpBar)
 

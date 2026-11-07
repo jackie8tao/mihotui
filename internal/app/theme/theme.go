@@ -1,8 +1,8 @@
-package ui
+package theme
 
 import "github.com/charmbracelet/lipgloss"
 
-// Colors used across the UI
+// Colors used across the TUI
 var (
 	ColorPrimary   = lipgloss.Color("#7D56F4") // Purple
 	ColorSecondary = lipgloss.Color("#04B575") // Green
@@ -67,3 +67,4 @@ var (
 			Bold(true).
 			Foreground(ColorSecondary)
 )
+

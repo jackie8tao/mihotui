@@ -1,20 +1,22 @@
-package ui
+package views
 
 import (
 	"fmt"
 	"strings"
 
 	"mihomo-tui/internal/model"
+	"mihomo-tui/internal/app/theme"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-func renderProxies(m *AppModel) string {
-	width := m.width - 4
+// RenderProxies renders the proxies and node groups view.
+func RenderProxies(p ProxiesProps) string {
+	width := p.Width - 4
 	if width < 50 {
 		width = 50
 	}
-	height := m.height - 8
+	height := p.Height - 8
 	if height < 10 {
 		height = 10
 	}
@@ -27,21 +29,21 @@ func renderProxies(m *AppModel) string {
 
 	// 1. Render Left Column: Groups List
 	var groupLines []string
-	if len(m.groups) == 0 {
-		groupLines = append(groupLines, lipgloss.NewStyle().Foreground(ColorMuted).Render("No proxy groups found"))
+	if len(p.Groups) == 0 {
+		groupLines = append(groupLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No proxy groups found"))
 	} else {
-		for i, g := range m.groups {
+		for i, g := range p.Groups {
 			name := g.Name
 			if len(name) > leftWidth-8 {
 				name = name[:leftWidth-11] + "..."
 			}
 
 			line := fmt.Sprintf("[%d] %s", len(g.All), name)
-			if i == m.groupCursor {
-				if m.focusPane == PaneGroups {
-					line = SelectedRowStyle.Render("▶ " + line)
+			if i == p.GroupCursor {
+				if p.FocusPane == PaneGroups {
+					line = theme.SelectedRowStyle.Render("▶ " + line)
 				} else {
-					line = lipgloss.NewStyle().Bold(true).Foreground(ColorHighlight).Render("● " + line)
+					line = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("● " + line)
 				}
 			} else {
 				line = "  " + line
@@ -50,19 +52,23 @@ func renderProxies(m *AppModel) string {
 		}
 	}
 
-	leftBoxStyle := CardBoxStyle
-	if m.focusPane == PaneGroups {
-		leftBoxStyle = CardBoxActiveStyle
+	leftBoxStyle := theme.CardBoxStyle
+	if p.FocusPane == PaneGroups {
+		leftBoxStyle = theme.CardBoxActiveStyle
 	}
 	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
 		"📂 Proxy Groups\n\n" + strings.Join(groupLines, "\n"),
 	)
 
 	// 2. Render Right Column: Nodes in selected Group
+	var currGroup *model.ProxyItem
+	if len(p.Groups) > 0 && p.GroupCursor >= 0 && p.GroupCursor < len(p.Groups) {
+		currGroup = &p.Groups[p.GroupCursor]
+	}
+
 	var rightLines []string
-	currGroup := m.currentGroup()
 	if currGroup == nil || len(currGroup.All) == 0 {
-		rightLines = append(rightLines, lipgloss.NewStyle().Foreground(ColorMuted).Render("No nodes in this group"))
+		rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No nodes in this group"))
 	} else {
 		// Calculate visible window for scrolling
 		visibleRows := height - 4
@@ -71,8 +77,8 @@ func renderProxies(m *AppModel) string {
 		}
 
 		startIdx := 0
-		if m.nodeCursor >= visibleRows {
-			startIdx = m.nodeCursor - visibleRows + 1
+		if p.NodeCursor >= visibleRows {
+			startIdx = p.NodeCursor - visibleRows + 1
 		}
 		endIdx := startIdx + visibleRows
 		if endIdx > len(currGroup.All) {
@@ -81,31 +87,31 @@ func renderProxies(m *AppModel) string {
 
 		for i := startIdx; i < endIdx; i++ {
 			nodeName := currGroup.All[i]
-			nodeItem, exists := m.proxies[nodeName]
+			nodeItem, exists := p.Proxies[nodeName]
 
 			// Active mark
 			activeMark := "  "
 			if nodeName == currGroup.Now {
-				activeMark = ActiveIndicatorStyle.Render("✔ ")
+				activeMark = theme.ActiveIndicatorStyle.Render("✔ ")
 			}
 
 			// Delay text and styling
 			delayStr := "      -"
 			if exists {
 				if nodeItem.TestingDelay {
-					delayStr = lipgloss.NewStyle().Foreground(ColorWarning).Render("Testing...")
+					delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("Testing...")
 				} else if len(nodeItem.History) > 0 {
 					lastDelay := nodeItem.History[len(nodeItem.History)-1].Delay
 					delayFormatted := model.FormatDelay(lastDelay)
 					switch {
 					case lastDelay <= 0:
-						delayStr = lipgloss.NewStyle().Foreground(ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
 					case lastDelay < 120:
-						delayStr = lipgloss.NewStyle().Foreground(ColorSecondary).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorSecondary).Render(fmt.Sprintf("%7s", delayFormatted))
 					case lastDelay < 300:
-						delayStr = lipgloss.NewStyle().Foreground(ColorWarning).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(fmt.Sprintf("%7s", delayFormatted))
 					default:
-						delayStr = lipgloss.NewStyle().Foreground(ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
 					}
 				}
 			}
@@ -129,21 +135,21 @@ func renderProxies(m *AppModel) string {
 			row := fmt.Sprintf("%s%-*s %-10s %s",
 				activeMark,
 				availNameWidth, displayName,
-				lipgloss.NewStyle().Foreground(ColorMuted).Render(nodeType),
+				lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(nodeType),
 				delayStr,
 			)
 
-			if i == m.nodeCursor && m.focusPane == PaneNodes {
-				row = SelectedRowStyle.Render("▶ " + row[2:])
+			if i == p.NodeCursor && p.FocusPane == PaneNodes {
+				row = theme.SelectedRowStyle.Render("▶ " + row[2:])
 			}
 
 			rightLines = append(rightLines, row)
 		}
 	}
 
-	rightBoxStyle := CardBoxStyle
-	if m.focusPane == PaneNodes {
-		rightBoxStyle = CardBoxActiveStyle
+	rightBoxStyle := theme.CardBoxStyle
+	if p.FocusPane == PaneNodes {
+		rightBoxStyle = theme.CardBoxActiveStyle
 	}
 
 	headerTitle := "📡 Nodes"
@@ -157,3 +163,4 @@ func renderProxies(m *AppModel) string {
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
 }
+

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"mihomo-tui/internal/app"
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/profile"
-	"mihomo-tui/internal/ui"
 	"mihomo-tui/pkg/mihomo"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Create Bubble Tea Model
-	appModel := ui.NewAppModel(apiClient, cfg, profileMgr)
+	appModel := app.New(apiClient, cfg, profileMgr)
 
 	// Launch TUI in fullscreen alternative screen buffer
 	p := tea.NewProgram(
