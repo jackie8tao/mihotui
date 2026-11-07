@@ -1,6 +1,9 @@
 package views
 
-import "mihomo-tui/internal/model"
+import (
+	"mihomo-tui/internal/profile"
+	"mihomo-tui/pkg/mihomo"
+)
 
 // FocusPane represents which pane has focus in a two-column view.
 type FocusPane int
@@ -21,12 +24,12 @@ const (
 // OverviewProps contains the data needed to render the overview tab.
 type OverviewProps struct {
 	Width     int
-	Traffic   model.Traffic
+	Traffic   mihomo.Traffic
 	TotalUp   int64
 	TotalDown int64
-	Config    model.Config
-	Version   model.Version
-	Memory    model.Memory
+	Config    mihomo.Config
+	Version   mihomo.Version
+	Memory    mihomo.Memory
 }
 
 // ProxiesProps contains the data needed to render the proxies tab.
@@ -34,8 +37,8 @@ type ProxiesProps struct {
 	Width       int
 	Height      int
 	FocusPane   FocusPane
-	Groups      []model.ProxyItem
-	Proxies     map[string]model.ProxyItem
+	Groups      []mihomo.ProxyItem
+	Proxies     map[string]mihomo.ProxyItem
 	GroupCursor int
 	NodeCursor  int
 }
@@ -45,7 +48,7 @@ type ConfigsProps struct {
 	Width            int
 	Height           int
 	ConfigDir        string
-	Profiles         []model.Profile
+	Profiles         []profile.Profile
 	ProfileCursor    int
 	ModalActive      ModalType
 	SubNameInputView string

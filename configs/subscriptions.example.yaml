@@ -1,5 +1,5 @@
-# Mihomo TUI 订阅与配置持久化记录示例
-# 默认路径: ~/.config/mihomo-tui/subscriptions.yaml
+# Mihomo TUI subscriptions and profiles persistence record example
+# Default path: $XDG_CONFIG_HOME/mihotui/subscriptions.yaml or ~/.config/mihotui/subscriptions.yaml
 
 config_dir: "/etc/mihomo"
 active_profile: "default.yaml"

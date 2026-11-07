@@ -75,10 +75,10 @@ curl -fsSL https://raw.githubusercontent.com/<your-username>/mihomo-tui/master/s
 从 GitHub Releases 页面下载对应架构的 `.tar.gz`：
 
 ```bash
-# 解压并进入目录
+# Extract archive
 tar -zxvf mihomo-tui-v0.1.0-linux-amd64.tar.gz
 
-# 执行安装
+# Run installation script
 sudo ./install.sh
 ```
 
@@ -91,10 +91,10 @@ sudo ./install.sh
 项目自带跨平台的自动化发布打包工具，支持在 Windows / macOS / Linux 任意环境下执行：
 
 ```bash
-# 构建默认版本 (v0.1.0)
+# Build default version (v0.1.0)
 go run ./scripts/package.go
 
-# 或指定版本标签
+# Or specify version tag
 go run ./scripts/package.go -v v0.1.0
 ```
 
@@ -102,7 +102,7 @@ go run ./scripts/package.go -v v0.1.0
 ```bash
 # Linux / macOS
 make package
-# 或
+# Or
 ./scripts/build-linux.sh v0.1.0
 
 # Windows PowerShell
@@ -141,13 +141,13 @@ sudo ./install.sh
 ### 3. 运行参数
 
 ```bash
-# 默认连接本地 http://127.0.0.1:9090，自动探测 /etc/mihomo 或 ~/.config/mihomo
+# Connect to default local endpoint http://127.0.0.1:9090
 mihomo-tui
 
-# 指定外部控制器地址和密钥
+# Specify external controller API URL and secret
 mihomo-tui -u http://127.0.0.1:9090 -s "your_secret_here"
 
-# 指定配置与订阅保存目录
+# Specify managed configuration directory
 mihomo-tui -d /etc/mihomo
 ```
 

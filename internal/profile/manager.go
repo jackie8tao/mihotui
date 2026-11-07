@@ -13,27 +13,25 @@ import (
 	"strings"
 	"time"
 
-	"mihomo-tui/internal/model"
-
 	"gopkg.in/yaml.v3"
 )
 
 type SubStore struct {
-	ConfigDir     string               `yaml:"config_dir"`
-	ActiveProfile string               `yaml:"active_profile"`
-	Subscriptions []model.Subscription `yaml:"subscriptions"`
+	ConfigDir     string         `yaml:"config_dir"`
+	ActiveProfile string         `yaml:"active_profile"`
+	Subscriptions []Subscription `yaml:"subscriptions"`
 }
 
 type Manager struct {
 	configDir     string
 	metaPath      string
 	activeProfile string
-	subscriptions []model.Subscription
+	subscriptions []Subscription
 	httpClient    *http.Client
 }
 
 func NewManager(customConfigDir string) (*Manager, error) {
-	configDir := resolveConfigDir(customConfigDir)
+	configDir := resolveMihomoConfigDir(customConfigDir)
 	metaPath := resolveMetaPath()
 
 	m := &Manager{
@@ -51,40 +49,30 @@ func NewManager(customConfigDir string) (*Manager, error) {
 	return m, nil
 }
 
-func resolveConfigDir(custom string) string {
-	if custom != "" {
+// resolveMihomoConfigDir ensures and returns the configuration directory for Mihomo.
+// If custom is specified in configuration, it is used directly without probing system paths.
+// Otherwise, it defaults deterministically to the application-managed Mihomo directory.
+func resolveMihomoConfigDir(custom string) string {
+	if strings.TrimSpace(custom) != "" {
 		_ = os.MkdirAll(custom, 0755)
 		return custom
 	}
 
-	// Candidates for headless linux
-	candidates := []string{
-		"/etc/mihomo",
-	}
-
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".config", "mihomo"))
-	}
-	candidates = append(candidates, "./")
-
-	for _, c := range candidates {
-		if fi, err := os.Stat(c); err == nil && fi.IsDir() {
-			return c
-		}
-	}
-
-	// Default fallback to ~/.config/mihomo
-	if home, err := os.UserHomeDir(); err == nil {
-		dir := filepath.Join(home, ".config", "mihomo")
+	// Deterministic fallback: application-managed directory, avoiding heuristic system guesses
+	if userConfigDir, err := os.UserConfigDir(); err == nil {
+		dir := filepath.Join(userConfigDir, "mihotui", "mihomo")
 		_ = os.MkdirAll(dir, 0755)
 		return dir
 	}
-	return "."
+
+	defaultDir := filepath.Join(".", "mihomo")
+	_ = os.MkdirAll(defaultDir, 0755)
+	return defaultDir
 }
 
 func resolveMetaPath() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		dir := filepath.Join(home, ".config", "mihomo-tui")
+	if userConfigDir, err := os.UserConfigDir(); err == nil {
+		dir := filepath.Join(userConfigDir, "mihotui")
 		_ = os.MkdirAll(dir, 0755)
 		return filepath.Join(dir, "subscriptions.yaml")
 	}
@@ -135,23 +123,23 @@ func (m *Manager) saveMeta() error {
 	return os.WriteFile(m.metaPath, data, 0644)
 }
 
-func (m *Manager) ListSubscriptions() []model.Subscription {
+func (m *Manager) ListSubscriptions() []Subscription {
 	return m.subscriptions
 }
 
 // ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
-func (m *Manager) ListProfiles() ([]model.Profile, error) {
+func (m *Manager) ListProfiles() ([]Profile, error) {
 	entries, err := os.ReadDir(m.configDir)
 	if err != nil {
 		return nil, err
 	}
 
-	subMap := make(map[string]*model.Subscription)
+	subMap := make(map[string]*Subscription)
 	for i := range m.subscriptions {
 		subMap[m.subscriptions[i].FileName] = &m.subscriptions[i]
 	}
 
-	var profiles []model.Profile
+	var profiles []Profile
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -178,7 +166,7 @@ func (m *Manager) ListProfiles() ([]model.Profile, error) {
 
 		fullPath, _ := filepath.Abs(filepath.Join(m.configDir, name))
 
-		profiles = append(profiles, model.Profile{
+		profiles = append(profiles, Profile{
 			Name:         displayName,
 			FileName:     name,
 			FullPath:     fullPath,
@@ -194,12 +182,12 @@ func (m *Manager) ListProfiles() ([]model.Profile, error) {
 
 // ParseUserinfo parses the Subscription-Userinfo header.
 // e.g. upload=1073741824; download=21474836480; total=107374182400; expire=1735689600
-func ParseUserinfo(raw string) *model.SubUserInfo {
+func ParseUserinfo(raw string) *SubUserInfo {
 	if raw == "" {
 		return nil
 	}
 
-	info := &model.SubUserInfo{}
+	info := &SubUserInfo{}
 	parts := strings.Split(raw, ";")
 	for _, part := range parts {
 		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
@@ -238,7 +226,7 @@ func sanitizeFileName(name string) string {
 }
 
 // AddSubscription registers a new subscription, downloads it, and saves metadata.
-func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*model.Subscription, error) {
+func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Subscription, error) {
 	if name == "" {
 		return nil, errors.New("subscription name cannot be empty")
 	}
@@ -260,7 +248,7 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*mo
 		counter++
 	}
 
-	sub := model.Subscription{
+	sub := Subscription{
 		ID:        fmt.Sprintf("sub_%d", time.Now().UnixNano()),
 		Name:      name,
 		URL:       rawURL,
@@ -283,8 +271,8 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*mo
 }
 
 // UpdateSubscription re-downloads an existing subscription.
-func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*model.Subscription, error) {
-	var targetSub *model.Subscription
+func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*Subscription, error) {
+	var targetSub *Subscription
 	for i := range m.subscriptions {
 		if m.subscriptions[i].ID == subID || m.subscriptions[i].FileName == subID {
 			targetSub = &m.subscriptions[i]
@@ -336,7 +324,7 @@ func (m *Manager) DeleteSubscription(subID string, deleteFile bool) error {
 }
 
 // downloadAndValidate downloads config from URL, verifies YAML, and writes atomically.
-func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*model.SubUserInfo, error) {
+func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*SubUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -356,7 +344,7 @@ func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath st
 	}
 
 	// Parse Userinfo if header present
-	var userInfo *model.SubUserInfo
+	var userInfo *SubUserInfo
 	if rawUI := resp.Header.Get("subscription-userinfo"); rawUI != "" {
 		userInfo = ParseUserinfo(rawUI)
 	}

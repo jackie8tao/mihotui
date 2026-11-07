@@ -17,7 +17,7 @@ const (
 type AppConfig struct {
 	ApiURL        string `yaml:"api_url"`
 	Secret        string `yaml:"secret"`
-	ConfigDir     string `yaml:"config_dir"` // mihomo config directory (e.g. /etc/mihomo)
+	MihomoDir     string `yaml:"mihomo_dir"` // mihomo managed config directory
 	TestURL       string `yaml:"test_url"`
 	TestTimeout   int    `yaml:"test_timeout"`    // in milliseconds
 	RefreshRateMs int    `yaml:"refresh_rate_ms"` // traffic/stats polling in ms
@@ -28,7 +28,7 @@ func DefaultConfig() *AppConfig {
 	return &AppConfig{
 		ApiURL:        "http://127.0.0.1:9090",
 		Secret:        "",
-		ConfigDir:     "",
+		MihomoDir:     "",
 		TestURL:       "http://www.gstatic.com/generate_204",
 		TestTimeout:   3000,
 		RefreshRateMs: 1000,
@@ -55,12 +55,12 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 	// 2. Standard distribution discovery paths: User Config (XDG) > System-wide (/etc)
 	var candidates []string
 
-	// User-level configuration ($XDG_CONFIG_HOME/mihomo-tui/config.yaml or ~/.config/mihomo-tui/config.yaml)
+	// User-level configuration ($XDG_CONFIG_HOME/mihotui/config.yaml or ~/.config/mihotui/config.yaml)
 	if userConfigDir, err := os.UserConfigDir(); err == nil {
 		candidates = append(candidates, filepath.Join(userConfigDir, defaultConfigDir, defaultConfigFile))
 	}
 
-	// System-wide global configuration (/etc/mihomo-tui/config.yaml)
+	// System-wide global configuration (/etc/mihotui/config.yaml)
 	candidates = append(candidates, filepath.Join("/etc", defaultConfigDir, defaultConfigFile))
 
 	for _, p := range candidates {
@@ -84,6 +84,6 @@ func applyEnvOverrides(cfg *AppConfig) {
 		cfg.Secret = envSecret
 	}
 	if envDir := os.Getenv("MIHOMO_CONFIG_DIR"); envDir != "" {
-		cfg.ConfigDir = envDir
+		cfg.MihomoDir = envDir
 	}
 }

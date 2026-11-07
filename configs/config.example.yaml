@@ -1,21 +1,21 @@
-# Mihomo TUI 配置文件示例
-# 默认路径: ~/.config/mihomo-tui/config.yaml 或 ./configs/config.yaml 或 ./config.yaml
+# Mihomo TUI sample configuration file
+# Default paths: $XDG_CONFIG_HOME/mihotui/config.yaml or ~/.config/mihotui/config.yaml
 
-# Mihomo External Controller API 接口地址
+# Mihomo External Controller API URL
 api_url: "http://127.0.0.1:9090"
 
-# Mihomo 接口密钥 (对应 mihomo config.yaml 中的 secret)
+# Mihomo API secret token (matches 'secret' in Mihomo config.yaml)
 secret: ""
 
-# Mihomo 配置文件所在目录 (用于 Profile 与订阅管理)
-# 若留空，自动探测 /etc/mihomo 或 ~/.config/mihomo
-config_dir: "/etc/mihomo"
+# Mihomo managed configuration directory (for profiles and subscription management)
+# If empty, automatically managed under user config directory (e.g. ~/.config/mihotui/mihomo)
+mihomo_dir: ""
 
-# 节点延迟测速的目标 URL (推荐 gstatic 204 或 cloudflare)
+# Target URL for latency/delay testing (recommended: gstatic 204 or Cloudflare)
 test_url: "http://www.gstatic.com/generate_204"
 
-# 测速超时时间 (毫秒)
+# Latency test timeout in milliseconds
 test_timeout: 3000
 
-# 界面刷新频率 (毫秒)
+# UI refresh rate in milliseconds for traffic and status polling
 refresh_rate_ms: 1000

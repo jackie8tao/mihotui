@@ -46,11 +46,11 @@ func main() {
 		cfg.Secret = *secret
 	}
 	if *configDir != "" {
-		cfg.ConfigDir = *configDir
+		cfg.MihomoDir = *configDir
 	}
 
 	// Create Profile Manager
-	profileMgr, err := profile.NewManager(cfg.ConfigDir)
+	profileMgr, err := profile.NewManager(cfg.MihomoDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to initialize profile manager: %v\n", err)
 	}

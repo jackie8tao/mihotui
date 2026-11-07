@@ -11,7 +11,6 @@ import (
 	"mihomo-tui/internal/app/theme"
 	"mihomo-tui/internal/app/views"
 	"mihomo-tui/internal/config"
-	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/profile"
 	"mihomo-tui/pkg/mihomo"
 
@@ -46,13 +45,13 @@ const (
 // Messages
 type (
 	initialDataMsg struct {
-		version *model.Version
-		config  *model.Config
-		proxies *model.ProxiesResponse
-		memory  *model.Memory
+		version *mihomo.Version
+		config  *mihomo.Config
+		proxies *mihomo.ProxiesResponse
+		memory  *mihomo.Memory
 		err     error
 	}
-	trafficMsg     model.Traffic
+	trafficMsg     mihomo.Traffic
 	delayResultMsg struct {
 		proxyName string
 		delay     int
@@ -68,7 +67,7 @@ type (
 		err       error
 	}
 	profilesLoadedMsg struct {
-		profiles []model.Profile
+		profiles []profile.Profile
 		err      error
 	}
 	profileAppliedMsg struct {
@@ -114,18 +113,18 @@ type AppModel struct {
 	inputFocus   int // 0: Name, 1: URL
 
 	// Data
-	version   model.Version
-	config    model.Config
-	memory    model.Memory
-	proxies   map[string]model.ProxyItem
-	groups    []model.ProxyItem
-	profiles  []model.Profile
-	traffic   model.Traffic
+	version   mihomo.Version
+	config    mihomo.Config
+	memory    mihomo.Memory
+	proxies   map[string]mihomo.ProxyItem
+	groups    []mihomo.ProxyItem
+	profiles  []profile.Profile
+	traffic   mihomo.Traffic
 	totalUp   int64
 	totalDown int64
 
 	// Channels & Async
-	trafficChan chan model.Traffic
+	trafficChan chan mihomo.Traffic
 	cancelCtx   context.CancelFunc
 
 	// Status / Notifications
@@ -160,14 +159,14 @@ func NewAppModel(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager)
 		subNameInput: nameInput,
 		subURLInput:  urlInput,
 		inputFocus:   0,
-		proxies:      make(map[string]model.ProxyItem),
-		trafficChan:  make(chan model.Traffic, 50),
+		proxies:      make(map[string]mihomo.ProxyItem),
+		trafficChan:  make(chan mihomo.Traffic, 50),
 		width:        80,
 		height:       24,
 	}
 }
 
-func (m *AppModel) currentGroup() *model.ProxyItem {
+func (m *AppModel) currentGroup() *mihomo.ProxyItem {
 	if len(m.groups) == 0 || m.groupCursor < 0 || m.groupCursor >= len(m.groups) {
 		return nil
 	}
@@ -182,7 +181,7 @@ func (m *AppModel) currentSelectedNode() string {
 	return grp.All[m.nodeCursor]
 }
 
-func (m *AppModel) currentProfile() *model.Profile {
+func (m *AppModel) currentProfile() *profile.Profile {
 	if len(m.profiles) == 0 || m.profileCursor < 0 || m.profileCursor >= len(m.profiles) {
 		return nil
 	}
@@ -259,7 +258,7 @@ func (m *AppModel) fetchProfilesCmd() tea.Cmd {
 	}
 }
 
-func (m *AppModel) applyProfileCmd(p *model.Profile) tea.Cmd {
+func (m *AppModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
@@ -353,7 +352,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.tickCmd())
 
 	case trafficMsg:
-		m.traffic = model.Traffic(msg)
+		m.traffic = mihomo.Traffic(msg)
 		m.totalUp += m.traffic.Up
 		m.totalDown += m.traffic.Down
 		cmds = append(cmds, m.waitForTrafficCmd())
@@ -371,7 +370,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.proxies = msg.proxies.Proxies
 
 			// Filter and sort proxy groups (Selector, URLTest, Fallback, etc.)
-			var groups []model.ProxyItem
+			var groups []mihomo.ProxyItem
 			for _, item := range m.proxies {
 				if len(item.All) > 0 {
 					groups = append(groups, item)
@@ -451,7 +450,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case delayResultMsg:
 		if item, ok := m.proxies[msg.proxyName]; ok {
 			item.TestingDelay = false
-			item.History = append(item.History, model.DelayHistory{
+			item.History = append(item.History, mihomo.DelayHistory{
 				Time:  time.Now(),
 				Delay: msg.delay,
 			})
@@ -460,7 +459,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Test delay for %s failed: %v", msg.proxyName, msg.err)
 		} else {
-			m.statusMsg = fmt.Sprintf("Latency [%s]: %s", msg.proxyName, model.FormatDelay(msg.delay))
+			m.statusMsg = fmt.Sprintf("Latency [%s]: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
 		}
 
 	case proxySelectedMsg:

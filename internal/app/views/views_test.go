@@ -4,28 +4,28 @@ import (
 	"strings"
 	"testing"
 
-	"mihomo-tui/internal/model"
+	"mihomo-tui/pkg/mihomo"
 )
 
 func TestRenderOverview(t *testing.T) {
 	props := OverviewProps{
 		Width: 80,
-		Traffic: model.Traffic{
+		Traffic: mihomo.Traffic{
 			Up:   1024 * 500,
 			Down: 1024 * 1024 * 2,
 		},
 		TotalUp:   1024 * 1024 * 100,
 		TotalDown: 1024 * 1024 * 500,
-		Config: model.Config{
+		Config: mihomo.Config{
 			Mode:      "rule",
 			MixedPort: 7890,
 			LogLevel:  "info",
 		},
-		Version: model.Version{
+		Version: mihomo.Version{
 			Version: "1.18.0",
 			Meta:    true,
 		},
-		Memory: model.Memory{
+		Memory: mihomo.Memory{
 			Inuse: 1024 * 1024 * 32,
 		},
 	}

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/app/theme"
+	"mihomo-tui/pkg/mihomo"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -61,7 +61,7 @@ func RenderProxies(p ProxiesProps) string {
 	)
 
 	// 2. Render Right Column: Nodes in selected Group
-	var currGroup *model.ProxyItem
+	var currGroup *mihomo.ProxyItem
 	if len(p.Groups) > 0 && p.GroupCursor >= 0 && p.GroupCursor < len(p.Groups) {
 		currGroup = &p.Groups[p.GroupCursor]
 	}
@@ -102,7 +102,7 @@ func RenderProxies(p ProxiesProps) string {
 					delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("Testing...")
 				} else if len(nodeItem.History) > 0 {
 					lastDelay := nodeItem.History[len(nodeItem.History)-1].Delay
-					delayFormatted := model.FormatDelay(lastDelay)
+					delayFormatted := mihomo.FormatDelay(lastDelay)
 					switch {
 					case lastDelay <= 0:
 						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(fmt.Sprintf("%7s", delayFormatted))

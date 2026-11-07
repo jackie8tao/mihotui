@@ -47,7 +47,7 @@ import (
 )
 
 func main() {
-	// 创建客户端实例
+	// Initialize client instance
 	client, err := mihomo.New("http://127.0.0.1:9090",
 		mihomo.WithSecret("your-secret-token"),
 		mihomo.WithTimeout(10*time.Second),
@@ -59,19 +59,19 @@ func main() {
 
 	ctx := context.Background()
 
-	// 1. 获取版本
+	// 1. Get core version
 	version, err := client.GetVersion(ctx)
 	if err != nil {
 		log.Fatalf("Get version failed: %v", err)
 	}
 	fmt.Printf("Mihomo Version: %s (Meta: %v)\n", version.Version, version.Meta)
 
-	// 2. 切换模式
+	// 2. Switch mode
 	if err := client.UpdateMode(ctx, "rule"); err != nil {
 		log.Printf("Update mode failed: %v", err)
 	}
 
-	// 3. 测速
+	// 3. Test latency
 	delay, err := client.TestDelay(ctx, "HK-Node-01", "http://www.gstatic.com/generate_204", 3000)
 	if err != nil {
 		log.Printf("Delay test failed: %v", err)

@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/app/theme"
+	"mihomo-tui/internal/profile"
+	"mihomo-tui/pkg/mihomo"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -63,7 +64,7 @@ func RenderConfigs(p ConfigsProps) string {
 	)
 
 	// 2. Render Right Column: Profile Details
-	var curr *model.Profile
+	var curr *profile.Profile
 	if len(p.Profiles) > 0 && p.ProfileCursor >= 0 && p.ProfileCursor < len(p.Profiles) {
 		curr = &p.Profiles[p.ProfileCursor]
 	}
@@ -83,7 +84,7 @@ func RenderConfigs(p ConfigsProps) string {
 		lines = append(lines, fmt.Sprintf("Profile Name : %s  %s", lipgloss.NewStyle().Bold(true).Render(curr.Name), statusBadge))
 		lines = append(lines, fmt.Sprintf("File Name    : %s", curr.FileName))
 		lines = append(lines, fmt.Sprintf("Path         : %s", curr.FullPath))
-		lines = append(lines, fmt.Sprintf("Size         : %s", model.FormatBytes(curr.Size)))
+		lines = append(lines, fmt.Sprintf("Size         : %s", mihomo.FormatBytes(curr.Size)))
 		lines = append(lines, fmt.Sprintf("Modified     : %s", curr.ModTime.Format("2006-01-02 15:04:05")))
 
 		// If it's a subscription
@@ -115,10 +116,10 @@ func RenderConfigs(p ConfigsProps) string {
 				lines = append(lines, "")
 				lines = append(lines, fmt.Sprintf("Traffic Quota: [%s] %.1f%%", theme.SpeedDownStyle.Render(bar), pct))
 				lines = append(lines, fmt.Sprintf("Used / Total : %s / %s (↑ %s, ↓ %s)",
-					model.FormatBytes(used),
-					model.FormatBytes(total),
-					model.FormatBytes(u.Upload),
-					model.FormatBytes(u.Download),
+					mihomo.FormatBytes(used),
+					mihomo.FormatBytes(total),
+					mihomo.FormatBytes(u.Upload),
+					mihomo.FormatBytes(u.Download),
 				))
 
 				if !u.Expire.IsZero() {

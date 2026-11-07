@@ -1,23 +1,6 @@
-package model
+package profile
 
-import (
-	"time"
-
-	"mihomo-tui/pkg/mihomo"
-)
-
-// Re-export core Mihomo SDK types for internal use
-type (
-	Version         = mihomo.Version
-	Config          = mihomo.Config
-	TunCfg          = mihomo.TunCfg
-	DelayHistory    = mihomo.DelayHistory
-	ProxyItem       = mihomo.ProxyItem
-	ProxiesResponse = mihomo.ProxiesResponse
-	DelayResponse   = mihomo.DelayResponse
-	Traffic         = mihomo.Traffic
-	Memory          = mihomo.Memory
-)
+import "time"
 
 // SubUserInfo represents subscription traffic quota & expiration header.
 type SubUserInfo struct {
@@ -47,3 +30,4 @@ type Profile struct {
 	IsActive     bool          `json:"is_active"`
 	Subscription *Subscription `json:"subscription,omitempty"`
 }
+

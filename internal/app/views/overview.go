@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/app/theme"
+	"mihomo-tui/pkg/mihomo"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -23,15 +23,15 @@ func RenderOverview(p OverviewProps) string {
 	}
 
 	// 1. Traffic & Speed Box
-	upSpeedStr := model.FormatSpeed(p.Traffic.Up)
-	downSpeedStr := model.FormatSpeed(p.Traffic.Down)
+	upSpeedStr := mihomo.FormatSpeed(p.Traffic.Up)
+	downSpeedStr := mihomo.FormatSpeed(p.Traffic.Down)
 
 	trafficContent := fmt.Sprintf(
 		"▲ Upload   : %s\n▼ Download : %s\n\nTotal Up   : %s\nTotal Down : %s",
 		theme.SpeedUpStyle.Render(upSpeedStr),
 		theme.SpeedDownStyle.Render(downSpeedStr),
-		model.FormatBytes(p.TotalUp),
-		model.FormatBytes(p.TotalDown),
+		mihomo.FormatBytes(p.TotalUp),
+		mihomo.FormatBytes(p.TotalDown),
 	)
 	trafficBox := theme.CardBoxStyle.Width(halfWidth).Render("🌐 Real-time Bandwidth\n\n" + trafficContent)
 
@@ -64,7 +64,7 @@ func RenderOverview(p OverviewProps) string {
 
 	memStr := "N/A"
 	if p.Memory.Inuse > 0 {
-		memStr = fmt.Sprintf("%s (OS: %s)", model.FormatBytes(p.Memory.Inuse), model.FormatBytes(p.Memory.Osalloc))
+		memStr = fmt.Sprintf("%s (OS: %s)", mihomo.FormatBytes(p.Memory.Inuse), mihomo.FormatBytes(p.Memory.Osalloc))
 	}
 
 	sysContent := fmt.Sprintf(
