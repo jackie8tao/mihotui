@@ -1,14 +1,13 @@
-package client
+package mihomo
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"mihomo-tui/internal/model"
 )
 
 func TestClient_REST(t *testing.T) {
@@ -17,16 +16,17 @@ func TestClient_REST(t *testing.T) {
 	// Mock /version
 	mux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer test-secret" {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"message": "Unauthorized"})
 			return
 		}
-		_ = json.NewEncoder(w).Encode(model.Version{Version: "v1.18.0", Meta: true})
+		_ = json.NewEncoder(w).Encode(Version{Version: "v1.18.0", Meta: true})
 	})
 
 	// Mock /configs
 	mux.HandleFunc("/configs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			_ = json.NewEncoder(w).Encode(model.Config{
+			_ = json.NewEncoder(w).Encode(Config{
 				MixedPort: 7890,
 				Mode:      "rule",
 				LogLevel:  "info",
@@ -55,8 +55,8 @@ func TestClient_REST(t *testing.T) {
 
 	// Mock /proxies
 	mux.HandleFunc("/proxies", func(w http.ResponseWriter, r *http.Request) {
-		res := model.ProxiesResponse{
-			Proxies: map[string]model.ProxyItem{
+		res := ProxiesResponse{
+			Proxies: map[string]ProxyItem{
 				"GLOBAL": {
 					Name: "GLOBAL",
 					Type: "Selector",
@@ -72,7 +72,7 @@ func TestClient_REST(t *testing.T) {
 				"Node-1": {
 					Name: "Node-1",
 					Type: "Shadowsocks",
-					History: []model.DelayHistory{
+					History: []DelayHistory{
 						{Time: time.Now(), Delay: 80},
 					},
 				},
@@ -96,16 +96,35 @@ func TestClient_REST(t *testing.T) {
 
 	// Mock /proxies/Node-1/delay
 	mux.HandleFunc("/proxies/Node-1/delay", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(model.DelayResponse{Delay: 66})
+		_ = json.NewEncoder(w).Encode(DelayResponse{Delay: 66})
+	})
+
+	// Mock /memory
+	mux.HandleFunc("/memory", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(Memory{Inuse: 20480, Osalloc: 40960})
+	})
+
+	// Mock 404
+	mux.HandleFunc("/notfound", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Not Found", http.StatusNotFound)
 	})
 
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	cli := New(server.URL, "test-secret")
 	ctx := context.Background()
 
-	// 1. Test GetVersion
+	// 1. Test Client Initialization with Functional Options
+	cli, err := New(server.URL,
+		WithSecret("test-secret"),
+		WithTimeout(5*time.Second),
+		WithUserAgent("custom-agent"),
+	)
+	if err != nil {
+		t.Fatalf("New failed: %v", err)
+	}
+
+	// 2. Test GetVersion
 	ver, err := cli.GetVersion(ctx)
 	if err != nil {
 		t.Fatalf("GetVersion failed: %v", err)
@@ -114,7 +133,17 @@ func TestClient_REST(t *testing.T) {
 		t.Errorf("unexpected version result: %+v", ver)
 	}
 
-	// 2. Test GetConfig
+	// 3. Test Unauthorized with wrong secret
+	badCli, _ := New(server.URL, WithSecret("wrong-secret"))
+	_, err = badCli.GetVersion(ctx)
+	if err == nil {
+		t.Fatal("expected unauthorized error")
+	}
+	if !errors.Is(err, ErrUnauthorized) {
+		t.Errorf("expected ErrUnauthorized match, got %v", err)
+	}
+
+	// 4. Test GetConfig
 	cfg, err := cli.GetConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
@@ -123,13 +152,19 @@ func TestClient_REST(t *testing.T) {
 		t.Errorf("unexpected config result: %+v", cfg)
 	}
 
-	// 3. Test UpdateMode
+	// 5. Test UpdateMode
 	err = cli.UpdateMode(ctx, "global")
 	if err != nil {
 		t.Fatalf("UpdateMode failed: %v", err)
 	}
 
-	// 4. Test GetProxies
+	// 6. Test ReloadConfig
+	err = cli.ReloadConfig(ctx, "/etc/mihomo/config.yaml", true)
+	if err != nil {
+		t.Fatalf("ReloadConfig failed: %v", err)
+	}
+
+	// 7. Test GetProxies
 	proxies, err := cli.GetProxies(ctx)
 	if err != nil {
 		t.Fatalf("GetProxies failed: %v", err)
@@ -138,13 +173,13 @@ func TestClient_REST(t *testing.T) {
 		t.Errorf("expected 3 proxies, got %d", len(proxies.Proxies))
 	}
 
-	// 5. Test SelectProxy
+	// 8. Test SelectProxy
 	err = cli.SelectProxy(ctx, "ProxyGroup", "Node-2")
 	if err != nil {
 		t.Fatalf("SelectProxy failed: %v", err)
 	}
 
-	// 6. Test TestDelay
+	// 9. Test TestDelay
 	delay, err := cli.TestDelay(ctx, "Node-1", "http://test", 2000)
 	if err != nil {
 		t.Fatalf("TestDelay failed: %v", err)
@@ -153,9 +188,27 @@ func TestClient_REST(t *testing.T) {
 		t.Errorf("expected delay 66, got %d", delay)
 	}
 
-	// 7. Test ReloadConfig
-	err = cli.ReloadConfig(ctx, "/etc/mihomo/config.yaml", true)
+	// 10. Test GetMemory
+	mem, err := cli.GetMemory(ctx)
 	if err != nil {
-		t.Fatalf("ReloadConfig failed: %v", err)
+		t.Fatalf("GetMemory failed: %v", err)
+	}
+	if mem.Inuse != 20480 {
+		t.Errorf("expected inuse 20480, got %d", mem.Inuse)
+	}
+}
+
+func TestFormatHelpers(t *testing.T) {
+	if s := FormatBytes(1024); s != "1.00 KB" {
+		t.Errorf("expected 1.00 KB, got %s", s)
+	}
+	if s := FormatSpeed(2048); s != "2.00 KB/s" {
+		t.Errorf("expected 2.00 KB/s, got %s", s)
+	}
+	if s := FormatDelay(150); s != "150 ms" {
+		t.Errorf("expected 150 ms, got %s", s)
+	}
+	if s := FormatDelay(0); s != "Timeout" {
+		t.Errorf("expected Timeout, got %s", s)
 	}
 }

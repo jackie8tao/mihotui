@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"mihomo-tui/internal/client"
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/model"
 	"mihomo-tui/internal/profile"
+	"mihomo-tui/pkg/mihomo"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -91,7 +91,7 @@ type (
 
 // AppModel is the main Bubble Tea model.
 type AppModel struct {
-	client     *client.Client
+	client     mihomo.Client
 	cfg        *config.AppConfig
 	profileMgr *profile.Manager
 	keys       KeyMap
@@ -132,7 +132,7 @@ type AppModel struct {
 }
 
 // NewAppModel initializes the AppModel.
-func NewAppModel(cli *client.Client, cfg *config.AppConfig, mgr *profile.Manager) *AppModel {
+func NewAppModel(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager) *AppModel {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()

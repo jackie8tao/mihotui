@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"mihomo-tui/internal/client"
 	"mihomo-tui/internal/config"
 	"mihomo-tui/internal/profile"
 	"mihomo-tui/internal/ui"
+	"mihomo-tui/pkg/mihomo"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -55,8 +55,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to initialize profile manager: %v\n", err)
 	}
 
-	// Create API client
-	apiClient := client.New(cfg.ApiURL, cfg.Secret)
+	// Create API client with Functional Options
+	apiClient, err := mihomo.New(cfg.ApiURL,
+		mihomo.WithSecret(cfg.Secret),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating Mihomo client: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Create Bubble Tea Model
 	appModel := ui.NewAppModel(apiClient, cfg, profileMgr)
