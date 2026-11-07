@@ -103,9 +103,16 @@ fi
 USER_CONFIG_DIR="${HOME}/.config/mihomo-tui"
 mkdir -p "$USER_CONFIG_DIR"
 
-if [ -f "./config.example.yaml" ] && [ ! -f "${USER_CONFIG_DIR}/config.yaml" ]; then
+CFG_EXAMPLE=""
+if [ -f "./configs/config.example.yaml" ]; then
+    CFG_EXAMPLE="./configs/config.example.yaml"
+elif [ -f "./config.example.yaml" ]; then
+    CFG_EXAMPLE="./config.example.yaml"
+fi
+
+if [ -n "$CFG_EXAMPLE" ] && [ ! -f "${USER_CONFIG_DIR}/config.yaml" ]; then
     echo -e "${BLUE}==>${NC} Setting up initial config in ${USER_CONFIG_DIR}/config.yaml..."
-    cp "./config.example.yaml" "${USER_CONFIG_DIR}/config.yaml"
+    cp "$CFG_EXAMPLE" "${USER_CONFIG_DIR}/config.yaml"
 fi
 
 echo -e "${GREEN}==> Installation completed successfully!${NC}"

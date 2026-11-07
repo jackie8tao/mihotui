@@ -142,9 +142,17 @@ func createTarGz(tarGzPath, binPath string) error {
 		return err
 	}
 
-	// 2. Add config.example.yaml (if exists)
-	if _, err := os.Stat("config.example.yaml"); err == nil {
-		_ = addFileToTar(tw, "config.example.yaml", "config.example.yaml", 0644)
+	// 2. Add configs directory files
+	configFiles := []string{"config.example.yaml", "subscriptions.example.yaml"}
+	for _, cf := range configFiles {
+		src := filepath.Join("configs", cf)
+		if _, err := os.Stat(src); err == nil {
+			_ = addFileToTar(tw, src, filepath.Join("configs", cf), 0644)
+			// Also add config.example.yaml at root of archive for ease of access
+			if cf == "config.example.yaml" {
+				_ = addFileToTar(tw, src, "config.example.yaml", 0644)
+			}
+		}
 	}
 
 	// 3. Add README.md (if exists)

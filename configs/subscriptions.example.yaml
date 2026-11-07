@@ -1,0 +1,16 @@
+# Mihomo TUI 订阅与配置持久化记录示例
+# 默认路径: ~/.config/mihomo-tui/subscriptions.yaml
+
+config_dir: "/etc/mihomo"
+active_profile: "default.yaml"
+subscriptions:
+  - id: "sub_example_1"
+    name: "My Airport"
+    url: "https://sub.example.com/api/v1/client/subscribe?token=xxx"
+    file_name: "my_airport.yaml"
+    updated_at: 2026-11-01T12:00:00Z
+    user_info:
+      upload: 1073741824
+      download: 21474836480
+      total: 107374182400
+      expire: 2027-11-01T12:00:00Z

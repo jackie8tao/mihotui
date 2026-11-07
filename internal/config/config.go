@@ -38,7 +38,7 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 	if configPath != "" {
 		candidates = append(candidates, configPath)
 	} else {
-		candidates = append(candidates, "config.yaml")
+		candidates = append(candidates, "config.yaml", filepath.Join("configs", "config.yaml"))
 		if home, err := os.UserHomeDir(); err == nil {
 			candidates = append(candidates, filepath.Join(home, ".config", "mihomo-tui", "config.yaml"))
 		}

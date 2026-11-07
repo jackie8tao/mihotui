@@ -1,5 +1,5 @@
 # Mihomo TUI 配置文件示例
-# 默认路径: ~/.config/mihomo-tui/config.yaml 或 ./config.yaml
+# 默认路径: ~/.config/mihomo-tui/config.yaml 或 ./configs/config.yaml 或 ./config.yaml
 
 # Mihomo External Controller API 接口地址
 api_url: "http://127.0.0.1:9090"

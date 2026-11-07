@@ -119,7 +119,7 @@ make package
 每个发布包内已内置：
 1. 编译优化后的二进制文件（自动剔除调试符号，体积仅约 3MB）
 2. Linux 一键安装脚本 `install.sh`（自动设置 0755 可执行权限）
-3. 示例配置文件 `config.example.yaml`
+3. 配置模板目录 `configs/`（含 `config.example.yaml` 与 `subscriptions.example.yaml`）
 4. Systemd 服务单元模板 `mihomo.service`
 5. 说明文档 `README.md`
 
