@@ -707,7 +707,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *AppModel) View() string {
 	// Top Header with Tabs
-	title := theme.TitleStyle.Render(" Mihomo TUI ")
+	title := theme.TitleStyle.Render(" MihoTui ")
 
 	tab1 := theme.TabInactiveStyle.Render("1. Overview")
 	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
