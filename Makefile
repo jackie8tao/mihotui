@@ -1,4 +1,4 @@
-NAME       := mihomo-tui
+NAME       := mihotui
 VERSION    := v0.1.0
 COMMIT     := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "unknown")

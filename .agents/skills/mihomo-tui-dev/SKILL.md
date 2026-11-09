@@ -17,7 +17,7 @@ This skill encapsulates the core design principles, architecture standards, and 
 The project strictly follows a layered, unidirectional architecture:
 
 ```
-cmd/mihomo-tui/          # CLI Entrypoint (flag parsing, App bootstrap, tea.Program)
+cmd/mihotui/            # CLI Entrypoint (flag parsing, App bootstrap, tea.Program)
 configs/                 # Default & sample configurations (English comments only)
 internal/
 ├── app/                 # TUI Application State Machine & Coordination

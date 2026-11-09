@@ -70,7 +70,7 @@ func main() {
 		ldflags := fmt.Sprintf("-s -w -X main.version=%s -X main.commit=%s -X main.buildDate=%s",
 			version, commit, buildDate)
 
-		cmd := exec.Command("go", "build", "-trimpath", "-ldflags", ldflags, "-o", tempBinPath, "./cmd/mihomo-tui")
+		cmd := exec.Command("go", "build", "-trimpath", "-ldflags", ldflags, "-o", tempBinPath, "./cmd/mihotui")
 		cmd.Env = append(os.Environ(),
 			"GOOS="+t.OS,
 			"GOARCH="+t.Arch,
