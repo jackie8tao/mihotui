@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,27 +16,21 @@ const (
 
 // AppConfig represents user configuration for mihomo-tui.
 type AppConfig struct {
-	ApiURL        string `yaml:"api_url"`
-	Secret        string `yaml:"secret"`
-	MihomoDir     string `yaml:"mihomo_dir"` // mihomo managed config directory
-	TestURL       string `yaml:"test_url"`
-	TestTimeout   int    `yaml:"test_timeout"`    // in milliseconds
-	RefreshRateMs int    `yaml:"refresh_rate_ms"` // traffic/stats polling in ms
+	MihomoDir string `yaml:"mihomo_dir"` // mihomo managed config directory
+	ApiURL    string `yaml:"api_url"`
+	Secret    string `yaml:"secret"`
 }
 
 // DefaultConfig returns reasonable defaults.
 func DefaultConfig() *AppConfig {
 	return &AppConfig{
-		ApiURL:        "http://127.0.0.1:9090",
-		Secret:        "",
-		MihomoDir:     "",
-		TestURL:       "http://www.gstatic.com/generate_204",
-		TestTimeout:   3000,
-		RefreshRateMs: 1000,
+		MihomoDir: "",
+		ApiURL:    "http://127.0.0.1:9090",
+		Secret:    "",
 	}
 }
 
-// LoadConfig loads configuration from standard paths and environment variables.
+// LoadConfig loads configuration from standard paths.
 func LoadConfig(configPath string) (*AppConfig, error) {
 	cfg := DefaultConfig()
 
@@ -48,42 +43,34 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse specified config %q: %w", configPath, err)
 		}
-		applyEnvOverrides(cfg)
 		return cfg, nil
 	}
 
-	// 2. Standard distribution discovery paths: User Config (XDG) > System-wide (/etc)
+	// 2. Standard distribution discovery paths: User Config (XDG)
 	var candidates []string
 
-	// User-level configuration ($XDG_CONFIG_HOME/mihotui/config.yaml or ~/.config/mihotui/config.yaml)
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		candidates = append(candidates, filepath.Join(xdg, defaultConfigDir, defaultConfigFile))
+	}
+
+	// User-level configuration ($XDG_CONFIG_HOME/mihotui/config.yaml or OS UserConfigDir)
 	if userConfigDir, err := os.UserConfigDir(); err == nil {
 		candidates = append(candidates, filepath.Join(userConfigDir, defaultConfigDir, defaultConfigFile))
 	}
 
-	// System-wide global configuration (/etc/mihotui/config.yaml)
-	candidates = append(candidates, filepath.Join("/etc", defaultConfigDir, defaultConfigFile))
-
 	for _, p := range candidates {
-		if data, err := os.ReadFile(p); err == nil {
-			_ = yaml.Unmarshal(data, cfg)
-			break
+		data, err := os.ReadFile(p)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to read config %q: %w", p, err)
 		}
+		if err := yaml.Unmarshal(data, cfg); err != nil {
+			return nil, fmt.Errorf("failed to parse config %q: %w", p, err)
+		}
+		break
 	}
-
-	// 3. Environment variable overrides
-	applyEnvOverrides(cfg)
 
 	return cfg, nil
-}
-
-func applyEnvOverrides(cfg *AppConfig) {
-	if envAPI := os.Getenv("MIHOMO_API_URL"); envAPI != "" {
-		cfg.ApiURL = envAPI
-	}
-	if envSecret := os.Getenv("MIHOMO_SECRET"); envSecret != "" {
-		cfg.Secret = envSecret
-	}
-	if envDir := os.Getenv("MIHOMO_CONFIG_DIR"); envDir != "" {
-		cfg.MihomoDir = envDir
-	}
 }

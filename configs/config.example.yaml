@@ -10,12 +10,3 @@ secret: ""
 # Mihomo managed configuration directory (for profiles and subscription management)
 # If empty, automatically managed under user config directory (e.g. ~/.config/mihotui/mihomo)
 mihomo_dir: ""
-
-# Target URL for latency/delay testing (recommended: gstatic 204 or Cloudflare)
-test_url: "http://www.gstatic.com/generate_204"
-
-# Latency test timeout in milliseconds
-test_timeout: 3000
-
-# UI refresh rate in milliseconds for traffic and status polling
-refresh_rate_ms: 1000

@@ -8,10 +8,6 @@
             "mode": "auto",
             "program": "${workspaceFolder}/cmd/mihotui",
             "console": "externalTerminal",
-            "env": {
-                "MIHOMO_API_URL": "http://127.0.0.1:9097",
-                "MIHOMO_SECRET": "taodf8989"
-            },
             "args": []
         },
         {
@@ -22,10 +18,6 @@
             "program": "${workspaceFolder}/cmd/mihotui",
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
-            "env": {
-                "MIHOMO_API_URL": "http://127.0.0.1:9097",
-                "MIHOMO_SECRET": "taodf8989"
-            },
             "args": []
         },
         {

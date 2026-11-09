@@ -40,6 +40,10 @@ type ModalType = views.ModalType
 const (
 	ModalNone   = views.ModalNone
 	ModalAddSub = views.ModalAddSub
+
+	defaultTestURL       = "http://www.gstatic.com/generate_204"
+	defaultTestTimeoutMs = 3000
+	defaultRefreshRateMs = 1000
 )
 
 // Messages
@@ -206,7 +210,7 @@ func (m *AppModel) Init() tea.Cmd {
 }
 
 func (m *AppModel) tickCmd() tea.Cmd {
-	return tea.Tick(time.Duration(m.cfg.RefreshRateMs)*time.Millisecond, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Duration(defaultRefreshRateMs)*time.Millisecond, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
 }
@@ -315,9 +319,9 @@ func (m *AppModel) deleteSubCmd(subID, name string) tea.Cmd {
 
 func (m *AppModel) testDelayCmd(nodeName string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.cfg.TestTimeout+1000)*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultTestTimeoutMs+1000)*time.Millisecond)
 		defer cancel()
-		delay, err := m.client.TestDelay(ctx, nodeName, m.cfg.TestURL, m.cfg.TestTimeout)
+		delay, err := m.client.TestDelay(ctx, nodeName, defaultTestURL, defaultTestTimeoutMs)
 		return delayResultMsg{proxyName: nodeName, delay: delay, err: err}
 	}
 }
@@ -645,9 +649,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								defer wg.Done()
 								sem <- struct{}{}
 								defer func() { <-sem }()
-								ctx, cancel := context.WithTimeout(context.Background(), time.Duration(m.cfg.TestTimeout+1000)*time.Millisecond)
+								ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultTestTimeoutMs+1000)*time.Millisecond)
 								defer cancel()
-								_, _ = m.client.TestDelay(ctx, n, m.cfg.TestURL, m.cfg.TestTimeout)
+								_, _ = m.client.TestDelay(ctx, n, defaultTestURL, defaultTestTimeoutMs)
 							}(node)
 						}
 						wg.Wait()
