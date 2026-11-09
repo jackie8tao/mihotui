@@ -84,9 +84,18 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	} else {
 		var lines []string
 
-		lines = append(lines, fmt.Sprintf("Subscription : %s", lipgloss.NewStyle().Bold(true).Render(curr.Name)))
-		lines = append(lines, fmt.Sprintf("Target File  : %s", curr.FileName))
-		lines = append(lines, fmt.Sprintf("Remote URL   : %s", curr.URL))
+		maxValWidth := rightWidth - 16
+		if maxValWidth < 15 {
+			maxValWidth = 15
+		}
+
+		nameDisplay := truncateStr(curr.Name, maxValWidth)
+		fileDisplay := truncateStr(curr.FileName, maxValWidth)
+		urlDisplay := truncateStr(curr.URL, maxValWidth)
+
+		lines = append(lines, fmt.Sprintf("Subscription : %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay)))
+		lines = append(lines, fmt.Sprintf("Target File  : %s", fileDisplay))
+		lines = append(lines, fmt.Sprintf("Remote URL   : %s", urlDisplay))
 		lines = append(lines, fmt.Sprintf("Last Updated : %s", curr.UpdatedAt.Format("2006-01-02 15:04:05")))
 
 		// Quota and expiration

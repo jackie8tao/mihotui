@@ -741,10 +741,15 @@ func (m *AppModel) View() string {
 	// Top Header with Tabs
 	title := theme.TitleStyle.Render(" MihoTui ")
 
+	tab4Name := "4. Subs"
+	if m.width >= 90 {
+		tab4Name = "4. Subscriptions"
+	}
+
 	tab1 := theme.TabInactiveStyle.Render("1. Overview")
 	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
 	tab3 := theme.TabInactiveStyle.Render("3. Configs")
-	tab4 := theme.TabInactiveStyle.Render("4. Subscriptions")
+	tab4 := theme.TabInactiveStyle.Render(tab4Name)
 
 	switch m.activeTab {
 	case TabOverview:
@@ -754,7 +759,7 @@ func (m *AppModel) View() string {
 	case TabConfigs:
 		tab3 = theme.TabActiveStyle.Render("3. Configs")
 	case TabSubscriptions:
-		tab4 = theme.TabActiveStyle.Render("4. Subscriptions")
+		tab4 = theme.TabActiveStyle.Render(tab4Name)
 	}
 
 	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3, " ", tab4)
@@ -829,6 +834,16 @@ func (m *AppModel) View() string {
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 
 	footer := lipgloss.JoinVertical(lipgloss.Left, status, helpBar)
+	fullView := lipgloss.JoinVertical(lipgloss.Left, header, "\n", body, "\n", footer)
 
-	return lipgloss.JoinVertical(lipgloss.Left, header, "\n", body, "\n", footer)
+	// Ensure view height never exceeds terminal height to guarantee top header stays visible
+	if m.height > 0 {
+		lines := strings.Split(fullView, "\n")
+		if len(lines) > m.height {
+			lines = lines[:m.height]
+			return strings.Join(lines, "\n")
+		}
+	}
+
+	return fullView
 }

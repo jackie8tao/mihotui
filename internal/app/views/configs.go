@@ -96,16 +96,26 @@ func RenderConfigs(p ConfigsProps) string {
 			statusBadge = theme.ActiveIndicatorStyle.Render("[CURRENTLY ACTIVE]")
 		}
 
-		lines = append(lines, fmt.Sprintf("Profile Name : %s  %s", lipgloss.NewStyle().Bold(true).Render(curr.Name), statusBadge))
-		lines = append(lines, fmt.Sprintf("File Name    : %s", curr.FileName))
-		lines = append(lines, fmt.Sprintf("Full Path    : %s", curr.FullPath))
+		maxValWidth := rightWidth - 18
+		if maxValWidth < 15 {
+			maxValWidth = 15
+		}
+
+		nameDisplay := truncateStr(curr.Name, maxValWidth-10)
+		fileDisplay := truncateStr(curr.FileName, maxValWidth)
+		pathDisplay := truncateStr(curr.FullPath, maxValWidth)
+
+		lines = append(lines, fmt.Sprintf("Profile Name : %s  %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay), statusBadge))
+		lines = append(lines, fmt.Sprintf("File Name    : %s", fileDisplay))
+		lines = append(lines, fmt.Sprintf("Full Path    : %s", pathDisplay))
 		lines = append(lines, fmt.Sprintf("File Size    : %s", mihomo.FormatBytes(curr.Size)))
 		lines = append(lines, fmt.Sprintf("Last Modified: %s", curr.ModTime.Format("2006-01-02 15:04:05")))
 
 		if curr.Subscription != nil {
+			subName := truncateStr(curr.Subscription.Name, maxValWidth-12)
 			lines = append(lines, "")
 			lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(
-				fmt.Sprintf("ℹ️ Linked to subscription [%s]. Manage updates in '4. Subscriptions' tab.", curr.Subscription.Name),
+				fmt.Sprintf("ℹ️ Linked to [%s] (see '4. Subs' tab)", subName),
 			))
 		}
 
@@ -119,10 +129,21 @@ func RenderConfigs(p ConfigsProps) string {
 		rightContent = strings.Join(lines, "\n")
 	}
 
-	headerTitle := fmt.Sprintf("⚙️ Profile Details (Dir: %s)", p.ConfigDir)
+	headerTitle := fmt.Sprintf("⚙️ Profile Details (Dir: %s)", truncateStr(p.ConfigDir, rightWidth-24))
 	rightPanel := theme.CardBoxStyle.Width(rightWidth).Height(height).Render(
 		headerTitle + "\n\n" + rightContent,
 	)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
+}
+
+func truncateStr(s string, maxLen int) string {
+	if maxLen <= 3 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) > maxLen {
+		return string(runes[:maxLen-3]) + "..."
+	}
+	return s
 }
