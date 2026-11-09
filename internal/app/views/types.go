@@ -43,13 +43,21 @@ type ProxiesProps struct {
 	NodeCursor  int
 }
 
-// ConfigsProps contains the data needed to render the configs & subscriptions tab.
+// ConfigsProps contains the data needed to render the configs tab.
 type ConfigsProps struct {
+	Width         int
+	Height        int
+	ConfigDir     string
+	Profiles      []profile.Profile
+	ProfileCursor int
+}
+
+// SubscriptionsProps contains the data needed to render the subscriptions tab.
+type SubscriptionsProps struct {
 	Width            int
 	Height           int
-	ConfigDir        string
-	Profiles         []profile.Profile
-	ProfileCursor    int
+	Subscriptions    []profile.Subscription
+	SubCursor        int
 	ModalActive      ModalType
 	SubNameInputView string
 	SubURLInputView  string

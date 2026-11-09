@@ -26,6 +26,7 @@ const (
 	TabOverview TabIndex = iota
 	TabProxies
 	TabConfigs
+	TabSubscriptions
 )
 
 type FocusPane = views.FocusPane
@@ -109,6 +110,7 @@ type AppModel struct {
 	groupCursor   int
 	nodeCursor    int
 	profileCursor int
+	subCursor     int
 
 	// Modal State (Add Subscription)
 	modalActive  ModalType
@@ -117,15 +119,16 @@ type AppModel struct {
 	inputFocus   int // 0: Name, 1: URL
 
 	// Data
-	version   mihomo.Version
-	config    mihomo.Config
-	memory    mihomo.Memory
-	proxies   map[string]mihomo.ProxyItem
-	groups    []mihomo.ProxyItem
-	profiles  []profile.Profile
-	traffic   mihomo.Traffic
-	totalUp   int64
-	totalDown int64
+	version       mihomo.Version
+	config        mihomo.Config
+	memory        mihomo.Memory
+	proxies       map[string]mihomo.ProxyItem
+	groups        []mihomo.ProxyItem
+	profiles      []profile.Profile
+	subscriptions []profile.Subscription
+	traffic       mihomo.Traffic
+	totalUp       int64
+	totalDown     int64
 
 	// Channels & Async
 	trafficChan chan mihomo.Traffic
@@ -190,6 +193,13 @@ func (m *AppModel) currentProfile() *profile.Profile {
 		return nil
 	}
 	return &m.profiles[m.profileCursor]
+}
+
+func (m *AppModel) currentSubscription() *profile.Subscription {
+	if len(m.subscriptions) == 0 || m.subCursor < 0 || m.subCursor >= len(m.subscriptions) {
+		return nil
+	}
+	return &m.subscriptions[m.subCursor]
 }
 
 func (m *AppModel) Init() tea.Cmd {
@@ -406,6 +416,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.profileCursor >= len(m.profiles) {
 				m.profileCursor = 0
 			}
+			if m.profileMgr != nil {
+				m.subscriptions = m.profileMgr.ListSubscriptions()
+				if m.subCursor >= len(m.subscriptions) {
+					m.subCursor = 0
+				}
+			}
 		}
 
 	case profileAppliedMsg:
@@ -546,11 +562,14 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Tab):
-			if m.activeTab == TabOverview {
+			switch m.activeTab {
+			case TabOverview:
 				m.activeTab = TabProxies
-			} else if m.activeTab == TabProxies {
+			case TabProxies:
 				m.activeTab = TabConfigs
-			} else {
+			case TabConfigs:
+				m.activeTab = TabSubscriptions
+			case TabSubscriptions:
 				m.activeTab = TabOverview
 			}
 
@@ -677,11 +696,24 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.statusMsg = fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name)
 					cmds = append(cmds, m.applyProfileCmd(p))
 				}
-			case key.Matches(msg, m.keys.UpdateSub):
-				p := m.currentProfile()
-				if p != nil && p.Subscription != nil {
-					m.statusMsg = fmt.Sprintf("Updating subscription [%s]...", p.Subscription.Name)
-					cmds = append(cmds, m.updateSubCmd(p.Subscription.ID, p.Subscription.Name))
+			}
+
+		// TabSubscriptions Navigation
+		case m.activeTab == TabSubscriptions:
+			switch {
+			case key.Matches(msg, m.keys.Up):
+				if m.subCursor > 0 {
+					m.subCursor--
+				}
+			case key.Matches(msg, m.keys.Down):
+				if m.subCursor < len(m.subscriptions)-1 {
+					m.subCursor++
+				}
+			case key.Matches(msg, m.keys.UpdateSub), key.Matches(msg, m.keys.Enter):
+				sub := m.currentSubscription()
+				if sub != nil {
+					m.statusMsg = fmt.Sprintf("Updating subscription [%s]...", sub.Name)
+					cmds = append(cmds, m.updateSubCmd(sub.ID, sub.Name))
 				}
 			case key.Matches(msg, m.keys.UpdateAll):
 				m.statusMsg = "Updating all subscriptions..."
@@ -693,10 +725,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.subURLInput.Blur()
 				return m, nil
 			case key.Matches(msg, m.keys.DeleteSub):
-				p := m.currentProfile()
-				if p != nil && p.Subscription != nil {
-					m.statusMsg = fmt.Sprintf("Deleting subscription [%s]...", p.Subscription.Name)
-					cmds = append(cmds, m.deleteSubCmd(p.Subscription.ID, p.Subscription.Name))
+				sub := m.currentSubscription()
+				if sub != nil {
+					m.statusMsg = fmt.Sprintf("Deleting subscription [%s]...", sub.Name)
+					cmds = append(cmds, m.deleteSubCmd(sub.ID, sub.Name))
 				}
 			}
 		}
@@ -711,7 +743,8 @@ func (m *AppModel) View() string {
 
 	tab1 := theme.TabInactiveStyle.Render("1. Overview")
 	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
-	tab3 := theme.TabInactiveStyle.Render("3. Configs & Subs")
+	tab3 := theme.TabInactiveStyle.Render("3. Configs")
+	tab4 := theme.TabInactiveStyle.Render("4. Subscriptions")
 
 	switch m.activeTab {
 	case TabOverview:
@@ -719,10 +752,12 @@ func (m *AppModel) View() string {
 	case TabProxies:
 		tab2 = theme.TabActiveStyle.Render("2. Proxies")
 	case TabConfigs:
-		tab3 = theme.TabActiveStyle.Render("3. Configs & Subs")
+		tab3 = theme.TabActiveStyle.Render("3. Configs")
+	case TabSubscriptions:
+		tab4 = theme.TabActiveStyle.Render("4. Subscriptions")
 	}
 
-	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3)
+	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3, " ", tab4)
 
 	modeBadge := lipgloss.NewStyle().
 		Bold(true).
@@ -758,11 +793,18 @@ func (m *AppModel) View() string {
 		})
 	case TabConfigs:
 		body = views.RenderConfigs(views.ConfigsProps{
+			Width:         m.width,
+			Height:        m.height,
+			ConfigDir:     m.profileMgr.ConfigDir(),
+			Profiles:      m.profiles,
+			ProfileCursor: m.profileCursor,
+		})
+	case TabSubscriptions:
+		body = views.RenderSubscriptions(views.SubscriptionsProps{
 			Width:            m.width,
 			Height:           m.height,
-			ConfigDir:        m.profileMgr.ConfigDir(),
-			Profiles:         m.profiles,
-			ProfileCursor:    m.profileCursor,
+			Subscriptions:    m.subscriptions,
+			SubCursor:        m.subCursor,
 			ModalActive:      m.modalActive,
 			SubNameInputView: m.subNameInput.View(),
 			SubURLInputView:  m.subURLInput.View(),
@@ -780,7 +822,9 @@ func (m *AppModel) View() string {
 	if m.activeTab == TabProxies {
 		helpText = "[←/→] Pane | [↑/↓] Move | [Enter] Select | [t] Ping | [T] Ping Group | " + helpText
 	} else if m.activeTab == TabConfigs {
-		helpText = "[↑/↓] Move | [Enter] Apply | [u] Update | [U] Update All | [a] Add Sub | [d] Delete | " + helpText
+		helpText = "[↑/↓] Move | [Enter] Apply Profile | " + helpText
+	} else if m.activeTab == TabSubscriptions {
+		helpText = "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete | " + helpText
 	}
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 

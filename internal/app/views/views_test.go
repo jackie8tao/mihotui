@@ -59,3 +59,39 @@ func TestRenderProxies_Empty(t *testing.T) {
 	}
 }
 
+func TestRenderConfigs(t *testing.T) {
+	props := ConfigsProps{
+		Width:         80,
+		Height:        24,
+		ConfigDir:     "/etc/mihomo",
+		Profiles:      nil,
+		ProfileCursor: 0,
+	}
+
+	output := RenderConfigs(props)
+	if !strings.Contains(output, "Local Profiles") {
+		t.Errorf("expected output to contain 'Local Profiles'")
+	}
+	if !strings.Contains(output, "No config profiles found") {
+		t.Errorf("expected output to contain 'No config profiles found'")
+	}
+}
+
+func TestRenderSubscriptions(t *testing.T) {
+	props := SubscriptionsProps{
+		Width:         80,
+		Height:        24,
+		Subscriptions: nil,
+		SubCursor:     0,
+		ModalActive:   ModalNone,
+	}
+
+	output := RenderSubscriptions(props)
+	if !strings.Contains(output, "Subscriptions") {
+		t.Errorf("expected output to contain 'Subscriptions'")
+	}
+	if !strings.Contains(output, "No subscriptions added yet") {
+		t.Errorf("expected output to contain 'No subscriptions added yet'")
+	}
+}
+

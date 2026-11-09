@@ -3,7 +3,6 @@ package views
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"mihomo-tui/internal/app/theme"
 	"mihomo-tui/internal/profile"
@@ -12,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// RenderConfigs renders the configs and subscriptions view.
+// RenderConfigs renders the local configuration profiles view.
 func RenderConfigs(p ConfigsProps) string {
 	width := p.Width - 4
 	if width < 50 {
@@ -23,21 +22,37 @@ func RenderConfigs(p ConfigsProps) string {
 		height = 10
 	}
 
-	leftWidth := 32
+	leftWidth := 34
 	rightWidth := width - leftWidth - 5
 	if rightWidth < 25 {
 		rightWidth = 25
 	}
 
-	// 1. Render Left Column: Profiles & Subscriptions List
+	// 1. Render Left Column: Profiles List with scrolling viewport
 	var listLines []string
 	if len(p.Profiles) == 0 {
 		listLines = append(listLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No config profiles found"))
 	} else {
-		for i, prof := range p.Profiles {
+		visibleRows := height - 4
+		if visibleRows < 5 {
+			visibleRows = 5
+		}
+
+		startIdx := 0
+		if p.ProfileCursor >= visibleRows {
+			startIdx = p.ProfileCursor - visibleRows + 1
+		}
+		endIdx := startIdx + visibleRows
+		if endIdx > len(p.Profiles) {
+			endIdx = len(p.Profiles)
+		}
+
+		for i := startIdx; i < endIdx; i++ {
+			prof := p.Profiles[i]
 			name := prof.Name
-			if len(name) > leftWidth-10 {
-				name = name[:leftWidth-13] + "..."
+			maxNameLen := leftWidth - 10
+			if len(name) > maxNameLen {
+				name = name[:maxNameLen-3] + "..."
 			}
 
 			tag := ""
@@ -60,7 +75,7 @@ func RenderConfigs(p ConfigsProps) string {
 	}
 
 	leftPanel := theme.CardBoxActiveStyle.Width(leftWidth).Height(height).Render(
-		fmt.Sprintf("📁 Profiles (%d)\n\n%s", len(p.Profiles), strings.Join(listLines, "\n")),
+		fmt.Sprintf("📁 Local Profiles (%d)\n\n%s", len(p.Profiles), strings.Join(listLines, "\n")),
 	)
 
 	// 2. Render Right Column: Profile Details
@@ -83,69 +98,23 @@ func RenderConfigs(p ConfigsProps) string {
 
 		lines = append(lines, fmt.Sprintf("Profile Name : %s  %s", lipgloss.NewStyle().Bold(true).Render(curr.Name), statusBadge))
 		lines = append(lines, fmt.Sprintf("File Name    : %s", curr.FileName))
-		lines = append(lines, fmt.Sprintf("Path         : %s", curr.FullPath))
-		lines = append(lines, fmt.Sprintf("Size         : %s", mihomo.FormatBytes(curr.Size)))
-		lines = append(lines, fmt.Sprintf("Modified     : %s", curr.ModTime.Format("2006-01-02 15:04:05")))
+		lines = append(lines, fmt.Sprintf("Full Path    : %s", curr.FullPath))
+		lines = append(lines, fmt.Sprintf("File Size    : %s", mihomo.FormatBytes(curr.Size)))
+		lines = append(lines, fmt.Sprintf("Last Modified: %s", curr.ModTime.Format("2006-01-02 15:04:05")))
 
-		// If it's a subscription
 		if curr.Subscription != nil {
-			sub := curr.Subscription
 			lines = append(lines, "")
-			lines = append(lines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Subscription Info ───"))
-			lines = append(lines, fmt.Sprintf("URL          : %s", sub.URL))
-			lines = append(lines, fmt.Sprintf("Last Updated : %s", sub.UpdatedAt.Format("2006-01-02 15:04:05")))
-
-			if sub.UserInfo != nil {
-				u := sub.UserInfo
-				used := u.Upload + u.Download
-				total := u.Total
-
-				var pct float64
-				if total > 0 {
-					pct = float64(used) / float64(total) * 100
-				}
-
-				// Draw simple ASCII progress bar
-				barWidth := 20
-				filled := int(float64(barWidth) * (pct / 100))
-				if filled > barWidth {
-					filled = barWidth
-				}
-				bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
-
-				lines = append(lines, "")
-				lines = append(lines, fmt.Sprintf("Traffic Quota: [%s] %.1f%%", theme.SpeedDownStyle.Render(bar), pct))
-				lines = append(lines, fmt.Sprintf("Used / Total : %s / %s (↑ %s, ↓ %s)",
-					mihomo.FormatBytes(used),
-					mihomo.FormatBytes(total),
-					mihomo.FormatBytes(u.Upload),
-					mihomo.FormatBytes(u.Download),
-				))
-
-				if !u.Expire.IsZero() {
-					remaining := time.Until(u.Expire)
-					days := int(remaining.Hours() / 24)
-					expireStr := fmt.Sprintf("%s (%d days left)", u.Expire.Format("2006-01-02"), days)
-					if days <= 7 {
-						expireStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(expireStr)
-					}
-					lines = append(lines, fmt.Sprintf("Expires On   : %s", expireStr))
-				}
-			} else {
-				lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(No quota header returned from provider)"))
-			}
+			lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(
+				fmt.Sprintf("ℹ️ Linked to subscription [%s]. Manage updates in '4. Subscriptions' tab.", curr.Subscription.Name),
+			))
 		}
 
 		// Actions helper
 		lines = append(lines, "")
 		lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
 		lines = append(lines, "• [Enter] Apply & Hot-reload this profile to Mihomo")
-		if curr.Subscription != nil {
-			lines = append(lines, "• [u]     Update & re-download this subscription")
-			lines = append(lines, "• [d]     Delete this subscription")
-		}
-		lines = append(lines, "• [U]     Update all subscriptions")
-		lines = append(lines, "• [a]     Add new subscription")
+		lines = append(lines, "• [r]     Refresh profile list from disk")
+		lines = append(lines, "• [Tab]   Switch to other tabs")
 
 		rightContent = strings.Join(lines, "\n")
 	}
@@ -155,36 +124,5 @@ func RenderConfigs(p ConfigsProps) string {
 		headerTitle + "\n\n" + rightContent,
 	)
 
-	baseView := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
-
-	// If modal is active, overlay modal window in center
-	if p.ModalActive == ModalAddSub {
-		return renderAddSubModal(p, baseView)
-	}
-
-	return baseView
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
 }
-
-func renderAddSubModal(p ConfigsProps, baseView string) string {
-	modalWidth := 56
-	modalStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(theme.ColorPrimary).
-		Background(theme.ColorDark).
-		Padding(1, 2).
-		Width(modalWidth)
-
-	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render("➕ Add New Subscription")
-
-	field1 := fmt.Sprintf("Subscription Name:\n%s", p.SubNameInputView)
-	field2 := fmt.Sprintf("Subscription URL:\n%s", p.SubURLInputView)
-
-	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Tab] Next Field | [Enter] Confirm & Download | [Esc] Cancel")
-
-	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", field1, "\n", field2, "\n", help)
-	modal := modalStyle.Render(content)
-
-	// Center overlay
-	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
-}
-

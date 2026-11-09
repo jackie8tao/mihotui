@@ -29,7 +29,8 @@ internal/
 │       ├── types.go    # Props definitions (OverviewProps, ProxiesProps, ConfigsProps)
 │       ├── overview.go # Dashboard view (RenderOverview)
 │       ├── proxies.go  # Proxy groups & nodes view (RenderProxies)
-│       ├── configs.go  # Profiles & subscriptions view (RenderConfigs)
+│       ├── configs.go  # Profiles view (RenderConfigs)
+│       ├── subscriptions.go # Subscriptions view (RenderSubscriptions)
 │       └── views_test.go # Fast, pure presentation unit tests
 ├── config/              # Application configuration loading & environment overrides
 └── profile/             # Profile & subscription lifecycle management
