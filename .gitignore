@@ -8,3 +8,4 @@ build/
 config.yaml
 subscriptions.yaml
 *.tmp
+.DS_Store
