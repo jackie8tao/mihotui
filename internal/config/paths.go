@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -16,16 +17,16 @@ type AppPaths struct {
 }
 
 // ResolveAppPaths determines relative paths based on the executable's real location.
-func ResolveAppPaths() AppPaths {
+func ResolveAppPaths() (AppPaths, error) {
 	execPath, err := os.Executable()
 	if err != nil {
-		return defaultFallbackPaths()
+		return AppPaths{}, fmt.Errorf("failed to determine executable path: %w", err)
 	}
 
 	// Resolve symlinks (e.g. /usr/local/bin/mihotui -> /usr/local/mihotui/bin/mihotui)
 	realExecPath, err := filepath.EvalSymlinks(execPath)
 	if err != nil {
-		realExecPath = execPath
+		return AppPaths{}, fmt.Errorf("failed to resolve symlink for executable %q: %w", execPath, err)
 	}
 
 	binDir := filepath.Dir(realExecPath)
@@ -48,18 +49,6 @@ func ResolveAppPaths() AppPaths {
 		MihomoDir: filepath.Join(appRoot, "etc", "mihomo"),
 		MihomoBin: filepath.Join(appRoot, "bin", "mihomo"),
 		IsBundle:  isBundle,
-	}
-}
-
-func defaultFallbackPaths() AppPaths {
-	const defaultRoot = "/usr/local/mihotui"
-	return AppPaths{
-		AppRoot:   defaultRoot,
-		BinDir:    filepath.Join(defaultRoot, "bin"),
-		EtcDir:    filepath.Join(defaultRoot, "etc"),
-		MihomoDir: filepath.Join(defaultRoot, "etc", "mihomo"),
-		MihomoBin: filepath.Join(defaultRoot, "bin", "mihomo"),
-		IsBundle:  false,
-	}
+	}, nil
 }
 

@@ -91,3 +91,16 @@ Follow XDG Base Directory Specification and Linux FHS conventions:
 3. **Commit Standards**:
    - Follow Conventional Commits: `refactor(...)`, `feat(...)`, `fix(...)`, `docs(...)`.
 
+---
+
+## 6. Error Handling & Fail-Fast Principles
+
+1. **No Silent Error Swallowing**:
+   - When an operation fails (system call, executable path resolution, file I/O, network request, parsing), **NEVER** swallow the error or return a hardcoded default fallback.
+   - Any failure must be explicitly surfaced with `fmt.Errorf("...: %w", err)`.
+2. **Never Compromise Signatures for `init()`**:
+   - Do NOT omit `error` from a function return just to call it in `init()`.
+   - If an operation involves runtime inspection or I/O, execute it dynamically during command execution (`RunE`), not during package initialization.
+3. **Fail Immediately on Ambiguity**:
+   - If environment or runtime layout cannot be resolved with certainty, fail immediately and inform the user rather than guessing or defaulting to `/usr/local/...`.
+

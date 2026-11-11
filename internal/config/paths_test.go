@@ -5,7 +5,10 @@ import (
 )
 
 func TestResolveAppPaths(t *testing.T) {
-	paths := ResolveAppPaths()
+	paths, err := ResolveAppPaths()
+	if err != nil {
+		t.Fatalf("unexpected error resolving app paths: %v", err)
+	}
 	if paths.AppRoot == "" {
 		t.Errorf("expected non-empty AppRoot")
 	}

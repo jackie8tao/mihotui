@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -77,6 +78,10 @@ func TestDownloadAndExtract_MockServer(t *testing.T) {
 }
 
 func TestInstall_MockFlow(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("skipping install mock flow on non-UNIX platform: " + runtime.GOOS)
+	}
+
 	mockBinary := "#!/bin/sh\necho 'Mihomo Mock Core v1.19.33'\n"
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
@@ -109,4 +114,3 @@ func TestInstall_MockFlow(t *testing.T) {
 		t.Errorf("expected config file to exist at %s", res.MihomoConfig)
 	}
 }
-
