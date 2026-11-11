@@ -6,17 +6,26 @@ import (
 	"path/filepath"
 )
 
-// AppPaths holds resolved runtime paths relative to mihotui installation.
+// AppPaths holds resolved runtime paths for the self-contained suite layout.
 type AppPaths struct {
-	AppRoot   string // e.g. /usr/local/mihotui
-	BinDir    string // e.g. /usr/local/mihotui/bin
-	EtcDir    string // e.g. /usr/local/mihotui/etc
-	MihomoDir string // e.g. /usr/local/mihotui/etc/mihomo
-	MihomoBin string // e.g. /usr/local/mihotui/bin/mihomo
-	IsBundle  bool   // Whether current running binary is within a self-contained bundle
+	AppRoot   string // <bundle_root>
+	BinDir    string // <bundle_root>/bin
+	EtcDir    string // <bundle_root>/etc
+	MihomoDir string // <bundle_root>/etc/mihomo
+	MihomoBin string // <bundle_root>/bin/mihomo
 }
 
-// ResolveAppPaths determines relative paths based on the executable's real location.
+// ResolveAppPaths derives the suite directory paths based on the executable's real location.
+// Assumed self-contained bundle directory layout:
+//   <appRoot>/
+//   ├── bin/
+//   │   ├── mihotui (realExecPath)
+//   │   └── mihomo  (MihomoBin)
+//   └── etc/
+//       └── mihomo/ (MihomoDir)
+//
+// If the executable is in a "bin" folder, appRoot is its parent folder.
+// Otherwise, appRoot is the executable's directory.
 func ResolveAppPaths() (*AppPaths, error) {
 	execPath, err := os.Executable()
 	if err != nil {
@@ -29,28 +38,10 @@ func ResolveAppPaths() (*AppPaths, error) {
 		return nil, fmt.Errorf("failed to resolve symlink for executable %q: %w", execPath, err)
 	}
 
-	// Assumed self-contained bundle directory layout:
-	//   <appRoot>/
-	//   ├── bin/
-	//   │   ├── mihotui (realExecPath)
-	//   │   └── mihomo  (MihomoBin)
-	//   └── etc/
-	//       └── mihomo/ (MihomoDir)
-	//
-	// Following this convention:
-	//   binDir  = <appRoot>/bin
-	//   appRoot = parent directory of binDir (<appRoot>)
-	binDir := filepath.Dir(realExecPath)
-	appRoot := filepath.Dir(binDir)
-
-	// Check if appRoot conforms to the self-contained suite layout
-	etcDir := filepath.Join(appRoot, "etc")
-	isBundle := false
-	if fi, err := os.Stat(etcDir); err == nil && fi.IsDir() {
-		isBundle = true
-	} else if filepath.Base(binDir) == "bin" {
-		// Even if etc doesn't exist yet, if binary is in a /bin folder, treat as bundle root
-		isBundle = true
+	dir := filepath.Dir(realExecPath)
+	appRoot := dir
+	if filepath.Base(dir) == "bin" {
+		appRoot = filepath.Dir(dir)
 	}
 
 	return &AppPaths{
@@ -59,7 +50,6 @@ func ResolveAppPaths() (*AppPaths, error) {
 		EtcDir:    filepath.Join(appRoot, "etc"),
 		MihomoDir: filepath.Join(appRoot, "etc", "mihomo"),
 		MihomoBin: filepath.Join(appRoot, "bin", "mihomo"),
-		IsBundle:  isBundle,
 	}, nil
 }
 
