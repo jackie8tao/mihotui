@@ -17,18 +17,29 @@ type AppPaths struct {
 }
 
 // ResolveAppPaths determines relative paths based on the executable's real location.
-func ResolveAppPaths() (AppPaths, error) {
+func ResolveAppPaths() (*AppPaths, error) {
 	execPath, err := os.Executable()
 	if err != nil {
-		return AppPaths{}, fmt.Errorf("failed to determine executable path: %w", err)
+		return nil, fmt.Errorf("failed to determine executable path: %w", err)
 	}
 
 	// Resolve symlinks (e.g. /usr/local/bin/mihotui -> /usr/local/mihotui/bin/mihotui)
 	realExecPath, err := filepath.EvalSymlinks(execPath)
 	if err != nil {
-		return AppPaths{}, fmt.Errorf("failed to resolve symlink for executable %q: %w", execPath, err)
+		return nil, fmt.Errorf("failed to resolve symlink for executable %q: %w", execPath, err)
 	}
 
+	// Assumed self-contained bundle directory layout:
+	//   <appRoot>/
+	//   ├── bin/
+	//   │   ├── mihotui (realExecPath)
+	//   │   └── mihomo  (MihomoBin)
+	//   └── etc/
+	//       └── mihomo/ (MihomoDir)
+	//
+	// Following this convention:
+	//   binDir  = <appRoot>/bin
+	//   appRoot = parent directory of binDir (<appRoot>)
 	binDir := filepath.Dir(realExecPath)
 	appRoot := filepath.Dir(binDir)
 
@@ -42,7 +53,7 @@ func ResolveAppPaths() (AppPaths, error) {
 		isBundle = true
 	}
 
-	return AppPaths{
+	return &AppPaths{
 		AppRoot:   appRoot,
 		BinDir:    filepath.Join(appRoot, "bin"),
 		EtcDir:    filepath.Join(appRoot, "etc"),

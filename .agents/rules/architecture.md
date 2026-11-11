@@ -23,6 +23,8 @@
 - Use self-documenting names: `resolveMihomoConfigDir` and `mihomo_dir`.
 
 ## 5. Code Hygiene & Comments
+- **Document Implicit Assumptions (CRITICAL)**:
+  Whenever code relies on implicit assumptions (such as pre-assumed directory hierarchies, filesystem layouts, runtime environments, external tool conventions, or protocol contracts), **clear and detailed explanatory comments MUST be documented directly alongside the relevant code**. Always document the exact assumed structure, mental model, or ASCII diagram so the rationale behind the logic is immediately transparent.
 - **English Only**: All code comments, docstrings, git commit messages, and YAML configuration comments must be in standard English.
 - **Domain Entity Ownership**: No generic `model` or `utils` packages. Entities belong to domain packages (`Profile` and `Subscription` live in `internal/profile`).
 - **Conventional Commits**: Format commit messages as `<type>(<scope>): <description>`.

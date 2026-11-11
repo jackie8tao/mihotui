@@ -29,11 +29,10 @@ bundle directory, and initialize its configuration directory.`,
 			if err != nil {
 				return err
 			}
-			if paths.IsBundle {
-				targetDir = paths.AppRoot
-			} else {
-				targetDir = "/usr/local/mihotui"
+			if !paths.IsBundle {
+				return fmt.Errorf("current binary is not running inside a self-contained bundle; please specify target directory via -d/--dir (e.g. mihotui install -d <path>)")
 			}
+			targetDir = paths.AppRoot
 		}
 
 		opts := installer.Options{
@@ -59,7 +58,7 @@ bundle directory, and initialize its configuration directory.`,
 }
 
 func init() {
-	installCmd.Flags().StringVarP(&installTargetDir, "dir", "d", "", "Target bundle root directory (defaults to current bundle root or /usr/local/mihotui)")
+	installCmd.Flags().StringVarP(&installTargetDir, "dir", "d", "", "Target bundle root directory (defaults to current bundle root if running inside bundle)")
 	installCmd.Flags().StringVarP(&installCoreVer, "version", "v", "latest", "Mihomo core release version to install")
 	installCmd.Flags().StringVarP(&installMirror, "mirror", "m", "", "GitHub download mirror prefix (e.g. https://ghproxy.net/)")
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "Force overwrite existing binary")

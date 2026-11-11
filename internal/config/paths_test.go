@@ -9,6 +9,9 @@ func TestResolveAppPaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error resolving app paths: %v", err)
 	}
+	if paths == nil {
+		t.Fatalf("expected non-nil paths")
+	}
 	if paths.AppRoot == "" {
 		t.Errorf("expected non-empty AppRoot")
 	}

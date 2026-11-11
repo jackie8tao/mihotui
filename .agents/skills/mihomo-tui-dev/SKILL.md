@@ -86,6 +86,7 @@ Follow XDG Base Directory Specification and Linux FHS conventions:
    - Types belong to their domain owners (e.g., `Profile` and `Subscription` live in `internal/profile`).
    - Mihomo protocol models and byte/speed formatting helpers live directly in `pkg/mihomo`.
 2. **Language & Comments**:
+   - **Document Implicit Assumptions**: Whenever code relies on implicit assumptions (e.g. directory layouts, runtime environments, external conventions), clear explanatory comments and diagrams MUST be added directly in the code.
    - All code comments, docstrings, and configuration comments MUST be in standard English.
    - Public declarations must have descriptive Go doc comments following Effective Go style.
 3. **Commit Standards**:
