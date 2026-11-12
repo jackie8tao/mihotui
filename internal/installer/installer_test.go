@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"mihomo-tui/internal/config"
 )
 
 func TestResolveAssetName(t *testing.T) {
@@ -77,6 +79,18 @@ func TestDownloadAndExtract_MockServer(t *testing.T) {
 	}
 }
 
+func TestInstall_Validation(t *testing.T) {
+	_, err := Install(context.Background(), Options{})
+	if err == nil {
+		t.Fatal("expected error when opts.Paths is nil, got nil")
+	}
+
+	_, err = Install(context.Background(), Options{Paths: &config.AppPaths{}})
+	if err == nil {
+		t.Fatal("expected error when opts.Paths.AppRoot is empty, got nil")
+	}
+}
+
 func TestInstall_MockFlow(t *testing.T) {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("skipping install mock flow on non-UNIX platform: " + runtime.GOOS)
@@ -96,10 +110,10 @@ func TestInstall_MockFlow(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	opts := Options{
-		TargetDir: tmpDir,
-		Version:   "v1.19.33",
-		Mirror:    ts.URL + "?target=", // will result in ts.URL?target=/https://...
-		Force:     true,
+		Paths:   config.NewAppPaths(tmpDir),
+		Version: "v1.19.33",
+		Mirror:  ts.URL + "?target=", // will result in ts.URL?target=/https://...
+		Force:   true,
 	}
 
 	res, err := Install(context.Background(), opts)

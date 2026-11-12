@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // AppPaths holds resolved runtime paths for the self-contained suite layout.
@@ -13,6 +14,22 @@ type AppPaths struct {
 	EtcDir    string // <bundle_root>/etc
 	MihomoDir string // <bundle_root>/etc/mihomo
 	MihomoBin string // <bundle_root>/bin/mihomo
+}
+
+// NewAppPaths constructs standard AppPaths for any given suite root directory.
+func NewAppPaths(appRoot string) *AppPaths {
+	mihomoBin := filepath.Join(appRoot, "bin", "mihomo")
+	if runtime.GOOS == "windows" {
+		mihomoBin += ".exe"
+	}
+
+	return &AppPaths{
+		AppRoot:   appRoot,
+		BinDir:    filepath.Join(appRoot, "bin"),
+		EtcDir:    filepath.Join(appRoot, "etc"),
+		MihomoDir: filepath.Join(appRoot, "etc", "mihomo"),
+		MihomoBin: mihomoBin,
+	}
 }
 
 // ResolveAppPaths derives the suite directory paths based on the executable's real location.
@@ -44,12 +61,6 @@ func ResolveAppPaths() (*AppPaths, error) {
 		appRoot = filepath.Dir(dir)
 	}
 
-	return &AppPaths{
-		AppRoot:   appRoot,
-		BinDir:    filepath.Join(appRoot, "bin"),
-		EtcDir:    filepath.Join(appRoot, "etc"),
-		MihomoDir: filepath.Join(appRoot, "etc", "mihomo"),
-		MihomoBin: filepath.Join(appRoot, "bin", "mihomo"),
-	}, nil
+	return NewAppPaths(appRoot), nil
 }
 

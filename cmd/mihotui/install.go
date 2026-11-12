@@ -23,20 +23,22 @@ var installCmd = &cobra.Command{
 	Long: `Download and install the Mihomo (Clash.Meta) core binary into the self-contained
 bundle directory, and initialize its configuration directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		targetDir := installTargetDir
-		if targetDir == "" {
-			paths, err := config.ResolveAppPaths()
+		var paths *config.AppPaths
+		var err error
+		if installTargetDir != "" {
+			paths = config.NewAppPaths(installTargetDir)
+		} else {
+			paths, err = config.ResolveAppPaths()
 			if err != nil {
 				return err
 			}
-			targetDir = paths.AppRoot
 		}
 
 		opts := installer.Options{
-			TargetDir: targetDir,
-			Version:   installCoreVer,
-			Mirror:    installMirror,
-			Force:     installForce,
+			Paths:   paths,
+			Version: installCoreVer,
+			Mirror:  installMirror,
+			Force:   installForce,
 		}
 
 		res, err := installer.Install(context.Background(), opts)

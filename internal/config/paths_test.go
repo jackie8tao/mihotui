@@ -23,3 +23,17 @@ func TestResolveAppPaths(t *testing.T) {
 	}
 }
 
+func TestNewAppPaths(t *testing.T) {
+	root := "/opt/test-suite"
+	paths := NewAppPaths(root)
+	if paths == nil {
+		t.Fatalf("expected non-nil AppPaths")
+	}
+	if paths.AppRoot != root {
+		t.Errorf("expected AppRoot %q, got %q", root, paths.AppRoot)
+	}
+	if paths.BinDir == "" || paths.EtcDir == "" || paths.MihomoDir == "" || paths.MihomoBin == "" {
+		t.Errorf("expected all path fields to be populated, got %+v", paths)
+	}
+}
+
