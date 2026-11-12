@@ -47,9 +47,6 @@ func Install(ctx context.Context, opts Options) (*Result, error) {
 	etcDir := filepath.Join(opts.TargetDir, "etc")
 	mihomoDir := filepath.Join(etcDir, "mihomo")
 	targetBin := filepath.Join(binDir, "mihomo")
-	if runtime.GOOS == "windows" {
-		targetBin += ".exe"
-	}
 
 	if err := os.MkdirAll(binDir, 0755); err != nil {
 		return nil, fmt.Errorf("installer: failed to create bin directory %q: %w", binDir, err)
