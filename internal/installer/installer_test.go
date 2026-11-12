@@ -33,7 +33,7 @@ func TestResolveAssetName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got, err := ResolveAssetName(tt.goos, tt.goarch, tt.version)
+		got, err := resolveAssetName(tt.goos, tt.goarch, tt.version)
 		if (err != nil) != tt.wantErr {
 			t.Errorf("ResolveAssetName(%s, %s) error = %v, wantErr %v", tt.goos, tt.goarch, err, tt.wantErr)
 			continue

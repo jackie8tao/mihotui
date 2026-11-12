@@ -81,7 +81,7 @@ func Install(ctx context.Context, opts Options) (*Result, error) {
 		version = "v" + version
 	}
 
-	assetName, err := ResolveAssetName(runtime.GOOS, runtime.GOARCH, version)
+	assetName, err := resolveAssetName(runtime.GOOS, runtime.GOARCH, version)
 	if err != nil {
 		return nil, fmt.Errorf("installer: unsupported platform %s/%s: %w", runtime.GOOS, runtime.GOARCH, err)
 	}
@@ -132,8 +132,8 @@ secret: ""
 	}, nil
 }
 
-// ResolveAssetName maps OS and architecture to the official MetaCubeX/mihomo release asset name.
-func ResolveAssetName(goos, goarch, version string) (string, error) {
+// resolveAssetName maps OS and architecture to the official MetaCubeX/mihomo release asset name.
+func resolveAssetName(goos, goarch, version string) (string, error) {
 	switch goos {
 	case "linux":
 		switch goarch {
