@@ -1,0 +1,79 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Linux (amd64) Package",
+            "type": "shell",
+            "command": "go run ./scripts/package.go -arch amd64",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "Build Linux (amd64) Binary",
+            "type": "shell",
+            "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
+            "options": {
+                "env": {
+                    "GOOS": "linux",
+                    "GOARCH": "amd64",
+                    "CGO_ENABLED": "0"
+                }
+            },
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "Package All Linux Architectures",
+            "type": "shell",
+            "command": "go run ./scripts/package.go -arch all",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        },
+        {
+            "label": "Run All Tests",
+            "type": "shell",
+            "command": "go test -v ./...",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": [
+                "$go"
+            ]
+        }
+    ]
+}
+

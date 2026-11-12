@@ -22,7 +22,7 @@ type Target struct {
 	Suffix string
 }
 
-var targets = []Target{
+var allTargets = []Target{
 	{OS: "linux", Arch: "amd64", Suffix: "linux-amd64"},
 	{OS: "linux", Arch: "arm64", Suffix: "linux-arm64"},
 	{OS: "linux", Arch: "arm", ArmVer: "7", Suffix: "linux-armv7"},
@@ -31,8 +31,25 @@ var targets = []Target{
 
 func main() {
 	var version string
+	var arch string
 	flag.StringVar(&version, "v", "v0.1.0", "Release version tag (e.g. v0.1.0)")
+	flag.StringVar(&arch, "arch", "amd64", "Target architecture: amd64, arm64, armv7, 386, or all")
 	flag.Parse()
+
+	var selectedTargets []Target
+	if arch == "all" {
+		selectedTargets = allTargets
+	} else {
+		for _, t := range allTargets {
+			if t.Arch == arch || (arch == "armv7" && t.Suffix == "linux-armv7") {
+				selectedTargets = append(selectedTargets, t)
+			}
+		}
+		if len(selectedTargets) == 0 {
+			fmt.Printf("Unknown arch %q. Available: amd64, arm64, armv7, 386, all\n", arch)
+			os.Exit(1)
+		}
+	}
 
 	// Detect git commit hash
 	commit := "none"
@@ -43,20 +60,22 @@ func main() {
 	buildDate := time.Now().UTC().Format(time.RFC3339)
 
 	distDir := "dist"
-	_ = os.RemoveAll(distDir)
+	if arch == "all" {
+		_ = os.RemoveAll(distDir)
+	}
 	if err := os.MkdirAll(distDir, 0755); err != nil {
 		fmt.Printf("Error creating dist directory: %v\n", err)
 		os.Exit(1)
 	}
 
 	fmt.Println("==================================================")
-	fmt.Printf("Building Mihomo TUI Linux Release Packages\n")
+	fmt.Printf("Building Mihomo TUI Release Packages (%s)\n", arch)
 	fmt.Printf("Version : %s\nCommit  : %s\nDate    : %s\n", version, commit, buildDate)
 	fmt.Println("==================================================")
 
 	var checksums []string
 
-	for _, t := range targets {
+	for _, t := range selectedTargets {
 		fmt.Printf("\n==> Building for %s/%s%s...\n", t.OS, t.Arch, func() string {
 			if t.ArmVer != "" {
 				return " (v" + t.ArmVer + ")"
@@ -64,7 +83,7 @@ func main() {
 			return ""
 		}())
 
-		binName := "mihomo-tui"
+		binName := "mihotui"
 		tempBinPath := filepath.Join(distDir, fmt.Sprintf("%s-%s", binName, t.Suffix))
 
 		ldflags := fmt.Sprintf("-s -w -X main.version=%s -X main.commit=%s -X main.buildDate=%s",
@@ -88,8 +107,14 @@ func main() {
 			os.Exit(1)
 		}
 
+		// Also provide convenient flat uncompressed binary in dist/
+		if len(selectedTargets) == 1 {
+			flatBinPath := filepath.Join(distDir, binName)
+			_ = copyFile(tempBinPath, flatBinPath, 0755)
+		}
+
 		// Package into tar.gz
-		tarGzName := fmt.Sprintf("mihomo-tui-%s-%s.tar.gz", version, t.Suffix)
+		tarGzName := fmt.Sprintf("mihotui-%s-%s.tar.gz", version, t.Suffix)
 		tarGzPath := filepath.Join(distDir, tarGzName)
 
 		if err := createTarGz(tarGzPath, tempBinPath); err != nil {
@@ -107,9 +132,17 @@ func main() {
 		checksumLine := fmt.Sprintf("%s  %s", hash, tarGzName)
 		checksums = append(checksums, checksumLine)
 		fmt.Printf("Package created: %s (SHA256: %s)\n", tarGzName, hash)
+
+		// Create legacy package name for backward compatibility
+		legacyTarGzName := fmt.Sprintf("mihomo-tui-%s-%s.tar.gz", version, t.Suffix)
+		legacyTarGzPath := filepath.Join(distDir, legacyTarGzName)
+		if err := copyFile(tarGzPath, legacyTarGzPath, 0644); err == nil {
+			legacyHash, _ := fileSHA256(legacyTarGzPath)
+			checksums = append(checksums, fmt.Sprintf("%s  %s", legacyHash, legacyTarGzName))
+		}
 	}
 
-	// Write sha256sums.txt
+	// Write or append to sha256sums.txt
 	checksumFilePath := filepath.Join(distDir, "sha256sums.txt")
 	if err := os.WriteFile(checksumFilePath, []byte(strings.Join(checksums, "\n")+"\n"), 0644); err != nil {
 		fmt.Printf("Error writing checksums file: %v\n", err)
@@ -117,7 +150,7 @@ func main() {
 	}
 
 	fmt.Println("\n==================================================")
-	fmt.Printf("All Linux packages successfully created in ./%s/\n", distDir)
+	fmt.Printf("Package(s) successfully created in ./%s/\n", distDir)
 	fmt.Println("==================================================")
 	for _, l := range checksums {
 		fmt.Println(" " + l)
@@ -137,7 +170,10 @@ func createTarGz(tarGzPath, binPath string) error {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	// 1. Add binary (with executable mode 0755)
+	// 1. Add binary as "mihotui" and alias "mihomo-tui" (with executable mode 0755)
+	if err := addFileToTar(tw, binPath, "mihotui", 0755); err != nil {
+		return err
+	}
 	if err := addFileToTar(tw, binPath, "mihomo-tui", 0755); err != nil {
 		return err
 	}
@@ -147,7 +183,7 @@ func createTarGz(tarGzPath, binPath string) error {
 	for _, cf := range configFiles {
 		src := filepath.Join("configs", cf)
 		if _, err := os.Stat(src); err == nil {
-			_ = addFileToTar(tw, src, filepath.Join("configs", cf), 0644)
+			_ = addFileToTar(tw, src, "configs/"+cf, 0644)
 			// Also add config.example.yaml at root of archive for ease of access
 			if cf == "config.example.yaml" {
 				_ = addFileToTar(tw, src, "config.example.yaml", 0644)
@@ -186,7 +222,7 @@ func addFileToTar(tw *tar.Writer, srcPath, tarName string, mode int64) error {
 		return err
 	}
 
-	header.Name = tarName
+	header.Name = filepath.ToSlash(tarName)
 	header.Mode = mode
 
 	if err := tw.WriteHeader(header); err != nil {
@@ -216,4 +252,21 @@ func fileSHA256(filePath string) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func copyFile(src, dst string, mode os.FileMode) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, in)
+	return err
 }

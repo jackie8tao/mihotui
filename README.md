@@ -30,6 +30,7 @@
 ## 🚀 快捷键指南
 
 ### 通用快捷键
+
 | 按键 | 功能 |
 | :--- | :--- |
 | `Tab` | 循环切换 **Overview** / **Proxies** / **Configs** / **Subscriptions** 视图 |
@@ -38,6 +39,7 @@
 | `q` / `Ctrl+C` | 退出程序 |
 
 ### 节点管理视图 (Proxies)
+
 | 按键 | 功能 |
 | :--- | :--- |
 | `← / h` | 将焦点移动到左侧 **策略组** 列表 |
@@ -48,12 +50,14 @@
 | `T` | 对当前策略组内的所有节点进行**并发批量延迟测速** |
 
 ### 配置管理视图 (Configs)
+
 | 按键 | 功能 |
 | :--- | :--- |
 | `↑ / k`, `↓ / j` | 上下移动选择本地配置文件 |
 | `Enter` | **应用并热重载**当前选中的配置文件到 Mihomo 核心 |
 
 ### 订阅管理视图 (Subscriptions)
+
 | 按键 | 功能 |
 | :--- | :--- |
 | `↑ / k`, `↓ / j` | 上下移动选择订阅项 |
@@ -96,25 +100,17 @@ sudo ./install.sh
 项目自带跨平台的自动化发布打包工具，支持在 Windows / macOS / Linux 任意环境下执行：
 
 ```bash
-# Build default version (v0.1.0)
-go run ./scripts/package.go
+# 构建 Linux amd64 默认版本包 (v0.1.0)
+go run ./scripts/package.go -arch amd64
 
-# Or specify version tag
-go run ./scripts/package.go -v v0.1.0
+# 指定版本号与目标架构打包（例如全平台）
+go run ./scripts/package.go -arch all -v v0.1.0
 ```
 
-或者使用 Makefile / 脚本：
-```bash
-# Linux / macOS
-make package
-# Or
-./scripts/build-linux.sh v0.1.0
-
-# Windows PowerShell
-.\scripts\build-linux.ps1 -Version v0.1.0
-```
+> **VS Code 快捷键**：直接按 `Ctrl+Shift+B` 即可一键触发 `Build Linux (amd64) Package` 任务完成构建与打包。
 
 构建完成后，产物将存放在 `./dist/` 目录下：
+
 - `mihomo-tui-v0.1.0-linux-amd64.tar.gz` (x86_64 服务器 / VPS)
 - `mihomo-tui-v0.1.0-linux-arm64.tar.gz` (ARM64 软路由 / 树莓派)
 - `mihomo-tui-v0.1.0-linux-armv7.tar.gz` (ARMv7 嵌入式路由器)
@@ -122,6 +118,7 @@ make package
 - `sha256sums.txt` (全量哈希校验和)
 
 每个发布包内已内置：
+
 1. 编译优化后的二进制文件（自动剔除调试符号，体积仅约 3MB）
 2. Linux 一键安装脚本 `install.sh`（自动设置 0755 可执行权限）
 3. 配置模板目录 `configs/`（含 `config.example.yaml` 与 `subscriptions.example.yaml`）
@@ -139,6 +136,7 @@ sudo ./install.sh
 ```
 
 脚本将自动：
+
 - 将二进制安装到 `/usr/local/bin/mihomo-tui`
 - 赋予可执行权限
 - 自动创建 `/etc/mihomo` 与默认用户配置目录
@@ -157,6 +155,7 @@ mihomo-tui -d /etc/mihomo
 ```
 
 也可通过环境变量覆盖：
+
 ```bash
 export MIHOMO_API_URL="http://127.0.0.1:9090"
 export MIHOMO_SECRET="your_secret"

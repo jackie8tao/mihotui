@@ -48,19 +48,22 @@ esac
 echo -e "${BLUE}==>${NC} Detected architecture: ${GREEN}${TARGET_ARCH}${NC}"
 
 INSTALL_DIR="/usr/local/bin"
-BIN_NAME="mihomo-tui"
+BIN_NAME="mihotui"
 
-# Find binary to install
+# Find binary to install (supports both mihotui and legacy mihomo-tui names)
 SRC_BIN=""
-if [ -f "./$BIN_NAME" ]; then
-    SRC_BIN="./$BIN_NAME"
-elif [ -f "./${BIN_NAME}-${TARGET_ARCH}" ]; then
-    SRC_BIN="./${BIN_NAME}-${TARGET_ARCH}"
-elif [ -f "./dist/${BIN_NAME}-${TARGET_ARCH}" ]; then
-    SRC_BIN="./dist/${BIN_NAME}-${TARGET_ARCH}"
-elif [ -f "./build/${BIN_NAME}-${TARGET_ARCH}" ]; then
-    SRC_BIN="./build/${BIN_NAME}-${TARGET_ARCH}"
-fi
+for candidate in "$BIN_NAME" "mihomo-tui" "${BIN_NAME}-${TARGET_ARCH}" "mihomo-tui-${TARGET_ARCH}"; do
+    if [ -f "./$candidate" ]; then
+        SRC_BIN="./$candidate"
+        break
+    elif [ -f "./dist/$candidate" ]; then
+        SRC_BIN="./dist/$candidate"
+        break
+    elif [ -f "./build/$candidate" ]; then
+        SRC_BIN="./build/$candidate"
+        break
+    fi
+done
 
 # If binary not found locally, try downloading from GitHub Releases
 if [ -z "$SRC_BIN" ]; then
@@ -75,15 +78,29 @@ if [ -z "$SRC_BIN" ]; then
         LATEST_TAG="v0.1.0"
     fi
 
-    TAR_NAME="mihomo-tui-${LATEST_TAG}-${TARGET_ARCH}.tar.gz"
+    TAR_NAME="mihotui-${LATEST_TAG}-${TARGET_ARCH}.tar.gz"
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${TAR_NAME}"
 
     echo -e "${BLUE}==>${NC} Downloading ${GREEN}${DOWNLOAD_URL}${NC}..."
-    if curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL"; then
+    if ! curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL"; then
+        # Fallback to legacy naming
+        TAR_NAME="mihomo-tui-${LATEST_TAG}-${TARGET_ARCH}.tar.gz"
+        DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${TAR_NAME}"
+        curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL" || true
+    fi
+
+    if [ -f "${TMP_DIR}/${TAR_NAME}" ]; then
         tar -zxf "${TMP_DIR}/${TAR_NAME}" -C "$TMP_DIR"
-        SRC_BIN="${TMP_DIR}/${BIN_NAME}"
-    else
-        echo -e "${RED}Error:${NC} Failed to download release package. Please compile locally or check network."
+        for candidate in "$BIN_NAME" "mihomo-tui"; do
+            if [ -f "${TMP_DIR}/${candidate}" ]; then
+                SRC_BIN="${TMP_DIR}/${candidate}"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$SRC_BIN" ]; then
+        echo -e "${RED}Error:${NC} Failed to locate or extract valid binary from release package."
         exit 1
     fi
 fi
@@ -91,6 +108,9 @@ fi
 echo -e "${BLUE}==>${NC} Installing binary to ${INSTALL_DIR}/${BIN_NAME}..."
 $SUDO cp "$SRC_BIN" "${INSTALL_DIR}/${BIN_NAME}"
 $SUDO chmod +x "${INSTALL_DIR}/${BIN_NAME}"
+
+# Symlink legacy command name mihomo-tui to mihotui for compatibility
+$SUDO ln -sf "${INSTALL_DIR}/${BIN_NAME}" "${INSTALL_DIR}/mihomo-tui"
 
 # Ensure default directories exist
 CONFIG_DIR="/etc/mihomo"
