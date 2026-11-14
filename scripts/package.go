@@ -61,7 +61,10 @@ func main() {
 
 	distDir := "dist"
 	if arch == "all" {
-		_ = os.RemoveAll(distDir)
+		if err := os.RemoveAll(distDir); err != nil && !os.IsNotExist(err) {
+			fmt.Printf("Error cleaning dist directory: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	if err := os.MkdirAll(distDir, 0755); err != nil {
 		fmt.Printf("Error creating dist directory: %v\n", err)
@@ -110,7 +113,10 @@ func main() {
 		// Also provide convenient flat uncompressed binary in dist/
 		if len(selectedTargets) == 1 {
 			flatBinPath := filepath.Join(distDir, binName)
-			_ = copyFile(tempBinPath, flatBinPath, 0755)
+			if err := copyFile(tempBinPath, flatBinPath, 0755); err != nil {
+				fmt.Printf("Failed to copy flat binary %s: %v\n", flatBinPath, err)
+				os.Exit(1)
+			}
 		}
 
 		// Package into tar.gz
@@ -136,10 +142,16 @@ func main() {
 		// Create legacy package name for backward compatibility
 		legacyTarGzName := fmt.Sprintf("mihomo-tui-%s-%s.tar.gz", version, t.Suffix)
 		legacyTarGzPath := filepath.Join(distDir, legacyTarGzName)
-		if err := copyFile(tarGzPath, legacyTarGzPath, 0644); err == nil {
-			legacyHash, _ := fileSHA256(legacyTarGzPath)
-			checksums = append(checksums, fmt.Sprintf("%s  %s", legacyHash, legacyTarGzName))
+		if err := copyFile(tarGzPath, legacyTarGzPath, 0644); err != nil {
+			fmt.Printf("Failed to create legacy package %s: %v\n", legacyTarGzName, err)
+			os.Exit(1)
 		}
+		legacyHash, err := fileSHA256(legacyTarGzPath)
+		if err != nil {
+			fmt.Printf("Failed to compute sha256 for %s: %v\n", legacyTarGzName, err)
+			os.Exit(1)
+		}
+		checksums = append(checksums, fmt.Sprintf("%s  %s", legacyHash, legacyTarGzName))
 	}
 
 	// Write or append to sha256sums.txt
@@ -183,29 +195,39 @@ func createTarGz(tarGzPath, binPath string) error {
 	for _, cf := range configFiles {
 		src := filepath.Join("configs", cf)
 		if _, err := os.Stat(src); err == nil {
-			_ = addFileToTar(tw, src, "configs/"+cf, 0644)
+			if err := addFileToTar(tw, src, "configs/"+cf, 0644); err != nil {
+				return fmt.Errorf("failed to add %s to tar: %w", src, err)
+			}
 			// Also add config.example.yaml at root of archive for ease of access
 			if cf == "config.example.yaml" {
-				_ = addFileToTar(tw, src, "config.example.yaml", 0644)
+				if err := addFileToTar(tw, src, "config.example.yaml", 0644); err != nil {
+					return fmt.Errorf("failed to add root config example to tar: %w", err)
+				}
 			}
 		}
 	}
 
 	// 3. Add README.md (if exists)
 	if _, err := os.Stat("README.md"); err == nil {
-		_ = addFileToTar(tw, "README.md", "README.md", 0644)
+		if err := addFileToTar(tw, "README.md", "README.md", 0644); err != nil {
+			return fmt.Errorf("failed to add README.md to tar: %w", err)
+		}
 	}
 
 	// 4. Add install.sh
 	installScript := filepath.Join("scripts", "install.sh")
 	if _, err := os.Stat(installScript); err == nil {
-		_ = addFileToTar(tw, installScript, "install.sh", 0755)
+		if err := addFileToTar(tw, installScript, "install.sh", 0755); err != nil {
+			return fmt.Errorf("failed to add install.sh to tar: %w", err)
+		}
 	}
 
 	// 5. Add mihomo.service
 	serviceFile := filepath.Join("scripts", "systemd", "mihomo.service")
 	if _, err := os.Stat(serviceFile); err == nil {
-		_ = addFileToTar(tw, serviceFile, "mihomo.service", 0644)
+		if err := addFileToTar(tw, serviceFile, "mihomo.service", 0644); err != nil {
+			return fmt.Errorf("failed to add mihomo.service to tar: %w", err)
+		}
 	}
 
 	return nil
