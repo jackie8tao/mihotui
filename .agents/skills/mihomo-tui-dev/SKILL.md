@@ -16,7 +16,7 @@ This skill encapsulates the core design principles, architecture standards, and 
 
 The project strictly follows a layered, unidirectional architecture:
 
-```
+```text
 cmd/mihotui/            # CLI Entrypoint (flag parsing, App bootstrap, tea.Program)
 configs/                 # Default & sample configurations (English comments only)
 internal/
@@ -45,6 +45,7 @@ pkg/
 ## 2. Presentation Layer Separation (`internal/app/views`)
 
 ### Rules
+
 1. **Stateless Functions**: Views must NEVER receive `*AppModel` directly to prevent circular dependencies and state leakage.
 2. **Props Pattern**: Every view must accept a read-only `Props` struct (e.g. `views.RenderOverview(p OverviewProps) string`).
 3. **Pure Functions for Testability**: Presentation logic must be testable without mocking HTTP clients, WebSockets, or TEA message loops.
@@ -104,4 +105,3 @@ Follow XDG Base Directory Specification and Linux FHS conventions:
    - If an operation involves runtime inspection or I/O, execute it dynamically during command execution (`RunE`), not during package initialization.
 3. **Fail Immediately on Ambiguity**:
    - If environment or runtime layout cannot be resolved with certainty, fail immediately and inform the user rather than guessing or defaulting to `/usr/local/...`.
-
