@@ -32,8 +32,8 @@ type TarEntry struct {
 var allTargets = []Target{
 	{OS: "linux", Arch: "amd64", Suffix: "linux-amd64"},
 	{OS: "linux", Arch: "arm64", Suffix: "linux-arm64"},
-	{OS: "linux", Arch: "arm", ArmVer: "7", Suffix: "linux-armv7"},
 	{OS: "linux", Arch: "386", Suffix: "linux-386"},
+	{OS: "linux", Arch: "arm", ArmVer: "7", Suffix: "linux-armv7"},
 }
 
 func main() {
