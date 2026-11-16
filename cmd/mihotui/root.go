@@ -43,7 +43,15 @@ func runTUI(cfgPath string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	profileMgr, err := profile.NewManager(cfg.MihomoDir)
+	profileMgr, err := profile.NewManager(cfg.MihomoDir,
+		profile.WithActiveProfile(cfg.ActiveProfile),
+		profile.WithSubscriptions(cfg.Subscriptions),
+		profile.WithSaveFunc(func(activeProfile string, subs []profile.Subscription) error {
+			cfg.ActiveProfile = activeProfile
+			cfg.Subscriptions = subs
+			return config.SaveConfig(cfg)
+		}),
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to initialize profile manager: %v\n", err)
 	}

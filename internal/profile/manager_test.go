@@ -62,12 +62,16 @@ proxies:
 	}))
 	defer server.Close()
 
-	mgr, err := NewManager(tempDir)
+	var savedActive string
+	var savedSubs []Subscription
+	mgr, err := NewManager(tempDir, WithSaveFunc(func(active string, subs []Subscription) error {
+		savedActive = active
+		savedSubs = subs
+		return nil
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	mgr.metaPath = filepath.Join(tempDir, "subscriptions.yaml")
-	mgr.subscriptions = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -76,6 +80,17 @@ proxies:
 	sub, err := mgr.AddSubscription(ctx, "Test Provider", server.URL)
 	if err != nil {
 		t.Fatalf("AddSubscription failed: %v", err)
+	}
+
+	if len(savedSubs) != 1 {
+		t.Errorf("expected 1 saved subscription, got %d", len(savedSubs))
+	}
+
+	if err := mgr.SetActiveProfile("test.yaml"); err != nil {
+		t.Fatalf("SetActiveProfile failed: %v", err)
+	}
+	if savedActive != "test.yaml" {
+		t.Errorf("expected savedActive 'test.yaml', got %q", savedActive)
 	}
 
 	if sub.Name != "Test Provider" {
@@ -119,5 +134,8 @@ proxies:
 	}
 	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
 		t.Error("expected target file to be removed")
+	}
+	if len(savedSubs) != 0 {
+		t.Errorf("expected 0 saved subscriptions after deletion, got %d", len(savedSubs))
 	}
 }

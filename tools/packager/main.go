@@ -163,7 +163,6 @@ func getReleaseEntries(binPath string) []TarEntry {
 		// 2. Configuration examples
 		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "configs/config.example.yaml", Mode: 0644, Optional: true},
 		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "config.example.yaml", Mode: 0644, Optional: true},
-		{Src: filepath.Join("configs", "subscriptions.example.yaml"), Dst: "configs/subscriptions.example.yaml", Mode: 0644, Optional: true},
 
 		// 3. Documentation & deployment scripts
 		{Src: "README.md", Dst: "README.md", Mode: 0644, Optional: true},

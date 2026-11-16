@@ -16,51 +16,67 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type SubStore struct {
-	ConfigDir     string         `yaml:"config_dir"`
-	ActiveProfile string         `yaml:"active_profile"`
-	Subscriptions []Subscription `yaml:"subscriptions"`
+// SaveFunc is invoked whenever the active profile or subscriptions list changes.
+type SaveFunc func(activeProfile string, subs []Subscription) error
+
+// ManagerOption configures a Manager instance.
+type ManagerOption func(*Manager)
+
+// WithActiveProfile sets the initial active profile name.
+func WithActiveProfile(name string) ManagerOption {
+	return func(m *Manager) {
+		m.activeProfile = name
+	}
 }
 
+// WithSubscriptions sets the initial subscriptions list.
+func WithSubscriptions(subs []Subscription) ManagerOption {
+	return func(m *Manager) {
+		m.subscriptions = append([]Subscription(nil), subs...)
+	}
+}
+
+// WithSaveFunc configures the persistence callback.
+func WithSaveFunc(fn SaveFunc) ManagerOption {
+	return func(m *Manager) {
+		m.saveFn = fn
+	}
+}
+
+// Manager orchestrates local profiles and remote subscriptions.
 type Manager struct {
 	configDir     string
-	metaPath      string
 	activeProfile string
 	subscriptions []Subscription
 	httpClient    *http.Client
-	customDir     bool
+	saveFn        SaveFunc
 }
 
-func NewManager(customConfigDir string) (*Manager, error) {
+// NewManager initializes a new Manager with optional configurations.
+func NewManager(customConfigDir string, opts ...ManagerOption) (*Manager, error) {
 	configDir := resolveMihomoConfigDir(customConfigDir)
-	metaPath := resolveMetaPath()
 
 	m := &Manager{
 		configDir: configDir,
-		metaPath:  metaPath,
-		customDir: strings.TrimSpace(customConfigDir) != "",
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
 
-	if err := m.loadMeta(); err != nil {
-		// If load fails because not exists, that's fine
+	for _, opt := range opts {
+		opt(m)
 	}
 
 	return m, nil
 }
 
 // resolveMihomoConfigDir ensures and returns the configuration directory for Mihomo.
-// If custom is specified in configuration, it is used directly without probing system paths.
-// Otherwise, it defaults deterministically to the application-managed Mihomo directory.
 func resolveMihomoConfigDir(custom string) string {
 	if strings.TrimSpace(custom) != "" {
 		_ = os.MkdirAll(custom, 0755)
 		return custom
 	}
 
-	// Deterministic fallback: application-managed directory, avoiding heuristic system guesses
 	if userConfigDir, err := os.UserConfigDir(); err == nil {
 		dir := filepath.Join(userConfigDir, "mihotui", "mihomo")
 		_ = os.MkdirAll(dir, 0755)
@@ -70,15 +86,6 @@ func resolveMihomoConfigDir(custom string) string {
 	defaultDir := filepath.Join(".", "mihomo")
 	_ = os.MkdirAll(defaultDir, 0755)
 	return defaultDir
-}
-
-func resolveMetaPath() string {
-	if userConfigDir, err := os.UserConfigDir(); err == nil {
-		dir := filepath.Join(userConfigDir, "mihotui")
-		_ = os.MkdirAll(dir, 0755)
-		return filepath.Join(dir, "subscriptions.yaml")
-	}
-	return "subscriptions.yaml"
 }
 
 func (m *Manager) ConfigDir() string {
@@ -91,38 +98,14 @@ func (m *Manager) ActiveProfile() string {
 
 func (m *Manager) SetActiveProfile(name string) error {
 	m.activeProfile = name
-	return m.saveMeta()
+	return m.save()
 }
 
-func (m *Manager) loadMeta() error {
-	data, err := os.ReadFile(m.metaPath)
-	if err != nil {
-		return err
+func (m *Manager) save() error {
+	if m.saveFn != nil {
+		return m.saveFn(m.activeProfile, m.subscriptions)
 	}
-	var store SubStore
-	if err := yaml.Unmarshal(data, &store); err != nil {
-		return err
-	}
-
-	if !m.customDir && store.ConfigDir != "" {
-		m.configDir = store.ConfigDir
-	}
-	m.activeProfile = store.ActiveProfile
-	m.subscriptions = store.Subscriptions
 	return nil
-}
-
-func (m *Manager) saveMeta() error {
-	store := SubStore{
-		ConfigDir:     m.configDir,
-		ActiveProfile: m.activeProfile,
-		Subscriptions: m.subscriptions,
-	}
-	data, err := yaml.Marshal(store)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(m.metaPath, data, 0644)
 }
 
 func (m *Manager) ListSubscriptions() []Subscription {
@@ -151,7 +134,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 		if ext != ".yaml" && ext != ".yml" {
 			continue
 		}
-		if name == "subscriptions.yaml" || strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(name, ".") {
 			continue
 		}
 
@@ -183,7 +166,6 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 }
 
 // ParseUserinfo parses the Subscription-Userinfo header.
-// e.g. upload=1073741824; download=21474836480; total=107374182400; expire=1735689600
 func ParseUserinfo(raw string) *SubUserInfo {
 	if raw == "" {
 		return nil
@@ -261,13 +243,15 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Su
 	// Perform initial download
 	userInfo, err := m.downloadAndValidate(ctx, rawURL, targetPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to download subscription: %w", err)
+		_ = os.Remove(targetPath)
+		return nil, fmt.Errorf("initial subscription download failed: %w", err)
 	}
 	sub.UserInfo = userInfo
-	sub.UpdatedAt = time.Now()
 
 	m.subscriptions = append(m.subscriptions, sub)
-	_ = m.saveMeta()
+	if err := m.save(); err != nil {
+		return &sub, fmt.Errorf("subscription downloaded but failed to save config: %w", err)
+	}
 
 	return &sub, nil
 }
@@ -275,49 +259,60 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Su
 // UpdateSubscription re-downloads an existing subscription.
 func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*Subscription, error) {
 	var targetSub *Subscription
+	var subIndex int
 	for i := range m.subscriptions {
-		if m.subscriptions[i].ID == subID || m.subscriptions[i].FileName == subID {
+		if m.subscriptions[i].ID == subID {
 			targetSub = &m.subscriptions[i]
+			subIndex = i
 			break
 		}
 	}
+
 	if targetSub == nil {
-		return nil, fmt.Errorf("subscription not found: %s", subID)
+		return nil, fmt.Errorf("subscription %q not found", subID)
 	}
 
 	targetPath := filepath.Join(m.configDir, targetSub.FileName)
 	userInfo, err := m.downloadAndValidate(ctx, targetSub.URL, targetPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update subscription %q: %w", targetSub.Name, err)
 	}
 
-	targetSub.UpdatedAt = time.Now()
+	m.subscriptions[subIndex].UpdatedAt = time.Now()
 	if userInfo != nil {
-		targetSub.UserInfo = userInfo
+		m.subscriptions[subIndex].UserInfo = userInfo
 	}
-	_ = m.saveMeta()
 
-	return targetSub, nil
+	if err := m.save(); err != nil {
+		return &m.subscriptions[subIndex], fmt.Errorf("subscription updated but failed to save config: %w", err)
+	}
+
+	return &m.subscriptions[subIndex], nil
 }
 
 // DeleteSubscription removes subscription record and optionally deletes local file.
 func (m *Manager) DeleteSubscription(subID string, deleteFile bool) error {
-	idx := -1
 	var fileName string
-	for i, sub := range m.subscriptions {
-		if sub.ID == subID || sub.FileName == subID {
-			idx = i
+	found := false
+	var newSubs []Subscription
+
+	for _, sub := range m.subscriptions {
+		if sub.ID == subID {
+			found = true
 			fileName = sub.FileName
-			break
+			continue
 		}
+		newSubs = append(newSubs, sub)
 	}
 
-	if idx == -1 {
-		return fmt.Errorf("subscription not found: %s", subID)
+	if !found {
+		return fmt.Errorf("subscription %q not found", subID)
 	}
 
-	m.subscriptions = append(m.subscriptions[:idx], m.subscriptions[idx+1:]...)
-	_ = m.saveMeta()
+	m.subscriptions = newSubs
+	if err := m.save(); err != nil {
+		return fmt.Errorf("subscription deleted but failed to save config: %w", err)
+	}
 
 	if deleteFile && fileName != "" {
 		_ = os.Remove(filepath.Join(m.configDir, fileName))

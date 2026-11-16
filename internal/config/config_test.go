@@ -88,3 +88,31 @@ func TestLoadConfig_Discovery_InvalidYAML(t *testing.T) {
 	}
 }
 
+func TestSaveConfig_And_Subscriptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgFile := filepath.Join(tmpDir, "saved_config.yaml")
+
+	cfg := &AppConfig{
+		ApiURL:        "http://10.0.0.1:9090",
+		Secret:        "my-secret",
+		ActiveProfile: "work.yaml",
+		LoadedPath:    cfgFile,
+	}
+
+	if err := SaveConfig(cfg); err != nil {
+		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	loaded, err := LoadConfig(cfgFile)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if loaded.ActiveProfile != "work.yaml" {
+		t.Errorf("expected ActiveProfile 'work.yaml', got %q", loaded.ActiveProfile)
+	}
+	if loaded.ApiURL != "http://10.0.0.1:9090" {
+		t.Errorf("expected ApiURL 'http://10.0.0.1:9090', got %q", loaded.ApiURL)
+	}
+}
+

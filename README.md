@@ -121,7 +121,7 @@ go run ./tools/packager -arch amd64 -v v0.1.0
 
 1. 编译优化后的二进制文件（自动剔除调试符号，体积仅约 3MB）
 2. Linux 一键安装脚本 `install.sh`（自动设置 0755 可执行权限）
-3. 配置模板目录 `configs/`（含 `config.example.yaml` 与 `subscriptions.example.yaml`）
+3. 统一配置文件模板 `configs/config.example.yaml`（含 API 连接、配置目录与订阅持久化项）
 4. Systemd 服务单元模板 `mihomo.service`
 5. 说明文档 `README.md`
 
