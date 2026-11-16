@@ -5,19 +5,18 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
-
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type TabIndex int
@@ -101,23 +100,17 @@ type AppModel struct {
 	profileMgr *profile.Manager
 	keys       KeyMap
 
-	// Layout & State
-	width         int
-	height        int
-	activeTab     TabIndex
-	focusPane     FocusPane
-	groupCursor   int
-	nodeCursor    int
-	profileCursor int
-	subCursor     int
+	// Global Layout & Navigation
+	width     int
+	height    int
+	activeTab TabIndex
 
-	// Modal State (Add Subscription)
-	modalActive  ModalType
-	subNameInput textinput.Model
-	subURLInput  textinput.Model
-	inputFocus   int // 0: Name, 1: URL
+	// Tab-specific States
+	proxiesState ProxiesTabState
+	configsState ConfigsTabState
+	subsState    SubscriptionsTabState
 
-	// Data
+	// Shared Domain Data
 	version       mihomo.Version
 	config        mihomo.Config
 	memory        mihomo.Memory
@@ -129,7 +122,7 @@ type AppModel struct {
 	totalUp       int64
 	totalDown     int64
 
-	// Channels & Async
+	// Channels & Async Lifecycle
 	trafficChan chan mihomo.Traffic
 	cancelCtx   context.CancelFunc
 
@@ -155,50 +148,25 @@ func NewAppModel(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager)
 	urlInput.Width = 46
 
 	return &AppModel{
-		client:       cli,
-		cfg:          cfg,
-		profileMgr:   mgr,
-		keys:         DefaultKeyMap(),
-		activeTab:    TabOverview,
-		focusPane:    PaneGroups,
-		modalActive:  ModalNone,
-		subNameInput: nameInput,
-		subURLInput:  urlInput,
-		inputFocus:   0,
-		proxies:      make(map[string]mihomo.ProxyItem),
-		trafficChan:  make(chan mihomo.Traffic, 50),
-		width:        80,
-		height:       24,
+		client:     cli,
+		cfg:        cfg,
+		profileMgr: mgr,
+		keys:       DefaultKeyMap(),
+		activeTab:  TabOverview,
+		width:      80,
+		height:     24,
+		proxiesState: ProxiesTabState{
+			FocusPane: PaneGroups,
+		},
+		subsState: SubscriptionsTabState{
+			ModalActive: ModalNone,
+			NameInput:   nameInput,
+			URLInput:    urlInput,
+			InputFocus:  0,
+		},
+		proxies:     make(map[string]mihomo.ProxyItem),
+		trafficChan: make(chan mihomo.Traffic, 50),
 	}
-}
-
-func (m *AppModel) currentGroup() *mihomo.ProxyItem {
-	if len(m.groups) == 0 || m.groupCursor < 0 || m.groupCursor >= len(m.groups) {
-		return nil
-	}
-	return &m.groups[m.groupCursor]
-}
-
-func (m *AppModel) currentSelectedNode() string {
-	grp := m.currentGroup()
-	if grp == nil || len(grp.All) == 0 || m.nodeCursor < 0 || m.nodeCursor >= len(grp.All) {
-		return ""
-	}
-	return grp.All[m.nodeCursor]
-}
-
-func (m *AppModel) currentProfile() *profile.Profile {
-	if len(m.profiles) == 0 || m.profileCursor < 0 || m.profileCursor >= len(m.profiles) {
-		return nil
-	}
-	return &m.profiles[m.profileCursor]
-}
-
-func (m *AppModel) currentSubscription() *profile.Subscription {
-	if len(m.subscriptions) == 0 || m.subCursor < 0 || m.subCursor >= len(m.subscriptions) {
-		return nil
-	}
-	return &m.subscriptions[m.subCursor]
 }
 
 func (m *AppModel) Init() tea.Cmd {
@@ -261,89 +229,6 @@ func (m *AppModel) fetchDataCmd() tea.Cmd {
 	}
 }
 
-func (m *AppModel) fetchProfilesCmd() tea.Cmd {
-	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return nil
-		}
-		profiles, err := m.profileMgr.ListProfiles()
-		return profilesLoadedMsg{profiles: profiles, err: err}
-	}
-}
-
-func (m *AppModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		defer cancel()
-		err := m.client.ReloadConfig(ctx, p.FullPath, true)
-		if err == nil && m.profileMgr != nil {
-			_ = m.profileMgr.SetActiveProfile(p.FileName)
-		}
-		return profileAppliedMsg{profileName: p.Name, err: err}
-	}
-}
-
-func (m *AppModel) updateSubCmd(subID, name string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-		defer cancel()
-		_, err := m.profileMgr.UpdateSubscription(ctx, subID)
-		return subUpdatedMsg{name: name, err: err}
-	}
-}
-
-func (m *AppModel) updateAllSubsCmd() tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		subs := m.profileMgr.ListSubscriptions()
-		var errs []string
-		for _, s := range subs {
-			if _, err := m.profileMgr.UpdateSubscription(ctx, s.ID); err != nil {
-				errs = append(errs, fmt.Sprintf("%s: %v", s.Name, err))
-			}
-		}
-		if len(errs) > 0 {
-			return subUpdatedMsg{name: "All", err: fmt.Errorf("%s", strings.Join(errs, "; "))}
-		}
-		return subUpdatedMsg{name: "All", err: nil}
-	}
-}
-
-func (m *AppModel) addSubCmd(name, url string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
-		defer cancel()
-		_, err := m.profileMgr.AddSubscription(ctx, name, url)
-		return subAddedMsg{name: name, err: err}
-	}
-}
-
-func (m *AppModel) deleteSubCmd(subID, name string) tea.Cmd {
-	return func() tea.Msg {
-		err := m.profileMgr.DeleteSubscription(subID, true)
-		return subDeletedMsg{name: name, err: err}
-	}
-}
-
-func (m *AppModel) testDelayCmd(nodeName string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultTestTimeoutMs+1000)*time.Millisecond)
-		defer cancel()
-		delay, err := m.client.TestDelay(ctx, nodeName, defaultTestURL, defaultTestTimeoutMs)
-		return delayResultMsg{proxyName: nodeName, delay: delay, err: err}
-	}
-}
-
-func (m *AppModel) selectProxyCmd(groupName, nodeName string) tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		err := m.client.SelectProxy(ctx, groupName, nodeName)
-		return proxySelectedMsg{groupName: groupName, proxyName: nodeName, err: err}
-	}
-}
-
 func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -351,6 +236,48 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 		err := m.client.UpdateMode(ctx, mode)
 		return modeUpdatedMsg{newMode: mode, err: err}
 	}
+}
+
+func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
+	switch {
+	case key.Matches(msg, m.keys.Quit):
+		if m.cancelCtx != nil {
+			m.cancelCtx()
+		}
+		return tea.Quit, true
+
+	case key.Matches(msg, m.keys.Tab):
+		switch m.activeTab {
+		case TabOverview:
+			m.activeTab = TabProxies
+		case TabProxies:
+			m.activeTab = TabConfigs
+		case TabConfigs:
+			m.activeTab = TabSubscriptions
+		case TabSubscriptions:
+			m.activeTab = TabOverview
+		}
+		return nil, true
+
+	case key.Matches(msg, m.keys.Refresh):
+		m.statusMsg = "Refreshing data..."
+		return tea.Batch(m.fetchDataCmd(), m.fetchProfilesCmd()), true
+
+	case key.Matches(msg, m.keys.SwitchMode):
+		curr := strings.ToLower(m.config.Mode)
+		next := "rule"
+		switch curr {
+		case "rule":
+			next = "global"
+		case "global":
+			next = "direct"
+		default:
+			next = "rule"
+		}
+		return m.updateModeCmd(next), true
+	}
+
+	return nil, false
 }
 
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -399,8 +326,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return groups[i].Name < groups[j].Name
 			})
 			m.groups = groups
-			if m.groupCursor >= len(m.groups) {
-				m.groupCursor = 0
+			if m.proxiesState.GroupCursor >= len(m.groups) {
+				m.proxiesState.GroupCursor = 0
 			}
 			m.statusMsg = "Connected to Mihomo"
 			m.isError = false
@@ -412,13 +339,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isError = true
 		} else {
 			m.profiles = msg.profiles
-			if m.profileCursor >= len(m.profiles) {
-				m.profileCursor = 0
+			if m.configsState.Cursor >= len(m.profiles) {
+				m.configsState.Cursor = 0
 			}
 			if m.profileMgr != nil {
 				m.subscriptions = m.profileMgr.ListSubscriptions()
-				if m.subCursor >= len(m.subscriptions) {
-					m.subCursor = 0
+				if m.subsState.Cursor >= len(m.subscriptions) {
+					m.subsState.Cursor = 0
 				}
 			}
 		}
@@ -450,18 +377,18 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.statusMsg = fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name)
 			m.isError = false
-			m.modalActive = ModalNone
-			m.subNameInput.Reset()
-			m.subURLInput.Reset()
+			m.subsState.ModalActive = ModalNone
+			m.subsState.NameInput.SetValue("")
+			m.subsState.URLInput.SetValue("")
 			cmds = append(cmds, m.fetchProfilesCmd())
 		}
 
 	case subDeletedMsg:
 		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Delete subscription failed: %v", msg.err)
+			m.statusMsg = fmt.Sprintf("Delete sub failed: %v", msg.err)
 			m.isError = true
 		} else {
-			m.statusMsg = fmt.Sprintf("Deleted subscription [%s]", msg.name)
+			m.statusMsg = fmt.Sprintf("Subscription [%s] deleted!", msg.name)
 			m.isError = false
 			cmds = append(cmds, m.fetchProfilesCmd())
 		}
@@ -469,16 +396,18 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case delayResultMsg:
 		if item, ok := m.proxies[msg.proxyName]; ok {
 			item.TestingDelay = false
-			item.History = append(item.History, mihomo.DelayHistory{
-				Time:  time.Now(),
-				Delay: msg.delay,
-			})
+			if msg.err != nil {
+				m.statusMsg = fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err)
+				m.isError = true
+			} else {
+				item.History = append(item.History, mihomo.DelayHistory{
+					Time:  time.Now(),
+					Delay: msg.delay,
+				})
+				m.statusMsg = fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
+				m.isError = false
+			}
 			m.proxies[msg.proxyName] = item
-		}
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Test delay for %s failed: %v", msg.proxyName, msg.err)
-		} else {
-			m.statusMsg = fmt.Sprintf("Latency [%s]: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
 		}
 
 	case proxySelectedMsg:
@@ -486,14 +415,9 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = fmt.Sprintf("Select proxy failed: %v", msg.err)
 			m.isError = true
 		} else {
-			m.statusMsg = fmt.Sprintf("Switched [%s] -> %s", msg.groupName, msg.proxyName)
+			m.statusMsg = fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName)
 			m.isError = false
-			for i, g := range m.groups {
-				if g.Name == msg.groupName {
-					m.groups[i].Now = msg.proxyName
-					break
-				}
-			}
+			cmds = append(cmds, m.fetchDataCmd())
 		}
 
 	case modeUpdatedMsg:
@@ -507,228 +431,29 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		// Modal Interception
-		if m.modalActive == ModalAddSub {
-			switch msg.String() {
-			case "esc":
-				m.modalActive = ModalNone
-				return m, nil
-			case "tab", "down":
-				if m.inputFocus == 0 {
-					m.inputFocus = 1
-					m.subNameInput.Blur()
-					m.subURLInput.Focus()
-				} else {
-					m.inputFocus = 0
-					m.subURLInput.Blur()
-					m.subNameInput.Focus()
-				}
-				return m, nil
-			case "up":
-				if m.inputFocus == 1 {
-					m.inputFocus = 0
-					m.subURLInput.Blur()
-					m.subNameInput.Focus()
-				}
-				return m, nil
-			case "enter":
-				name := strings.TrimSpace(m.subNameInput.Value())
-				subURL := strings.TrimSpace(m.subURLInput.Value())
-				if name == "" || subURL == "" {
-					m.statusMsg = "Name and URL cannot be empty"
-					m.isError = true
-					return m, nil
-				}
-				m.statusMsg = fmt.Sprintf("Downloading subscription [%s]...", name)
-				return m, m.addSubCmd(name, subURL)
-			default:
-				var cmd tea.Cmd
-				if m.inputFocus == 0 {
-					m.subNameInput, cmd = m.subNameInput.Update(msg)
-				} else {
-					m.subURLInput, cmd = m.subURLInput.Update(msg)
-				}
-				return m, cmd
-			}
+		// 1. Modal Interception
+		if cmd, handled := m.updateAddSubModal(msg); handled {
+			return m, cmd
 		}
 
-		// Standard Navigation & Actions
-		switch {
-		case key.Matches(msg, m.keys.Quit):
-			if m.cancelCtx != nil {
-				m.cancelCtx()
+		// 2. Global Hotkeys
+		if cmd, handled := m.handleGlobalKeys(msg); handled {
+			return m, cmd
+		}
+
+		// 3. Tab-specific Updates
+		switch m.activeTab {
+		case TabProxies:
+			if cmd := m.updateProxiesTab(msg); cmd != nil {
+				cmds = append(cmds, cmd)
 			}
-			return m, tea.Quit
-
-		case key.Matches(msg, m.keys.Tab):
-			switch m.activeTab {
-			case TabOverview:
-				m.activeTab = TabProxies
-			case TabProxies:
-				m.activeTab = TabConfigs
-			case TabConfigs:
-				m.activeTab = TabSubscriptions
-			case TabSubscriptions:
-				m.activeTab = TabOverview
+		case TabConfigs:
+			if cmd := m.updateConfigsTab(msg); cmd != nil {
+				cmds = append(cmds, cmd)
 			}
-
-		case key.Matches(msg, m.keys.Refresh):
-			m.statusMsg = "Refreshing data..."
-			cmds = append(cmds, m.fetchDataCmd(), m.fetchProfilesCmd())
-
-		case key.Matches(msg, m.keys.SwitchMode):
-			curr := strings.ToLower(m.config.Mode)
-			next := "rule"
-			switch curr {
-			case "rule":
-				next = "global"
-			case "global":
-				next = "direct"
-			default:
-				next = "rule"
-			}
-			cmds = append(cmds, m.updateModeCmd(next))
-
-		// TabProxies Navigation
-		case m.activeTab == TabProxies:
-			switch {
-			case key.Matches(msg, m.keys.Left):
-				m.focusPane = PaneGroups
-
-			case key.Matches(msg, m.keys.Right):
-				if len(m.groups) > 0 {
-					m.focusPane = PaneNodes
-				}
-
-			case key.Matches(msg, m.keys.Up):
-				if m.focusPane == PaneGroups {
-					if m.groupCursor > 0 {
-						m.groupCursor--
-						m.nodeCursor = 0
-					}
-				} else {
-					if m.nodeCursor > 0 {
-						m.nodeCursor--
-					}
-				}
-
-			case key.Matches(msg, m.keys.Down):
-				if m.focusPane == PaneGroups {
-					if m.groupCursor < len(m.groups)-1 {
-						m.groupCursor++
-						m.nodeCursor = 0
-					}
-				} else {
-					grp := m.currentGroup()
-					if grp != nil && m.nodeCursor < len(grp.All)-1 {
-						m.nodeCursor++
-					}
-				}
-
-			case key.Matches(msg, m.keys.Enter):
-				if m.focusPane == PaneNodes {
-					grp := m.currentGroup()
-					node := m.currentSelectedNode()
-					if grp != nil && node != "" {
-						cmds = append(cmds, m.selectProxyCmd(grp.Name, node))
-					}
-				} else {
-					m.focusPane = PaneNodes
-				}
-
-			case key.Matches(msg, m.keys.TestDelay):
-				node := m.currentSelectedNode()
-				if node != "" {
-					if item, ok := m.proxies[node]; ok {
-						item.TestingDelay = true
-						m.proxies[node] = item
-					}
-					m.statusMsg = fmt.Sprintf("Testing latency for %s...", node)
-					cmds = append(cmds, m.testDelayCmd(node))
-				}
-
-			case key.Matches(msg, m.keys.TestAll):
-				grp := m.currentGroup()
-				if grp != nil && len(grp.All) > 0 {
-					m.statusMsg = fmt.Sprintf("Testing all %d nodes in [%s]...", len(grp.All), grp.Name)
-					for _, node := range grp.All {
-						if item, ok := m.proxies[node]; ok {
-							item.TestingDelay = true
-							m.proxies[node] = item
-						}
-					}
-					nodesToTest := append([]string(nil), grp.All...)
-					cmds = append(cmds, func() tea.Msg {
-						var wg sync.WaitGroup
-						sem := make(chan struct{}, 8)
-						for _, node := range nodesToTest {
-							wg.Add(1)
-							go func(n string) {
-								defer wg.Done()
-								sem <- struct{}{}
-								defer func() { <-sem }()
-								ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultTestTimeoutMs+1000)*time.Millisecond)
-								defer cancel()
-								_, _ = m.client.TestDelay(ctx, n, defaultTestURL, defaultTestTimeoutMs)
-							}(node)
-						}
-						wg.Wait()
-						return m.fetchDataCmd()()
-					})
-				}
-			}
-
-		// TabConfigs Navigation
-		case m.activeTab == TabConfigs:
-			switch {
-			case key.Matches(msg, m.keys.Up):
-				if m.profileCursor > 0 {
-					m.profileCursor--
-				}
-			case key.Matches(msg, m.keys.Down):
-				if m.profileCursor < len(m.profiles)-1 {
-					m.profileCursor++
-				}
-			case key.Matches(msg, m.keys.Enter):
-				p := m.currentProfile()
-				if p != nil {
-					m.statusMsg = fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name)
-					cmds = append(cmds, m.applyProfileCmd(p))
-				}
-			}
-
-		// TabSubscriptions Navigation
-		case m.activeTab == TabSubscriptions:
-			switch {
-			case key.Matches(msg, m.keys.Up):
-				if m.subCursor > 0 {
-					m.subCursor--
-				}
-			case key.Matches(msg, m.keys.Down):
-				if m.subCursor < len(m.subscriptions)-1 {
-					m.subCursor++
-				}
-			case key.Matches(msg, m.keys.UpdateSub), key.Matches(msg, m.keys.Enter):
-				sub := m.currentSubscription()
-				if sub != nil {
-					m.statusMsg = fmt.Sprintf("Updating subscription [%s]...", sub.Name)
-					cmds = append(cmds, m.updateSubCmd(sub.ID, sub.Name))
-				}
-			case key.Matches(msg, m.keys.UpdateAll):
-				m.statusMsg = "Updating all subscriptions..."
-				cmds = append(cmds, m.updateAllSubsCmd())
-			case key.Matches(msg, m.keys.AddSub):
-				m.modalActive = ModalAddSub
-				m.inputFocus = 0
-				m.subNameInput.Focus()
-				m.subURLInput.Blur()
-				return m, nil
-			case key.Matches(msg, m.keys.DeleteSub):
-				sub := m.currentSubscription()
-				if sub != nil {
-					m.statusMsg = fmt.Sprintf("Deleting subscription [%s]...", sub.Name)
-					cmds = append(cmds, m.deleteSubCmd(sub.ID, sub.Name))
-				}
+		case TabSubscriptions:
+			if cmd := m.updateSubscriptionsTab(msg); cmd != nil {
+				cmds = append(cmds, cmd)
 			}
 		}
 	}
@@ -789,11 +514,11 @@ func (m *AppModel) View() string {
 		body = views.RenderProxies(views.ProxiesProps{
 			Width:       m.width,
 			Height:      m.height,
-			FocusPane:   m.focusPane,
+			FocusPane:   m.proxiesState.FocusPane,
 			Groups:      m.groups,
 			Proxies:     m.proxies,
-			GroupCursor: m.groupCursor,
-			NodeCursor:  m.nodeCursor,
+			GroupCursor: m.proxiesState.GroupCursor,
+			NodeCursor:  m.proxiesState.NodeCursor,
 		})
 	case TabConfigs:
 		body = views.RenderConfigs(views.ConfigsProps{
@@ -801,17 +526,17 @@ func (m *AppModel) View() string {
 			Height:        m.height,
 			ConfigDir:     m.profileMgr.ConfigDir(),
 			Profiles:      m.profiles,
-			ProfileCursor: m.profileCursor,
+			ProfileCursor: m.configsState.Cursor,
 		})
 	case TabSubscriptions:
 		body = views.RenderSubscriptions(views.SubscriptionsProps{
 			Width:            m.width,
 			Height:           m.height,
 			Subscriptions:    m.subscriptions,
-			SubCursor:        m.subCursor,
-			ModalActive:      m.modalActive,
-			SubNameInputView: m.subNameInput.View(),
-			SubURLInputView:  m.subURLInput.View(),
+			SubCursor:        m.subsState.Cursor,
+			ModalActive:      m.subsState.ModalActive,
+			SubNameInputView: m.subsState.NameInput.View(),
+			SubURLInputView:  m.subsState.URLInput.View(),
 		})
 	}
 
