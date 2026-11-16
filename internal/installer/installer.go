@@ -114,10 +114,6 @@ func installBinary(ctx context.Context, opts Options, targetBin string) error {
 		return nil
 	}
 
-	return installFromRemote(ctx, opts, targetBin)
-}
-
-func installFromRemote(ctx context.Context, opts Options, targetBin string) error {
 	version := resolveDownloadVersion(ctx, opts.Version)
 
 	assetName, err := resolveAssetName(runtime.GOOS, runtime.GOARCH, version)
