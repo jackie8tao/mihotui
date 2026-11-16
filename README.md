@@ -101,10 +101,10 @@ sudo ./install.sh
 
 ```bash
 # 构建 Linux amd64 默认版本包 (v0.1.0)
-go run ./scripts/package.go -arch amd64
+go run ./tools/packager -arch amd64
 
 # 指定版本号与目标架构打包（例如全平台）
-go run ./scripts/package.go -arch all -v v0.1.0
+go run ./tools/packager -arch all -v v0.1.0
 ```
 
 > **VS Code 快捷键**：直接按 `Ctrl+Shift+B` 即可一键触发 `Build Linux (amd64) Package` 任务完成构建与打包。

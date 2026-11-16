@@ -16,7 +16,7 @@ build-linux:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(NAME)-linux-arm64 ./cmd/$(NAME)
 
 package:
-	go run ./scripts/package.go -v $(VERSION)
+	go run ./tools/packager -v $(VERSION)
 
 clean:
 	rm -rf dist/ build/ $(NAME)-linux-* $(NAME).exe

@@ -186,9 +186,6 @@ func createTarGz(tarGzPath, binPath string) error {
 	if err := addFileToTar(tw, binPath, "mihotui", 0755); err != nil {
 		return err
 	}
-	if err := addFileToTar(tw, binPath, "mihomo-tui", 0755); err != nil {
-		return err
-	}
 
 	// 2. Add configs directory files
 	configFiles := []string{"config.example.yaml", "subscriptions.example.yaml"}

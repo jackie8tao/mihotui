@@ -31,4 +31,4 @@ jobs:
 
       - name: Dry-run packaging
         run: |
-          go run ./scripts/package.go -v test-ci
+          go run ./tools/packager -v test-ci
