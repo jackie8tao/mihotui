@@ -301,134 +301,150 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("API Connection Error: %v", msg.err)
 			m.isError = true
-		} else {
-			m.version = *msg.version
-			m.config = *msg.config
-			if msg.memory != nil {
-				m.memory = *msg.memory
-			}
-			m.proxies = msg.proxies.Proxies
-
-			// Filter and sort proxy groups (Selector, URLTest, Fallback, etc.)
-			var groups []mihomo.ProxyItem
-			for _, item := range m.proxies {
-				if len(item.All) > 0 {
-					groups = append(groups, item)
-				}
-			}
-			sort.Slice(groups, func(i, j int) bool {
-				if groups[i].Name == "GLOBAL" {
-					return true
-				}
-				if groups[j].Name == "GLOBAL" {
-					return false
-				}
-				return groups[i].Name < groups[j].Name
-			})
-			m.groups = groups
-			if m.proxiesState.GroupCursor >= len(m.groups) {
-				m.proxiesState.GroupCursor = 0
-			}
-			m.statusMsg = "Connected to Mihomo"
-			m.isError = false
+			return m, nil
 		}
+
+		m.version = *msg.version
+		m.config = *msg.config
+		if msg.memory != nil {
+			m.memory = *msg.memory
+		}
+		m.proxies = msg.proxies.Proxies
+
+		// Filter and sort proxy groups (Selector, URLTest, Fallback, etc.)
+		var groups []mihomo.ProxyItem
+		for _, item := range m.proxies {
+			if len(item.All) > 0 {
+				groups = append(groups, item)
+			}
+		}
+		sort.Slice(groups, func(i, j int) bool {
+			if groups[i].Name == "GLOBAL" {
+				return true
+			}
+			if groups[j].Name == "GLOBAL" {
+				return false
+			}
+			return groups[i].Name < groups[j].Name
+		})
+		m.groups = groups
+		if m.proxiesState.GroupCursor >= len(m.groups) {
+			m.proxiesState.GroupCursor = 0
+		}
+		m.statusMsg = "Connected to Mihomo"
+		m.isError = false
+		return m, nil
 
 	case profilesLoadedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Load profiles error: %v", msg.err)
 			m.isError = true
-		} else {
-			m.profiles = msg.profiles
-			if m.configsState.Cursor >= len(m.profiles) {
-				m.configsState.Cursor = 0
-			}
-			if m.profileMgr != nil {
-				m.subscriptions = m.profileMgr.ListSubscriptions()
-				if m.subsState.Cursor >= len(m.subscriptions) {
-					m.subsState.Cursor = 0
-				}
+			return m, nil
+		}
+
+		m.profiles = msg.profiles
+		if m.configsState.Cursor >= len(m.profiles) {
+			m.configsState.Cursor = 0
+		}
+		if m.profileMgr != nil {
+			m.subscriptions = m.profileMgr.ListSubscriptions()
+			if m.subsState.Cursor >= len(m.subscriptions) {
+				m.subsState.Cursor = 0
 			}
 		}
+		return m, nil
 
 	case profileAppliedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Hot-reload profile failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.statusMsg = fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName)
-			m.isError = false
-			cmds = append(cmds, m.fetchProfilesCmd(), m.fetchDataCmd())
+			return m, nil
 		}
+
+		m.statusMsg = fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName)
+		m.isError = false
+		return m, tea.Batch(m.fetchProfilesCmd(), m.fetchDataCmd())
 
 	case subUpdatedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Update sub failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.statusMsg = fmt.Sprintf("Subscription [%s] updated successfully!", msg.name)
-			m.isError = false
-			cmds = append(cmds, m.fetchProfilesCmd())
+			return m, nil
 		}
+
+		m.statusMsg = fmt.Sprintf("Subscription [%s] updated successfully!", msg.name)
+		m.isError = false
+		return m, m.fetchProfilesCmd()
 
 	case subAddedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Add subscription failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.statusMsg = fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name)
-			m.isError = false
-			m.subsState.ModalActive = ModalNone
-			m.subsState.NameInput.SetValue("")
-			m.subsState.URLInput.SetValue("")
-			cmds = append(cmds, m.fetchProfilesCmd())
+			return m, nil
 		}
+
+		m.statusMsg = fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name)
+		m.isError = false
+		m.subsState.ModalActive = ModalNone
+		m.subsState.NameInput.SetValue("")
+		m.subsState.URLInput.SetValue("")
+		return m, m.fetchProfilesCmd()
 
 	case subDeletedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Delete sub failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.statusMsg = fmt.Sprintf("Subscription [%s] deleted!", msg.name)
-			m.isError = false
-			cmds = append(cmds, m.fetchProfilesCmd())
+			return m, nil
 		}
 
+		m.statusMsg = fmt.Sprintf("Subscription [%s] deleted!", msg.name)
+		m.isError = false
+		return m, m.fetchProfilesCmd()
+
 	case delayResultMsg:
-		if item, ok := m.proxies[msg.proxyName]; ok {
-			item.TestingDelay = false
-			if msg.err != nil {
-				m.statusMsg = fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err)
-				m.isError = true
-			} else {
-				item.History = append(item.History, mihomo.DelayHistory{
-					Time:  time.Now(),
-					Delay: msg.delay,
-				})
-				m.statusMsg = fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
-				m.isError = false
-			}
-			m.proxies[msg.proxyName] = item
+		item, ok := m.proxies[msg.proxyName]
+		if !ok {
+			return m, nil
 		}
+		item.TestingDelay = false
+		if msg.err != nil {
+			m.statusMsg = fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err)
+			m.isError = true
+			m.proxies[msg.proxyName] = item
+			return m, nil
+		}
+
+		item.History = append(item.History, mihomo.DelayHistory{
+			Time:  time.Now(),
+			Delay: msg.delay,
+		})
+		m.statusMsg = fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
+		m.isError = false
+		m.proxies[msg.proxyName] = item
+		return m, nil
 
 	case proxySelectedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Select proxy failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.statusMsg = fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName)
-			m.isError = false
-			cmds = append(cmds, m.fetchDataCmd())
+			return m, nil
 		}
+
+		m.statusMsg = fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName)
+		m.isError = false
+		return m, m.fetchDataCmd()
 
 	case modeUpdatedMsg:
 		if msg.err != nil {
 			m.statusMsg = fmt.Sprintf("Update mode failed: %v", msg.err)
 			m.isError = true
-		} else {
-			m.config.Mode = msg.newMode
-			m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.newMode))
-			m.isError = false
+			return m, nil
 		}
+
+		m.config.Mode = msg.newMode
+		m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.newMode))
+		m.isError = false
+		return m, nil
 
 	case tea.KeyMsg:
 		// 1. Modal Interception
