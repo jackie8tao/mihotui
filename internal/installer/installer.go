@@ -1,8 +1,6 @@
 package installer
 
 import (
-	"archive/tar"
-	"archive/zip"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -26,7 +24,7 @@ const (
 // Options represents parameters for installing Mihomo core.
 type Options struct {
 	Paths       *config.AppPaths // Resolved suite runtime paths (single source of truth)
-	ArchivePath string           // Optional local compressed archive (.gz, .tar.gz, .tgz, .zip)
+	ArchivePath string           // Optional local gzip-compressed Mihomo release (.gz)
 	Version     string           // Specific version (e.g. v1.19.33) or "latest"
 	Mirror      string           // Optional mirror prefix (e.g. https://ghproxy.net/)
 	Force       bool             // Force overwrite existing binary
@@ -252,114 +250,26 @@ func extractLocalArchive(archivePath, targetBinPath string) error {
 		return err
 	}
 	if info.IsDir() {
-		return fmt.Errorf("%q is a directory, expected a compressed archive file", archivePath)
+		return fmt.Errorf("%q is a directory, expected a .gz file", archivePath)
 	}
 
-	lower := strings.ToLower(archivePath)
-	switch {
-	case strings.HasSuffix(lower, ".tar.gz"), strings.HasSuffix(lower, ".tgz"):
-		return extractTarGz(archivePath, targetBinPath)
-	case strings.HasSuffix(lower, ".gz"):
-		f, err := os.Open(archivePath)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		return extractGzip(f, targetBinPath)
-	case strings.HasSuffix(lower, ".zip"):
-		return extractZip(archivePath, targetBinPath)
-	default:
-		return fmt.Errorf("unsupported archive format %q (supported: .gz, .tar.gz, .tgz, .zip)", archivePath)
-	}
-}
-
-func extractGzip(r io.Reader, targetBinPath string) error {
-	// Mihomo releases are individual .gz compressed binaries.
-	gzReader, err := gzip.NewReader(r)
-	if err != nil {
-		return fmt.Errorf("failed to read gzip stream: %w", err)
-	}
-	defer gzReader.Close()
-
-	return writeBinaryAtomically(gzReader, targetBinPath)
-}
-
-func extractTarGz(archivePath, targetBinPath string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	gzReader, err := gzip.NewReader(f)
+	return extractGzip(f, targetBinPath)
+}
+
+func extractGzip(r io.Reader, targetBinPath string) error {
+	// Mihomo releases for Linux/macOS are single gzip-compressed binaries.
+	gzReader, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("failed to read gzip stream: %w", err)
 	}
 	defer gzReader.Close()
 
-	tr := tar.NewReader(gzReader)
-	for {
-		header, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read tar entry: %w", err)
-		}
-		if header.Typeflag != tar.TypeReg {
-			continue
-		}
-		if isMihomoBinaryCandidate(header.Name) {
-			return writeBinaryAtomically(tr, targetBinPath)
-		}
-	}
-
-	return fmt.Errorf("no mihomo binary found in archive %q", archivePath)
-}
-
-func extractZip(archivePath, targetBinPath string) error {
-	zr, err := zip.OpenReader(archivePath)
-	if err != nil {
-		return fmt.Errorf("failed to open zip archive: %w", err)
-	}
-	defer zr.Close()
-
-	for _, f := range zr.File {
-		if f.FileInfo().IsDir() {
-			continue
-		}
-		if !isMihomoBinaryCandidate(f.Name) {
-			continue
-		}
-		rc, err := f.Open()
-		if err != nil {
-			return fmt.Errorf("failed to open zip entry %q: %w", f.Name, err)
-		}
-		err = writeBinaryAtomically(rc, targetBinPath)
-		_ = rc.Close()
-		return err
-	}
-
-	return fmt.Errorf("no mihomo binary found in zip archive %q", archivePath)
-}
-
-func isMihomoBinaryCandidate(entryName string) bool {
-	normalized := filepath.FromSlash(strings.ReplaceAll(entryName, "\\", "/"))
-	base := strings.ToLower(filepath.Base(normalized))
-	if !strings.HasPrefix(base, "mihomo") {
-		return false
-	}
-
-	// Skip non-executable auxiliary files that share the mihomo prefix.
-	ext := strings.ToLower(filepath.Ext(base))
-	switch ext {
-	case ".md", ".txt", ".yaml", ".yml", ".json", ".service", ".sh", ".gz", ".zip", ".tgz":
-		return false
-	}
-	return true
-}
-
-func writeBinaryAtomically(r io.Reader, targetBinPath string) error {
 	tmpPath := targetBinPath + ".tmp"
 	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
@@ -370,7 +280,7 @@ func writeBinaryAtomically(r io.Reader, targetBinPath string) error {
 		_ = os.Remove(tmpPath)
 	}()
 
-	if _, err := io.Copy(tmpFile, r); err != nil {
+	if _, err := io.Copy(tmpFile, gzReader); err != nil {
 		return fmt.Errorf("failed to extract binary: %w", err)
 	}
 
