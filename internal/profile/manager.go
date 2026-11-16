@@ -14,10 +14,12 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/jackie8tao/mihotui/internal/config"
 )
 
 // SaveFunc is invoked whenever the active profile or subscriptions list changes.
-type SaveFunc func(activeProfile string, subs []Subscription) error
+type SaveFunc func(activeProfile string, subs []config.Subscription) error
 
 // ManagerOption configures a Manager instance.
 type ManagerOption func(*Manager)
@@ -30,9 +32,9 @@ func WithActiveProfile(name string) ManagerOption {
 }
 
 // WithSubscriptions sets the initial subscriptions list.
-func WithSubscriptions(subs []Subscription) ManagerOption {
+func WithSubscriptions(subs []config.Subscription) ManagerOption {
 	return func(m *Manager) {
-		m.subscriptions = append([]Subscription(nil), subs...)
+		m.subscriptions = append([]config.Subscription(nil), subs...)
 	}
 }
 
@@ -47,7 +49,7 @@ func WithSaveFunc(fn SaveFunc) ManagerOption {
 type Manager struct {
 	configDir     string
 	activeProfile string
-	subscriptions []Subscription
+	subscriptions []config.Subscription
 	httpClient    *http.Client
 	saveFn        SaveFunc
 }
@@ -108,7 +110,7 @@ func (m *Manager) save() error {
 	return nil
 }
 
-func (m *Manager) ListSubscriptions() []Subscription {
+func (m *Manager) ListSubscriptions() []config.Subscription {
 	return m.subscriptions
 }
 
@@ -119,7 +121,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 		return nil, err
 	}
 
-	subMap := make(map[string]*Subscription)
+	subMap := make(map[string]*config.Subscription)
 	for i := range m.subscriptions {
 		subMap[m.subscriptions[i].FileName] = &m.subscriptions[i]
 	}
@@ -166,12 +168,12 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 }
 
 // ParseUserinfo parses the Subscription-Userinfo header.
-func ParseUserinfo(raw string) *SubUserInfo {
+func ParseUserinfo(raw string) *config.SubUserInfo {
 	if raw == "" {
 		return nil
 	}
 
-	info := &SubUserInfo{}
+	info := &config.SubUserInfo{}
 	parts := strings.Split(raw, ";")
 	for _, part := range parts {
 		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
@@ -210,7 +212,7 @@ func sanitizeFileName(name string) string {
 }
 
 // AddSubscription registers a new subscription, downloads it, and saves metadata.
-func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Subscription, error) {
+func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*config.Subscription, error) {
 	if name == "" {
 		return nil, errors.New("subscription name cannot be empty")
 	}
@@ -232,7 +234,7 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Su
 		counter++
 	}
 
-	sub := Subscription{
+	sub := config.Subscription{
 		ID:        fmt.Sprintf("sub_%d", time.Now().UnixNano()),
 		Name:      name,
 		URL:       rawURL,
@@ -257,8 +259,8 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*Su
 }
 
 // UpdateSubscription re-downloads an existing subscription.
-func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*Subscription, error) {
-	var targetSub *Subscription
+func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*config.Subscription, error) {
+	var targetSub *config.Subscription
 	var subIndex int
 	for i := range m.subscriptions {
 		if m.subscriptions[i].ID == subID {
@@ -294,7 +296,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*Subscr
 func (m *Manager) DeleteSubscription(subID string, deleteFile bool) error {
 	var fileName string
 	found := false
-	var newSubs []Subscription
+	var newSubs []config.Subscription
 
 	for _, sub := range m.subscriptions {
 		if sub.ID == subID {
@@ -321,7 +323,7 @@ func (m *Manager) DeleteSubscription(subID string, deleteFile bool) error {
 }
 
 // downloadAndValidate downloads config from URL, verifies YAML, and writes atomically.
-func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*SubUserInfo, error) {
+func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*config.SubUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -341,7 +343,7 @@ func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath st
 	}
 
 	// Parse Userinfo if header present
-	var userInfo *SubUserInfo
+	var userInfo *config.SubUserInfo
 	if rawUI := resp.Header.Get("subscription-userinfo"); rawUI != "" {
 		userInfo = ParseUserinfo(rawUI)
 	}

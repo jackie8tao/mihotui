@@ -117,7 +117,7 @@ type AppModel struct {
 	proxies       map[string]mihomo.ProxyItem
 	groups        []mihomo.ProxyItem
 	profiles      []profile.Profile
-	subscriptions []profile.Subscription
+	subscriptions []config.Subscription
 	traffic       mihomo.Traffic
 	totalUp       int64
 	totalDown     int64

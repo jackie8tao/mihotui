@@ -51,7 +51,7 @@ func runTUI(cfgPath string) error {
 	profileMgr, err := profile.NewManager(appPaths.MihomoDir,
 		profile.WithActiveProfile(cfg.ActiveProfile),
 		profile.WithSubscriptions(cfg.Subscriptions),
-		profile.WithSaveFunc(func(activeProfile string, subs []profile.Subscription) error {
+		profile.WithSaveFunc(func(activeProfile string, subs []config.Subscription) error {
 			cfg.ActiveProfile = activeProfile
 			cfg.Subscriptions = subs
 			return config.SaveConfig(cfg)

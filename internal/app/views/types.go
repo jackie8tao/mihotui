@@ -1,6 +1,7 @@
 package views
 
 import (
+	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -56,7 +57,7 @@ type ConfigsProps struct {
 type SubscriptionsProps struct {
 	Width            int
 	Height           int
-	Subscriptions    []profile.Subscription
+	Subscriptions    []config.Subscription
 	SubCursor        int
 	ModalActive      ModalType
 	SubNameInputView string

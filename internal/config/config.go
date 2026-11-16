@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/jackie8tao/mihotui/internal/profile"
 )
 
 const (
@@ -18,10 +16,10 @@ const (
 
 // AppConfig represents user configuration and state persistence for mihotui.
 type AppConfig struct {
-	ApiURL        string                 `yaml:"api_url"`        // external controller API URL
-	Secret        string                 `yaml:"secret"`         // external controller API secret
-	ActiveProfile string                 `yaml:"active_profile"` // active profile file name
-	Subscriptions []profile.Subscription `yaml:"subscriptions"`  // managed subscriptions list
+	ApiURL        string         `yaml:"api_url"`        // external controller API URL
+	Secret        string         `yaml:"secret"`         // external controller API secret
+	ActiveProfile string         `yaml:"active_profile"` // active profile file name
+	Subscriptions []Subscription `yaml:"subscriptions"`  // managed subscriptions list
 
 	LoadedPath string `yaml:"-"` // file path from which this config was loaded or will be saved
 }

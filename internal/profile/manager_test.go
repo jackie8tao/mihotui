@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jackie8tao/mihotui/internal/config"
 )
 
 func TestParseUserinfo(t *testing.T) {
@@ -63,8 +65,8 @@ proxies:
 	defer server.Close()
 
 	var savedActive string
-	var savedSubs []Subscription
-	mgr, err := NewManager(tempDir, WithSaveFunc(func(active string, subs []Subscription) error {
+	var savedSubs []config.Subscription
+	mgr, err := NewManager(tempDir, WithSaveFunc(func(active string, subs []config.Subscription) error {
 		savedActive = active
 		savedSubs = subs
 		return nil

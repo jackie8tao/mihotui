@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackie8tao/mihotui/internal/app/theme"
-	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 
 	"github.com/charmbracelet/lipgloss"
@@ -73,7 +73,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	)
 
 	// 2. Render Right Column: Subscription Details
-	var curr *profile.Subscription
+	var curr *config.Subscription
 	if len(p.Subscriptions) > 0 && p.SubCursor >= 0 && p.SubCursor < len(p.Subscriptions) {
 		curr = &p.Subscriptions[p.SubCursor]
 	}

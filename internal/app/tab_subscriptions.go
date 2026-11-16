@@ -9,10 +9,10 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/internal/config"
 )
 
-func (m *AppModel) currentSubscription() *profile.Subscription {
+func (m *AppModel) currentSubscription() *config.Subscription {
 	if len(m.subscriptions) == 0 || m.subsState.Cursor < 0 || m.subsState.Cursor >= len(m.subscriptions) {
 		return nil
 	}
