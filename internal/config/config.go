@@ -10,25 +10,16 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const (
-	defaultConfigDir  = "mihotui"
-	defaultConfigFile = "config.yaml"
-)
-
 var (
 	loadedConfigMu   sync.RWMutex
 	loadedConfigPath string
 )
 
-// LoadedConfigPath returns the path of the currently loaded config file,
-// falling back to DefaultConfigPath() if not yet set.
+// LoadedConfigPath returns the path of the currently loaded config file.
 func LoadedConfigPath() string {
 	loadedConfigMu.RLock()
 	defer loadedConfigMu.RUnlock()
-	if loadedConfigPath != "" {
-		return loadedConfigPath
-	}
-	return DefaultConfigPath()
+	return loadedConfigPath
 }
 
 // SetLoadedConfigPath sets the process-level loaded configuration path.
@@ -56,58 +47,42 @@ func DefaultConfig() *AppConfig {
 	}
 }
 
-// DefaultConfigPath returns the canonical path for config.yaml.
-func DefaultConfigPath() string {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, defaultConfigDir, defaultConfigFile)
+// LoadConfig loads configuration from explicitPath if specified (failing fast if missing or invalid).
+// Otherwise it loads from defaultPath (the suite-local config path <appRoot>/etc/mihotui/config.yaml),
+// initializing in-memory defaults bound to defaultPath if the file does not yet exist.
+func LoadConfig(explicitPath, defaultPath string) (*AppConfig, error) {
+	if explicitPath != "" {
+		return loadStrictConfigFile(explicitPath)
 	}
-	if userConfigDir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(userConfigDir, defaultConfigDir, defaultConfigFile)
+
+	if defaultPath == "" {
+		return nil, errors.New("config: default config path cannot be empty")
 	}
-	return filepath.Join(".", defaultConfigFile)
+
+	cfg, err := loadStrictConfigFile(defaultPath)
+	if err == nil {
+		return cfg, nil
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	SetLoadedConfigPath(defaultPath)
+	return DefaultConfig(), nil
 }
 
-// LoadConfig loads configuration from standard paths and tracks the loaded path.
-func LoadConfig(configPath string) (*AppConfig, error) {
+func loadStrictConfigFile(path string) (*AppConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config %q: %w", path, err)
+	}
+
 	cfg := DefaultConfig()
-
-	// 1. Explicitly specified configuration path (fail fast if invalid)
-	if configPath != "" {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read specified config %q: %w", configPath, err)
-		}
-		if err := yaml.Unmarshal(data, cfg); err != nil {
-			return nil, fmt.Errorf("failed to parse specified config %q: %w", configPath, err)
-		}
-		SetLoadedConfigPath(configPath)
-		return cfg, nil
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse config %q: %w", path, err)
 	}
 
-	// 2. Standard distribution discovery paths: User Config (XDG)
-	var candidates []string
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		candidates = append(candidates, filepath.Join(xdg, defaultConfigDir, defaultConfigFile))
-	}
-	if userConfigDir, err := os.UserConfigDir(); err == nil {
-		candidates = append(candidates, filepath.Join(userConfigDir, defaultConfigDir, defaultConfigFile))
-	}
-	for _, p := range candidates {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-			return nil, fmt.Errorf("failed to read config %q: %w", p, err)
-		}
-		if err := yaml.Unmarshal(data, cfg); err != nil {
-			return nil, fmt.Errorf("failed to parse config %q: %w", p, err)
-		}
-		SetLoadedConfigPath(p)
-		return cfg, nil
-	}
-
-	SetLoadedConfigPath(DefaultConfigPath())
+	SetLoadedConfigPath(path)
 	return cfg, nil
 }
 
@@ -119,7 +94,7 @@ func SaveConfig(cfg *AppConfig) error {
 // SaveConfigTo saves the configuration to targetPath atomically and updates LoadedConfigPath.
 func SaveConfigTo(cfg *AppConfig, targetPath string) error {
 	if targetPath == "" {
-		targetPath = DefaultConfigPath()
+		return errors.New("config: target config path cannot be empty")
 	}
 
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {

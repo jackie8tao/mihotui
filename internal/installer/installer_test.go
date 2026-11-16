@@ -163,6 +163,9 @@ func TestInstall_LocalArchive_Gzip(t *testing.T) {
 	if _, err := os.Stat(res.MihomoConfig); err != nil {
 		t.Errorf("expected config file at %s: %v", res.MihomoConfig, err)
 	}
+	if _, err := os.Stat(res.MihotuiConfig); err != nil {
+		t.Errorf("expected mihotui config file at %s: %v", res.MihotuiConfig, err)
+	}
 }
 
 func TestInstall_LocalArchive_Errors(t *testing.T) {

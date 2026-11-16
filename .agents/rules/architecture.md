@@ -11,14 +11,13 @@
 - `theme` contains design tokens and Lipgloss styles with zero internal dependencies.
 - Both `app` and `views` may import `theme`. `theme` never imports other internal packages.
 
-## 3. Configuration Discovery Standards
+## 3. Configuration Discovery Standards (Self-Contained Suite)
 
-- Follow XDG Base Directory Specification:
+- All suite runtime configuration and core profiles live inside the self-contained bundle root (`<appRoot>/etc/`):
   1. Explicit flag (`-c`): Strict read. Fail fast with an error if missing or invalid.
-  2. User-level: `$XDG_CONFIG_HOME/mihotui/config.yaml` or `~/.config/mihotui/config.yaml` via `os.UserConfigDir()`.
-  3. System-wide: Linux `/etc/mihotui/config.yaml`, Windows `%ProgramData%\mihotui\config.yaml`, macOS `/Library/Application Support/mihotui/config.yaml`.
-  4. Built-in defaults: `config.DefaultConfig()`.
-- **Anti-Pattern Warning**: Never search current working directory (`./config.yaml`) by default.
+  2. Suite config: `<appRoot>/etc/mihotui/config.yaml` (via `AppPaths.MihotuiConfig`).
+  3. Built-in defaults: `config.DefaultConfig()` (bound to `AppPaths.MihotuiConfig` for persistence if not yet created).
+- **Anti-Pattern Warning**: Never search current working directory (`./config.yaml`) or split state across user XDG directories (`~/.config/mihotui`) and system bundle directories (`<appRoot>/etc/mihomo`).
 
 ## 4. Managed Core Directory (`mihomo_dir`)
 

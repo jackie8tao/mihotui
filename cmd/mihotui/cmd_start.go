@@ -32,14 +32,14 @@ func init() {
 }
 
 func runTUI(cfgPath string) error {
-	cfg, err := config.LoadConfig(cfgPath)
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
 	appPaths, err := config.ResolveAppPaths()
 	if err != nil {
 		return fmt.Errorf("failed to resolve app paths: %w", err)
+	}
+
+	cfg, err := config.LoadConfig(cfgPath, appPaths.MihotuiConfig)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	profileMgr, err := profile.NewManager(appPaths.MihomoDir,

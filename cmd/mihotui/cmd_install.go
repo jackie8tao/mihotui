@@ -45,9 +45,10 @@ and initialize its configuration directory.`,
 
 		fmt.Println("\n==================================================")
 		fmt.Printf("Mihomo Core successfully installed into bundle!\n")
-		fmt.Printf("Bundle Root  : %s\n", res.TargetDir)
-		fmt.Printf("Core Binary  : %s\n", res.MihomoBin)
-		fmt.Printf("Core Config  : %s\n", res.MihomoConfig)
+		fmt.Printf("Bundle Root   : %s\n", res.TargetDir)
+		fmt.Printf("Core Binary   : %s\n", res.MihomoBin)
+		fmt.Printf("Core Config   : %s\n", res.MihomoConfig)
+		fmt.Printf("TUI Config    : %s\n", res.MihotuiConfig)
 		fmt.Println("==================================================")
 		return nil
 	},

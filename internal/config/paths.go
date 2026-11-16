@@ -9,26 +9,33 @@ import (
 
 // AppPaths holds resolved runtime paths for the self-contained suite layout.
 type AppPaths struct {
-	AppRoot   string // <bundle_root>
-	BinDir    string // <bundle_root>/bin
-	EtcDir    string // <bundle_root>/etc
-	MihomoDir string // <bundle_root>/etc/mihomo
-	MihomoBin string // <bundle_root>/bin/mihomo
+	AppRoot       string // <bundle_root>
+	BinDir        string // <bundle_root>/bin
+	EtcDir        string // <bundle_root>/etc
+	MihomoDir     string // <bundle_root>/etc/mihomo
+	MihomoBin     string // <bundle_root>/bin/mihomo
+	MihotuiDir    string // <bundle_root>/etc/mihotui
+	MihotuiConfig string // <bundle_root>/etc/mihotui/config.yaml
 }
 
 // NewAppPaths constructs standard AppPaths for any given suite root directory.
 func NewAppPaths(appRoot string) *AppPaths {
-	mihomoBin := filepath.Join(appRoot, "bin", "mihomo")
+	binDir := filepath.Join(appRoot, "bin")
+	etcDir := filepath.Join(appRoot, "etc")
+	mihomoBin := filepath.Join(binDir, "mihomo")
 	if runtime.GOOS == "windows" {
 		mihomoBin += ".exe"
 	}
+	mihotuiDir := filepath.Join(etcDir, "mihotui")
 
 	return &AppPaths{
-		AppRoot:   appRoot,
-		BinDir:    filepath.Join(appRoot, "bin"),
-		EtcDir:    filepath.Join(appRoot, "etc"),
-		MihomoDir: filepath.Join(appRoot, "etc", "mihomo"),
-		MihomoBin: mihomoBin,
+		AppRoot:       appRoot,
+		BinDir:        binDir,
+		EtcDir:        etcDir,
+		MihomoDir:     filepath.Join(etcDir, "mihomo"),
+		MihomoBin:     mihomoBin,
+		MihotuiDir:    mihotuiDir,
+		MihotuiConfig: filepath.Join(mihotuiDir, "config.yaml"),
 	}
 }
 
@@ -39,6 +46,8 @@ func NewAppPaths(appRoot string) *AppPaths {
 //   │   ├── mihotui (realExecPath)
 //   │   └── mihomo  (MihomoBin)
 //   └── etc/
+//       ├── mihotui/
+//       │   └── config.yaml (MihotuiConfig)
 //       └── mihomo/ (MihomoDir)
 //
 // If the executable is in a "bin" folder, appRoot is its parent folder.

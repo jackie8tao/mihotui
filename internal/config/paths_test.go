@@ -32,7 +32,7 @@ func TestNewAppPaths(t *testing.T) {
 	if paths.AppRoot != root {
 		t.Errorf("expected AppRoot %q, got %q", root, paths.AppRoot)
 	}
-	if paths.BinDir == "" || paths.EtcDir == "" || paths.MihomoDir == "" || paths.MihomoBin == "" {
+	if paths.BinDir == "" || paths.EtcDir == "" || paths.MihomoDir == "" || paths.MihomoBin == "" || paths.MihotuiDir == "" || paths.MihotuiConfig == "" {
 		t.Errorf("expected all path fields to be populated, got %+v", paths)
 	}
 }
