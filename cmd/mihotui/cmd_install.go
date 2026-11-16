@@ -25,15 +25,9 @@ var installCmd = &cobra.Command{
 bundle directory, or extract directly from a local compressed archive (.gz, .tar.gz, .tgz, .zip),
 and initialize its configuration directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var paths *config.AppPaths
-		var err error
-		if installTargetDir != "" {
-			paths = config.NewAppPaths(installTargetDir)
-		} else {
-			paths, err = config.ResolveAppPaths()
-			if err != nil {
-				return err
-			}
+		paths, err := resolveInstallPaths()
+		if err != nil {
+			return err
 		}
 
 		opts := installer.Options{
@@ -67,4 +61,11 @@ func init() {
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "Force overwrite existing binary")
 
 	rootCmd.AddCommand(installCmd)
+}
+
+func resolveInstallPaths() (*config.AppPaths, error) {
+	if installTargetDir != "" {
+		return config.NewAppPaths(installTargetDir), nil
+	}
+	return config.ResolveAppPaths()
 }
