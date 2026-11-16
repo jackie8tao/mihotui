@@ -1,6 +1,8 @@
 package installer
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -23,10 +25,11 @@ const (
 
 // Options represents parameters for installing Mihomo core.
 type Options struct {
-	Paths   *config.AppPaths // Resolved suite runtime paths (single source of truth)
-	Version string           // Specific version (e.g. v1.19.33) or "latest"
-	Mirror  string           // Optional mirror prefix (e.g. https://ghproxy.net/)
-	Force   bool             // Force overwrite existing binary
+	Paths       *config.AppPaths // Resolved suite runtime paths (single source of truth)
+	ArchivePath string           // Optional local compressed archive (.gz, .tar.gz, .tgz, .zip)
+	Version     string           // Specific version (e.g. v1.19.33) or "latest"
+	Mirror      string           // Optional mirror prefix (e.g. https://ghproxy.net/)
+	Force       bool             // Force overwrite existing binary
 }
 
 // Result contains information about the completed installation.
@@ -66,40 +69,49 @@ func Install(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 
-	// 3. Resolve Version and Asset Download URL
-	version := opts.Version
-	if version == "" || version == "latest" {
-		detectedVer, err := fetchLatestVersion(ctx)
-		if err != nil {
-			fmt.Printf("Warning: failed to query latest release from GitHub (%v), falling back to %s\n", err, DefaultMihomoVersion)
-			version = DefaultMihomoVersion
-		} else {
-			version = detectedVer
+	// 3. Install from local archive or download from GitHub release
+	if archivePath := strings.TrimSpace(opts.ArchivePath); archivePath != "" {
+		fmt.Printf("==> Installing Mihomo core from local archive...\n")
+		fmt.Printf("    Archive: %s\n", archivePath)
+		fmt.Printf("    Target : %s\n", targetBin)
+
+		if err := extractLocalArchive(archivePath, targetBin); err != nil {
+			return nil, fmt.Errorf("installer: archive extraction failed: %w", err)
 		}
-	}
-	if !strings.HasPrefix(version, "v") {
-		version = "v" + version
-	}
+	} else {
+		version := opts.Version
+		if version == "" || version == "latest" {
+			detectedVer, err := fetchLatestVersion(ctx)
+			if err != nil {
+				fmt.Printf("Warning: failed to query latest release from GitHub (%v), falling back to %s\n", err, DefaultMihomoVersion)
+				version = DefaultMihomoVersion
+			} else {
+				version = detectedVer
+			}
+		}
+		if !strings.HasPrefix(version, "v") {
+			version = "v" + version
+		}
 
-	assetName, err := resolveAssetName(runtime.GOOS, runtime.GOARCH, version)
-	if err != nil {
-		return nil, fmt.Errorf("installer: unsupported platform %s/%s: %w", runtime.GOOS, runtime.GOARCH, err)
-	}
+		assetName, err := resolveAssetName(runtime.GOOS, runtime.GOARCH, version)
+		if err != nil {
+			return nil, fmt.Errorf("installer: unsupported platform %s/%s: %w", runtime.GOOS, runtime.GOARCH, err)
+		}
 
-	rawURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", DefaultMihomoRepo, version, assetName)
-	downloadURL := rawURL
-	if opts.Mirror != "" {
-		mirrorPrefix := strings.TrimRight(opts.Mirror, "/")
-		downloadURL = fmt.Sprintf("%s/%s", mirrorPrefix, rawURL)
-	}
+		rawURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", DefaultMihomoRepo, version, assetName)
+		downloadURL := rawURL
+		if opts.Mirror != "" {
+			mirrorPrefix := strings.TrimRight(opts.Mirror, "/")
+			downloadURL = fmt.Sprintf("%s/%s", mirrorPrefix, rawURL)
+		}
 
-	fmt.Printf("==> Downloading Mihomo core (%s) for %s/%s...\n", version, runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("    Source: %s\n", downloadURL)
-	fmt.Printf("    Target: %s\n", targetBin)
+		fmt.Printf("==> Downloading Mihomo core (%s) for %s/%s...\n", version, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("    Source: %s\n", downloadURL)
+		fmt.Printf("    Target: %s\n", targetBin)
 
-	// 4. Download and unpack
-	if err := downloadAndExtract(ctx, downloadURL, targetBin); err != nil {
-		return nil, fmt.Errorf("installer: download failed: %w", err)
+		if err := downloadAndExtract(ctx, downloadURL, targetBin); err != nil {
+			return nil, fmt.Errorf("installer: download failed: %w", err)
+		}
 	}
 
 	// 5. Ensure Executable Permissions
@@ -214,6 +226,123 @@ func downloadAndExtract(ctx context.Context, downloadURL, targetBinPath string) 
 		return fmt.Errorf("HTTP request failed with status %d", resp.StatusCode)
 	}
 
+	return extractGzip(resp.Body, targetBinPath)
+}
+
+func extractLocalArchive(archivePath, targetBinPath string) error {
+	info, err := os.Stat(archivePath)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return fmt.Errorf("%q is a directory, expected a compressed archive file", archivePath)
+	}
+
+	lower := strings.ToLower(archivePath)
+	switch {
+	case strings.HasSuffix(lower, ".tar.gz"), strings.HasSuffix(lower, ".tgz"):
+		return extractTarGz(archivePath, targetBinPath)
+	case strings.HasSuffix(lower, ".gz"):
+		f, err := os.Open(archivePath)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		return extractGzip(f, targetBinPath)
+	case strings.HasSuffix(lower, ".zip"):
+		return extractZip(archivePath, targetBinPath)
+	default:
+		return fmt.Errorf("unsupported archive format %q (supported: .gz, .tar.gz, .tgz, .zip)", archivePath)
+	}
+}
+
+func extractGzip(r io.Reader, targetBinPath string) error {
+	// Mihomo releases are individual .gz compressed binaries.
+	gzReader, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("failed to read gzip stream: %w", err)
+	}
+	defer gzReader.Close()
+
+	return writeBinaryAtomically(gzReader, targetBinPath)
+}
+
+func extractTarGz(archivePath, targetBinPath string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	gzReader, err := gzip.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("failed to read gzip stream: %w", err)
+	}
+	defer gzReader.Close()
+
+	tr := tar.NewReader(gzReader)
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar entry: %w", err)
+		}
+		if header.Typeflag != tar.TypeReg {
+			continue
+		}
+		if isMihomoBinaryCandidate(header.Name) {
+			return writeBinaryAtomically(tr, targetBinPath)
+		}
+	}
+
+	return fmt.Errorf("no mihomo binary found in archive %q", archivePath)
+}
+
+func extractZip(archivePath, targetBinPath string) error {
+	zr, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip archive: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		if !isMihomoBinaryCandidate(f.Name) {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return fmt.Errorf("failed to open zip entry %q: %w", f.Name, err)
+		}
+		err = writeBinaryAtomically(rc, targetBinPath)
+		_ = rc.Close()
+		return err
+	}
+
+	return fmt.Errorf("no mihomo binary found in zip archive %q", archivePath)
+}
+
+func isMihomoBinaryCandidate(entryName string) bool {
+	normalized := filepath.FromSlash(strings.ReplaceAll(entryName, "\\", "/"))
+	base := strings.ToLower(filepath.Base(normalized))
+	if !strings.HasPrefix(base, "mihomo") {
+		return false
+	}
+
+	// Skip non-executable auxiliary files that share the mihomo prefix.
+	ext := strings.ToLower(filepath.Ext(base))
+	switch ext {
+	case ".md", ".txt", ".yaml", ".yml", ".json", ".service", ".sh", ".gz", ".zip", ".tgz":
+		return false
+	}
+	return true
+}
+
+func writeBinaryAtomically(r io.Reader, targetBinPath string) error {
 	tmpPath := targetBinPath + ".tmp"
 	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
@@ -224,14 +353,7 @@ func downloadAndExtract(ctx context.Context, downloadURL, targetBinPath string) 
 		_ = os.Remove(tmpPath)
 	}()
 
-	// Mihomo releases are individual .gz compressed binaries
-	gzReader, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read gzip stream: %w", err)
-	}
-	defer gzReader.Close()
-
-	if _, err := io.Copy(tmpFile, gzReader); err != nil {
+	if _, err := io.Copy(tmpFile, r); err != nil {
 		return fmt.Errorf("failed to extract binary: %w", err)
 	}
 

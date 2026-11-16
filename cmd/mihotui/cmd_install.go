@@ -11,17 +11,19 @@ import (
 )
 
 var (
-	installTargetDir string
-	installCoreVer   string
-	installMirror    string
-	installForce     bool
+	installTargetDir   string
+	installArchivePath string
+	installCoreVer     string
+	installMirror      string
+	installForce       bool
 )
 
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install Mihomo core binary and initialize bundle directory",
 	Long: `Download and install the Mihomo (Clash.Meta) core binary into the self-contained
-bundle directory, and initialize its configuration directory.`,
+bundle directory, or extract directly from a local compressed archive (.gz, .tar.gz, .tgz, .zip),
+and initialize its configuration directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var paths *config.AppPaths
 		var err error
@@ -35,10 +37,11 @@ bundle directory, and initialize its configuration directory.`,
 		}
 
 		opts := installer.Options{
-			Paths:   paths,
-			Version: installCoreVer,
-			Mirror:  installMirror,
-			Force:   installForce,
+			Paths:       paths,
+			ArchivePath: installArchivePath,
+			Version:     installCoreVer,
+			Mirror:      installMirror,
+			Force:       installForce,
 		}
 
 		res, err := installer.Install(context.Background(), opts)
@@ -58,6 +61,7 @@ bundle directory, and initialize its configuration directory.`,
 
 func init() {
 	installCmd.Flags().StringVarP(&installTargetDir, "dir", "d", "", "Target bundle root directory (defaults to current suite root)")
+	installCmd.Flags().StringVarP(&installArchivePath, "archive", "a", "", "Local Mihomo release archive (.gz, .tar.gz, .tgz, .zip) for offline installation")
 	installCmd.Flags().StringVarP(&installCoreVer, "version", "v", "latest", "Mihomo core release version to install")
 	installCmd.Flags().StringVarP(&installMirror, "mirror", "m", "", "GitHub download mirror prefix (e.g. https://ghproxy.net/)")
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "Force overwrite existing binary")
