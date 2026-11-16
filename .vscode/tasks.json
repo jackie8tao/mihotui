@@ -42,27 +42,6 @@
             ]
         },
         {
-            "label": "Build macOS Binary",
-            "type": "shell",
-            "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
-            "options": {
-                "env": {
-                    "GOOS": "darwin",
-                    "CGO_ENABLED": "0"
-                }
-            },
-            "group": "build",
-            "presentation": {
-                "echo": true,
-                "reveal": "always",
-                "focus": false,
-                "panel": "shared"
-            },
-            "problemMatcher": [
-                "$go"
-            ]
-        },
-        {
             "label": "Build macOS (arm64) Binary",
             "type": "shell",
             "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
