@@ -40,7 +40,7 @@ func main() {
 	var version string
 	var arch string
 	flag.StringVar(&version, "v", "v0.1.0", "Release version tag (e.g. v0.1.0)")
-	flag.StringVar(&arch, "arch", "amd64", "Target architecture: amd64, arm64, armv7, 386, or all")
+	flag.StringVar(&arch, "arch", "all", "Target architecture: amd64, arm64, armv7, 386, or all")
 	flag.Parse()
 
 	var selectedTargets []Target

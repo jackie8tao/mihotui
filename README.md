@@ -100,11 +100,11 @@ sudo ./install.sh
 项目自带跨平台的自动化发布打包工具，支持在 Windows / macOS / Linux 任意环境下执行：
 
 ```bash
-# 构建 Linux amd64 默认版本包 (v0.1.0)
-go run ./tools/packager -arch amd64
+# 一键打包所有支持架构的 Linux 发布包（默认 arch=all，版本 v0.1.0）
+go run ./tools/packager
 
-# 指定版本号与目标架构打包（例如全平台）
-go run ./tools/packager -arch all -v v0.1.0
+# 指定版本号与特定目标架构打包（例如仅 amd64）
+go run ./tools/packager -arch amd64 -v v0.1.0
 ```
 
 > **VS Code 快捷键**：直接按 `Ctrl+Shift+B` 即可一键触发 `Build Linux (amd64) Package` 任务完成构建与打包。
