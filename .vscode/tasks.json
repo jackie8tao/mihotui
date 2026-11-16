@@ -22,7 +22,7 @@
         {
             "label": "Build Linux (amd64) Binary",
             "type": "shell",
-            "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
+            "command": "go build -trimpath -ldflags '-s -w' -o dist/mihotui ./cmd/mihotui",
             "options": {
                 "env": {
                     "GOOS": "linux",
@@ -44,7 +44,7 @@
         {
             "label": "Build macOS (arm64) Binary",
             "type": "shell",
-            "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
+            "command": "go build -trimpath -ldflags '-s -w' -o dist/mihotui ./cmd/mihotui",
             "options": {
                 "env": {
                     "GOOS": "darwin",
@@ -66,7 +66,7 @@
         {
             "label": "Build macOS (amd64) Binary",
             "type": "shell",
-            "command": "go build -trimpath -ldflags \"-s -w\" -o dist/mihotui ./cmd/mihotui",
+            "command": "go build -trimpath -ldflags '-s -w' -o dist/mihotui ./cmd/mihotui",
             "options": {
                 "env": {
                     "GOOS": "darwin",
