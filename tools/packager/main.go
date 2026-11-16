@@ -22,6 +22,13 @@ type Target struct {
 	Suffix string
 }
 
+type TarEntry struct {
+	Src      string
+	Dst      string
+	Mode     int64
+	Optional bool
+}
+
 var allTargets = []Target{
 	{OS: "linux", Arch: "amd64", Suffix: "linux-amd64"},
 	{OS: "linux", Arch: "arm64", Suffix: "linux-arm64"},
@@ -123,7 +130,8 @@ func main() {
 		tarGzName := fmt.Sprintf("mihotui-%s-%s.tar.gz", version, t.Suffix)
 		tarGzPath := filepath.Join(distDir, tarGzName)
 
-		if err := createTarGz(tarGzPath, tempBinPath); err != nil {
+		entries := getReleaseEntries(tempBinPath)
+		if err := createTarGz(tarGzPath, entries); err != nil {
 			fmt.Printf("Failed to package %s: %v\n", tarGzName, err)
 			os.Exit(1)
 		}
@@ -169,7 +177,24 @@ func main() {
 	}
 }
 
-func createTarGz(tarGzPath, binPath string) error {
+func getReleaseEntries(binPath string) []TarEntry {
+	return []TarEntry{
+		// 1. Core binary (required)
+		{Src: binPath, Dst: "mihotui", Mode: 0755, Optional: false},
+
+		// 2. Configuration examples
+		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "configs/config.example.yaml", Mode: 0644, Optional: true},
+		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "config.example.yaml", Mode: 0644, Optional: true},
+		{Src: filepath.Join("configs", "subscriptions.example.yaml"), Dst: "configs/subscriptions.example.yaml", Mode: 0644, Optional: true},
+
+		// 3. Documentation & deployment scripts
+		{Src: "README.md", Dst: "README.md", Mode: 0644, Optional: true},
+		{Src: filepath.Join("scripts", "install.sh"), Dst: "install.sh", Mode: 0755, Optional: true},
+		{Src: filepath.Join("scripts", "systemd", "mihomo.service"), Dst: "mihomo.service", Mode: 0644, Optional: true},
+	}
+}
+
+func createTarGz(tarGzPath string, entries []TarEntry) error {
 	tarFile, err := os.Create(tarGzPath)
 	if err != nil {
 		return err
@@ -182,35 +207,15 @@ func createTarGz(tarGzPath, binPath string) error {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	entries := []struct {
-		src      string
-		dst      string
-		mode     int64
-		optional bool
-	}{
-		// 1. Core binary (required)
-		{src: binPath, dst: "mihotui", mode: 0755, optional: false},
-
-		// 2. Configuration examples
-		{src: filepath.Join("configs", "config.example.yaml"), dst: "configs/config.example.yaml", mode: 0644, optional: true},
-		{src: filepath.Join("configs", "config.example.yaml"), dst: "config.example.yaml", mode: 0644, optional: true},
-		{src: filepath.Join("configs", "subscriptions.example.yaml"), dst: "configs/subscriptions.example.yaml", mode: 0644, optional: true},
-
-		// 3. Documentation & deployment scripts
-		{src: "README.md", dst: "README.md", mode: 0644, optional: true},
-		{src: filepath.Join("scripts", "install.sh"), dst: "install.sh", mode: 0755, optional: true},
-		{src: filepath.Join("scripts", "systemd", "mihomo.service"), dst: "mihomo.service", mode: 0644, optional: true},
-	}
-
 	for _, e := range entries {
-		if _, err := os.Stat(e.src); err != nil {
-			if e.optional && os.IsNotExist(err) {
+		if _, err := os.Stat(e.Src); err != nil {
+			if e.Optional && os.IsNotExist(err) {
 				continue
 			}
-			return fmt.Errorf("stat %s failed: %w", e.src, err)
+			return fmt.Errorf("stat %s failed: %w", e.Src, err)
 		}
-		if err := addFileToTar(tw, e.src, e.dst, e.mode); err != nil {
-			return fmt.Errorf("failed to add %s to tar: %w", e.dst, err)
+		if err := addFileToTar(tw, e.Src, e.Dst, e.Mode); err != nil {
+			return fmt.Errorf("failed to add %s to tar: %w", e.Dst, err)
 		}
 	}
 
