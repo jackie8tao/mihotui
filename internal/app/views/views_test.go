@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 func TestRenderOverview(t *testing.T) {

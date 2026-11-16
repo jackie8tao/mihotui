@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
-	"mihomo-tui/internal/app"
-	"mihomo-tui/internal/config"
-	"mihomo-tui/internal/profile"
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/internal/app"
+	"github.com/jackie8tao/mihotui/internal/config"
+	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"

@@ -67,7 +67,7 @@ done
 
 # If binary not found locally, try downloading from GitHub Releases
 if [ -z "$SRC_BIN" ]; then
-    REPO=${GITHUB_REPO:-"mihomo-tui/mihomo-tui"}
+    REPO=${GITHUB_REPO:-"jackie8tao/mihotui"}
     echo -e "${YELLOW}Notice:${NC} Local binary not found. Attempting to fetch latest release from GitHub (${REPO})..."
 
     TMP_DIR=$(mktemp -d)

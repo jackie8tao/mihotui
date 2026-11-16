@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 // Example demonstrates basic usage of the Mihomo Client SDK.

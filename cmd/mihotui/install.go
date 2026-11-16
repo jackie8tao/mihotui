@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"mihomo-tui/internal/config"
-	"mihomo-tui/internal/installer"
+	"github.com/jackie8tao/mihotui/internal/config"
+	"github.com/jackie8tao/mihotui/internal/installer"
 
 	"github.com/spf13/cobra"
 )

@@ -1,8 +1,8 @@
 package views
 
 import (
-	"mihomo-tui/internal/profile"
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 // FocusPane represents which pane has focus in a two-column view.

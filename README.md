@@ -76,7 +76,7 @@
 在 Linux 服务器终端直接运行一键安装脚本（自动检测当前系统 CPU 架构，拉取对应构建包并注册至 `/usr/local/bin`）：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-username>/mihomo-tui/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jackie8tao/mihotui/master/scripts/install.sh | bash
 ```
 
 ### 方式 2：下载 Release 手动安装

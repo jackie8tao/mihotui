@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"mihomo-tui/internal/config"
+	"github.com/jackie8tao/mihotui/internal/config"
 )
 
 const (

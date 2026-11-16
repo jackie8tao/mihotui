@@ -67,6 +67,7 @@ proxies:
 		t.Fatal(err)
 	}
 	mgr.metaPath = filepath.Join(tempDir, "subscriptions.yaml")
+	mgr.subscriptions = nil
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

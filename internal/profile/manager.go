@@ -28,6 +28,7 @@ type Manager struct {
 	activeProfile string
 	subscriptions []Subscription
 	httpClient    *http.Client
+	customDir     bool
 }
 
 func NewManager(customConfigDir string) (*Manager, error) {
@@ -37,6 +38,7 @@ func NewManager(customConfigDir string) (*Manager, error) {
 	m := &Manager{
 		configDir: configDir,
 		metaPath:  metaPath,
+		customDir: strings.TrimSpace(customConfigDir) != "",
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -102,7 +104,7 @@ func (m *Manager) loadMeta() error {
 		return err
 	}
 
-	if store.ConfigDir != "" {
+	if !m.customDir && store.ConfigDir != "" {
 		m.configDir = store.ConfigDir
 	}
 	m.activeProfile = store.ActiveProfile
@@ -331,7 +333,7 @@ func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath st
 	}
 
 	// Use Clash.Meta / mihomo UA so subscription providers return standard mihomo YAML
-	req.Header.Set("User-Agent", "Clash.Meta; mihomo/1.18.0; mihomo-tui")
+	req.Header.Set("User-Agent", "Clash.Meta; mihomo/1.18.0; mihotui")
 
 	resp, err := m.httpClient.Do(req)
 	if err != nil {

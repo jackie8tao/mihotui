@@ -1,4 +1,4 @@
-module mihomo-tui
+module github.com/jackie8tao/mihotui
 
 go 1.27.2
 

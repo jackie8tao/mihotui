@@ -14,7 +14,7 @@ const (
 	defaultConfigFile = "config.yaml"
 )
 
-// AppConfig represents user configuration for mihomo-tui.
+// AppConfig represents user configuration for mihotui.
 type AppConfig struct {
 	MihomoDir string `yaml:"mihomo_dir"` // mihomo managed config directory
 	ApiURL    string `yaml:"api_url"`

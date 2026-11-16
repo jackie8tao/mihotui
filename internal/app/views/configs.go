@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"mihomo-tui/internal/app/theme"
-	"mihomo-tui/internal/profile"
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/internal/app/theme"
+	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 
 	"github.com/charmbracelet/lipgloss"
 )

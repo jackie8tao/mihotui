@@ -29,7 +29,7 @@
 ### 1. 安装
 
 ```bash
-go get mihomo-tui/pkg/mihomo
+go get github.com/jackie8tao/mihotui/pkg/mihomo
 ```
 
 ### 2. 初始化与使用
@@ -43,7 +43,7 @@ import (
 	"log"
 	"time"
 
-	"mihomo-tui/pkg/mihomo"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 func main() {

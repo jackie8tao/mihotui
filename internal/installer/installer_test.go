@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"mihomo-tui/internal/config"
+	"github.com/jackie8tao/mihotui/internal/config"
 )
 
 func TestResolveAssetName(t *testing.T) {
