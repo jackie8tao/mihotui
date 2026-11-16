@@ -143,12 +143,15 @@ sudo ./install.sh
 ### 3. 运行与子命令
 
 ```bash
+# 查看帮助说明
+mihotui --help
+
 # 启动交互式 TUI 界面
-mihotui
+mihotui start
 
-# 指定自定义配置文件路径
-mihotui -c ~/.config/mihotui/config.yaml
+# 指定自定义配置文件路径启动
+mihotui start -c ~/.config/mihotui/config.yaml
 
-# 安装 Mihomo 内核包到 mihotui 安装目录
+# 安装 Mihomo 内核包到自包含套件目录
 mihotui install
 ```

@@ -130,5 +130,5 @@ fi
 echo -e "${GREEN}==> Installation completed successfully!${NC}"
 echo -e "You can now run ${GREEN}mihotui${NC} anywhere in your terminal."
 echo -e "Usage examples:"
-echo -e "  mihotui                                  # Connect to 127.0.0.1:9090"
-echo -e "  mihotui -c ~/.config/mihotui/config.yaml"
+echo -e "  mihotui start                            # Connect to 127.0.0.1:9090"
+echo -e "  mihotui start -c ~/.config/mihotui/config.yaml"

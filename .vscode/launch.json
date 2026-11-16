@@ -9,6 +9,7 @@
             "program": "${workspaceFolder}/cmd/mihotui",
             "console": "externalTerminal",
             "args": [
+                "start",
                 "-c",
                 "${workspaceFolder}/config.yaml"
             ]
@@ -22,6 +23,7 @@
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "args": [
+                "start",
                 "-c",
                 "${workspaceFolder}/config.yaml"
             ]
@@ -35,6 +37,7 @@
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen",
             "args": [
+                "start",
                 "-c",
                 "${workspaceFolder}/configs/config.example.yaml"
             ]
