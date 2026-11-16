@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,14 +15,35 @@ const (
 	defaultConfigFile = "config.yaml"
 )
 
+var (
+	loadedConfigMu   sync.RWMutex
+	loadedConfigPath string
+)
+
+// LoadedConfigPath returns the path of the currently loaded config file,
+// falling back to DefaultConfigPath() if not yet set.
+func LoadedConfigPath() string {
+	loadedConfigMu.RLock()
+	defer loadedConfigMu.RUnlock()
+	if loadedConfigPath != "" {
+		return loadedConfigPath
+	}
+	return DefaultConfigPath()
+}
+
+// SetLoadedConfigPath sets the process-level loaded configuration path.
+func SetLoadedConfigPath(path string) {
+	loadedConfigMu.Lock()
+	defer loadedConfigMu.Unlock()
+	loadedConfigPath = path
+}
+
 // AppConfig represents user configuration and state persistence for mihotui.
 type AppConfig struct {
 	ApiURL        string         `yaml:"api_url"`        // external controller API URL
 	Secret        string         `yaml:"secret"`         // external controller API secret
 	ActiveProfile string         `yaml:"active_profile"` // active profile file name
 	Subscriptions []Subscription `yaml:"subscriptions"`  // managed subscriptions list
-
-	LoadedPath string `yaml:"-"` // file path from which this config was loaded or will be saved
 }
 
 // DefaultConfig returns reasonable defaults.
@@ -45,7 +67,7 @@ func DefaultConfigPath() string {
 	return filepath.Join(".", defaultConfigFile)
 }
 
-// LoadConfig loads configuration from standard paths.
+// LoadConfig loads configuration from standard paths and tracks the loaded path.
 func LoadConfig(configPath string) (*AppConfig, error) {
 	cfg := DefaultConfig()
 
@@ -58,21 +80,18 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse specified config %q: %w", configPath, err)
 		}
-		cfg.LoadedPath = configPath
+		SetLoadedConfigPath(configPath)
 		return cfg, nil
 	}
 
 	// 2. Standard distribution discovery paths: User Config (XDG)
 	var candidates []string
-
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
 		candidates = append(candidates, filepath.Join(xdg, defaultConfigDir, defaultConfigFile))
 	}
-
 	if userConfigDir, err := os.UserConfigDir(); err == nil {
 		candidates = append(candidates, filepath.Join(userConfigDir, defaultConfigDir, defaultConfigFile))
 	}
-
 	for _, p := range candidates {
 		data, err := os.ReadFile(p)
 		if err != nil {
@@ -84,17 +103,21 @@ func LoadConfig(configPath string) (*AppConfig, error) {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("failed to parse config %q: %w", p, err)
 		}
-		cfg.LoadedPath = p
+		SetLoadedConfigPath(p)
 		return cfg, nil
 	}
 
-	cfg.LoadedPath = DefaultConfigPath()
+	SetLoadedConfigPath(DefaultConfigPath())
 	return cfg, nil
 }
 
-// SaveConfig saves the configuration back to disk atomically.
+// SaveConfig saves the configuration back to disk atomically using the current LoadedConfigPath().
 func SaveConfig(cfg *AppConfig) error {
-	targetPath := cfg.LoadedPath
+	return SaveConfigTo(cfg, LoadedConfigPath())
+}
+
+// SaveConfigTo saves the configuration to targetPath atomically and updates LoadedConfigPath.
+func SaveConfigTo(cfg *AppConfig, targetPath string) error {
 	if targetPath == "" {
 		targetPath = DefaultConfigPath()
 	}
@@ -118,6 +141,6 @@ func SaveConfig(cfg *AppConfig) error {
 		return fmt.Errorf("failed to replace config file: %w", err)
 	}
 
-	cfg.LoadedPath = targetPath
+	SetLoadedConfigPath(targetPath)
 	return nil
 }

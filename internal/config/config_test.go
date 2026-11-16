@@ -96,11 +96,18 @@ func TestSaveConfig_And_Subscriptions(t *testing.T) {
 		ApiURL:        "http://10.0.0.1:9090",
 		Secret:        "my-secret",
 		ActiveProfile: "work.yaml",
-		LoadedPath:    cfgFile,
+		Subscriptions: []Subscription{
+			{ID: "sub1", Name: "Sub1", URL: "http://example.com/sub"},
+		},
 	}
 
+	SetLoadedConfigPath(cfgFile)
 	if err := SaveConfig(cfg); err != nil {
 		t.Fatalf("SaveConfig failed: %v", err)
+	}
+
+	if LoadedConfigPath() != cfgFile {
+		t.Errorf("expected LoadedConfigPath %q, got %q", cfgFile, LoadedConfigPath())
 	}
 
 	loaded, err := LoadConfig(cfgFile)
@@ -113,6 +120,35 @@ func TestSaveConfig_And_Subscriptions(t *testing.T) {
 	}
 	if loaded.ApiURL != "http://10.0.0.1:9090" {
 		t.Errorf("expected ApiURL 'http://10.0.0.1:9090', got %q", loaded.ApiURL)
+	}
+	if len(loaded.Subscriptions) != 1 || loaded.Subscriptions[0].Name != "Sub1" {
+		t.Errorf("unexpected subscriptions: %+v", loaded.Subscriptions)
+	}
+}
+
+func TestSaveConfigTo(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetPath := filepath.Join(tmpDir, "custom", "test_config.yaml")
+
+	cfg := &AppConfig{
+		ApiURL: "http://127.0.0.1:9090",
+		Secret: "secret123",
+	}
+
+	if err := SaveConfigTo(cfg, targetPath); err != nil {
+		t.Fatalf("SaveConfigTo failed: %v", err)
+	}
+
+	if LoadedConfigPath() != targetPath {
+		t.Errorf("expected LoadedConfigPath %q, got %q", targetPath, LoadedConfigPath())
+	}
+
+	loaded, err := LoadConfig(targetPath)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+	if loaded.Secret != "secret123" {
+		t.Errorf("expected secret123, got %s", loaded.Secret)
 	}
 }
 
