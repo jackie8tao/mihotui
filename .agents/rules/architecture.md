@@ -33,3 +33,10 @@
 - **English Only**: All code comments, docstrings, git commit messages, and YAML configuration comments must be in standard English.
 - **Domain Entity Ownership**: No generic `model` or `utils` packages. Entities belong to domain packages (`Profile` and `Subscription` live in `internal/profile`).
 - **Conventional Commits**: Format commit messages as `<type>(<scope>): <description>`.
+
+## 6. Control Flow & Early Returns
+
+- **Prefer Early Returns over `if-else` Nesting**:
+  Handle guard conditions, errors, and special cases early and return immediately instead of wrapping main logic inside `if ... { ... } else { ... }` blocks.
+- **Flatten Control Flow via Helper Functions**:
+  When mutually exclusive branches contain substantial logic, extract them into dedicated single-purpose helper functions so callers stay flat, linear, and shallowly nested.
