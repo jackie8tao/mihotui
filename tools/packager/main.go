@@ -147,19 +147,6 @@ func main() {
 		checksums = append(checksums, checksumLine)
 		fmt.Printf("Package created: %s (SHA256: %s)\n", tarGzName, hash)
 
-		// Create legacy package name for backward compatibility
-		legacyTarGzName := fmt.Sprintf("mihomo-tui-%s-%s.tar.gz", version, t.Suffix)
-		legacyTarGzPath := filepath.Join(distDir, legacyTarGzName)
-		if err := copyFile(tarGzPath, legacyTarGzPath, 0644); err != nil {
-			fmt.Printf("Failed to create legacy package %s: %v\n", legacyTarGzName, err)
-			os.Exit(1)
-		}
-		legacyHash, err := fileSHA256(legacyTarGzPath)
-		if err != nil {
-			fmt.Printf("Failed to compute sha256 for %s: %v\n", legacyTarGzName, err)
-			os.Exit(1)
-		}
-		checksums = append(checksums, fmt.Sprintf("%s  %s", legacyHash, legacyTarGzName))
 	}
 
 	// Write or append to sha256sums.txt

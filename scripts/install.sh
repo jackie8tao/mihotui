@@ -50,9 +50,9 @@ echo -e "${BLUE}==>${NC} Detected architecture: ${GREEN}${TARGET_ARCH}${NC}"
 INSTALL_DIR="/usr/local/bin"
 BIN_NAME="mihotui"
 
-# Find binary to install (supports both mihotui and legacy mihomo-tui names)
+# Find binary to install
 SRC_BIN=""
-for candidate in "$BIN_NAME" "mihomo-tui" "${BIN_NAME}-${TARGET_ARCH}" "mihomo-tui-${TARGET_ARCH}"; do
+for candidate in "$BIN_NAME" "${BIN_NAME}-${TARGET_ARCH}"; do
     if [ -f "./$candidate" ]; then
         SRC_BIN="./$candidate"
         break
@@ -83,20 +83,15 @@ if [ -z "$SRC_BIN" ]; then
 
     echo -e "${BLUE}==>${NC} Downloading ${GREEN}${DOWNLOAD_URL}${NC}..."
     if ! curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL"; then
-        # Fallback to legacy naming
-        TAR_NAME="mihomo-tui-${LATEST_TAG}-${TARGET_ARCH}.tar.gz"
-        DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_TAG}/${TAR_NAME}"
-        curl -sSL -f -o "${TMP_DIR}/${TAR_NAME}" "$DOWNLOAD_URL" || true
+        echo -e "${RED}Error:${NC} Failed to download release package from ${DOWNLOAD_URL}"
+        exit 1
     fi
 
     if [ -f "${TMP_DIR}/${TAR_NAME}" ]; then
         tar -zxf "${TMP_DIR}/${TAR_NAME}" -C "$TMP_DIR"
-        for candidate in "$BIN_NAME" "mihomo-tui"; do
-            if [ -f "${TMP_DIR}/${candidate}" ]; then
-                SRC_BIN="${TMP_DIR}/${candidate}"
-                break
-            fi
-        done
+        if [ -f "${TMP_DIR}/${BIN_NAME}" ]; then
+            SRC_BIN="${TMP_DIR}/${BIN_NAME}"
+        fi
     fi
 
     if [ -z "$SRC_BIN" ]; then
@@ -109,9 +104,6 @@ echo -e "${BLUE}==>${NC} Installing binary to ${INSTALL_DIR}/${BIN_NAME}..."
 $SUDO cp "$SRC_BIN" "${INSTALL_DIR}/${BIN_NAME}"
 $SUDO chmod +x "${INSTALL_DIR}/${BIN_NAME}"
 
-# Symlink legacy command name mihomo-tui to mihotui for compatibility
-$SUDO ln -sf "${INSTALL_DIR}/${BIN_NAME}" "${INSTALL_DIR}/mihomo-tui"
-
 # Ensure default directories exist
 CONFIG_DIR="/etc/mihomo"
 if [ ! -d "$CONFIG_DIR" ]; then
@@ -120,7 +112,7 @@ if [ ! -d "$CONFIG_DIR" ]; then
     $SUDO chmod 755 "$CONFIG_DIR"
 fi
 
-USER_CONFIG_DIR="${HOME}/.config/mihomo-tui"
+USER_CONFIG_DIR="${HOME}/.config/mihotui"
 mkdir -p "$USER_CONFIG_DIR"
 
 CFG_EXAMPLE=""
@@ -136,7 +128,7 @@ if [ -n "$CFG_EXAMPLE" ] && [ ! -f "${USER_CONFIG_DIR}/config.yaml" ]; then
 fi
 
 echo -e "${GREEN}==> Installation completed successfully!${NC}"
-echo -e "You can now run ${GREEN}mihomo-tui${NC} anywhere in your terminal."
+echo -e "You can now run ${GREEN}mihotui${NC} anywhere in your terminal."
 echo -e "Usage examples:"
-echo -e "  mihomo-tui                               # Connect to 127.0.0.1:9090"
-echo -e "  mihomo-tui -u http://127.0.0.1:9090 -s secret -d /etc/mihomo"
+echo -e "  mihotui                                  # Connect to 127.0.0.1:9090"
+echo -e "  mihotui -c ~/.config/mihotui/config.yaml"

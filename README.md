@@ -85,7 +85,7 @@ curl -fsSL https://raw.githubusercontent.com/<your-username>/mihomo-tui/master/s
 
 ```bash
 # Extract archive
-tar -zxvf mihomo-tui-v0.1.0-linux-amd64.tar.gz
+tar -zxvf mihotui-v0.1.0-linux-amd64.tar.gz
 
 # Run installation script
 sudo ./install.sh
@@ -111,10 +111,10 @@ go run ./tools/packager -arch all -v v0.1.0
 
 构建完成后，产物将存放在 `./dist/` 目录下：
 
-- `mihomo-tui-v0.1.0-linux-amd64.tar.gz` (x86_64 服务器 / VPS)
-- `mihomo-tui-v0.1.0-linux-arm64.tar.gz` (ARM64 软路由 / 树莓派)
-- `mihomo-tui-v0.1.0-linux-armv7.tar.gz` (ARMv7 嵌入式路由器)
-- `mihomo-tui-v0.1.0-linux-386.tar.gz` (32位 x86 系统)
+- `mihotui-v0.1.0-linux-amd64.tar.gz` (x86_64 服务器 / VPS)
+- `mihotui-v0.1.0-linux-arm64.tar.gz` (ARM64 软路由 / 树莓派)
+- `mihotui-v0.1.0-linux-armv7.tar.gz` (ARMv7 嵌入式路由器)
+- `mihotui-v0.1.0-linux-386.tar.gz` (32位 x86 系统)
 - `sha256sums.txt` (全量哈希校验和)
 
 每个发布包内已内置：
@@ -130,35 +130,25 @@ go run ./tools/packager -arch all -v v0.1.0
 解压发布的归档包后，直接执行内置的安装脚本即可：
 
 ```bash
-tar -zxvf mihomo-tui-v0.1.0-linux-amd64.tar.gz
-cd mihomo-tui-*
+tar -zxvf mihotui-v0.1.0-linux-amd64.tar.gz
 sudo ./install.sh
 ```
 
 脚本将自动：
 
-- 将二进制安装到 `/usr/local/bin/mihomo-tui`
+- 将二进制安装到 `/usr/local/bin/mihotui`
 - 赋予可执行权限
 - 自动创建 `/etc/mihomo` 与默认用户配置目录
 
-### 3. 运行参数
+### 3. 运行与子命令
 
 ```bash
-# Connect to default local endpoint http://127.0.0.1:9090
-mihomo-tui
+# 启动交互式 TUI 界面
+mihotui
 
-# Specify external controller API URL and secret
-mihomo-tui -u http://127.0.0.1:9090 -s "your_secret_here"
+# 指定自定义配置文件路径
+mihotui -c ~/.config/mihotui/config.yaml
 
-# Specify managed configuration directory
-mihomo-tui -d /etc/mihomo
-```
-
-也可通过环境变量覆盖：
-
-```bash
-export MIHOMO_API_URL="http://127.0.0.1:9090"
-export MIHOMO_SECRET="your_secret"
-export MIHOMO_CONFIG_DIR="/etc/mihomo"
-mihomo-tui
+# 安装 Mihomo 内核包到 mihotui 安装目录
+mihotui install
 ```
