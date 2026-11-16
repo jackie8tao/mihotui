@@ -91,8 +91,7 @@ type (
 		name string
 		err  error
 	}
-	statusClearMsg struct{}
-	tickMsg        time.Time
+	tickMsg time.Time
 )
 
 // AppModel is the main Bubble Tea model.
