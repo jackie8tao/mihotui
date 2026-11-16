@@ -548,11 +548,12 @@ func (m *AppModel) View() string {
 	status := lipgloss.NewStyle().Foreground(statusColor).Render(" " + m.statusMsg)
 
 	helpText := "[Tab] Switch View | [m] Mode | [r] Refresh | [q] Quit"
-	if m.activeTab == TabProxies {
+	switch m.activeTab {
+	case TabProxies:
 		helpText = "[←/→] Pane | [↑/↓] Move | [Enter] Select | [t] Ping | [T] Ping Group | " + helpText
-	} else if m.activeTab == TabConfigs {
+	case TabConfigs:
 		helpText = "[↑/↓] Move | [Enter] Apply Profile | " + helpText
-	} else if m.activeTab == TabSubscriptions {
+	case TabSubscriptions:
 		helpText = "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete | " + helpText
 	}
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
