@@ -7,11 +7,7 @@ api_url: "http://127.0.0.1:9090"
 # Mihomo API secret token (matches 'secret' in Mihomo config.yaml)
 secret: ""
 
-# Mihomo managed configuration directory (for profiles and subscription management)
-# If empty, automatically managed under user config directory (e.g. ~/.config/mihotui/mihomo)
-mihomo_dir: ""
-
-# Currently active profile filename in mihomo_dir (e.g. default.yaml)
+# Currently active profile filename (e.g. default.yaml)
 active_profile: ""
 
 # Subscriptions list managed by mihotui

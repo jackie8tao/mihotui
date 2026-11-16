@@ -43,7 +43,12 @@ func runTUI(cfgPath string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	profileMgr, err := profile.NewManager(cfg.MihomoDir,
+	appPaths, err := config.ResolveAppPaths()
+	if err != nil {
+		return fmt.Errorf("failed to resolve app paths: %w", err)
+	}
+
+	profileMgr, err := profile.NewManager(appPaths.MihomoDir,
 		profile.WithActiveProfile(cfg.ActiveProfile),
 		profile.WithSubscriptions(cfg.Subscriptions),
 		profile.WithSaveFunc(func(activeProfile string, subs []profile.Subscription) error {

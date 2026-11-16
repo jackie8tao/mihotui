@@ -18,7 +18,6 @@ const (
 
 // AppConfig represents user configuration and state persistence for mihotui.
 type AppConfig struct {
-	MihomoDir     string                 `yaml:"mihomo_dir"`     // mihomo managed config directory
 	ApiURL        string                 `yaml:"api_url"`        // external controller API URL
 	Secret        string                 `yaml:"secret"`         // external controller API secret
 	ActiveProfile string                 `yaml:"active_profile"` // active profile file name
@@ -30,7 +29,6 @@ type AppConfig struct {
 // DefaultConfig returns reasonable defaults.
 func DefaultConfig() *AppConfig {
 	return &AppConfig{
-		MihomoDir:     "",
 		ApiURL:        "http://127.0.0.1:9090",
 		Secret:        "",
 		ActiveProfile: "",
