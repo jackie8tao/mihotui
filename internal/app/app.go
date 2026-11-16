@@ -481,15 +481,10 @@ func (m *AppModel) View() string {
 	// Top Header with Tabs
 	title := theme.TitleStyle.Render(" MihoTui ")
 
-	tab4Name := "4. Subs"
-	if m.width >= 90 {
-		tab4Name = "4. Subscriptions"
-	}
-
 	tab1 := theme.TabInactiveStyle.Render("1. Overview")
 	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
 	tab3 := theme.TabInactiveStyle.Render("3. Configs")
-	tab4 := theme.TabInactiveStyle.Render(tab4Name)
+	tab4 := theme.TabInactiveStyle.Render("4. Subscriptions")
 
 	switch m.activeTab {
 	case TabOverview:
@@ -499,7 +494,7 @@ func (m *AppModel) View() string {
 	case TabConfigs:
 		tab3 = theme.TabActiveStyle.Render("3. Configs")
 	case TabSubscriptions:
-		tab4 = theme.TabActiveStyle.Render(tab4Name)
+		tab4 = theme.TabActiveStyle.Render("4. Subscriptions")
 	}
 
 	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3, " ", tab4)
