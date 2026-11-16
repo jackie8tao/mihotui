@@ -20,7 +20,7 @@ package:
 
 clean:
 	@echo "==> Cleaning build artifacts and test outputs..."
-	rm -rf dist/ build/ bin/
-	rm -f $(NAME) $(NAME)-* mihomo-tui*
+	rm -rf dist/
+	rm -f $(NAME) $(NAME)-*
 	rm -f coverage.out coverage.html *.test
 	go clean
