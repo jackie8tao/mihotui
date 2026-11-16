@@ -117,15 +117,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Also provide convenient flat uncompressed binary in dist/
-		if len(selectedTargets) == 1 {
-			flatBinPath := filepath.Join(distDir, binName)
-			if err := copyFile(tempBinPath, flatBinPath, 0755); err != nil {
-				fmt.Printf("Failed to copy flat binary %s: %v\n", flatBinPath, err)
-				os.Exit(1)
-			}
-		}
-
 		// Package into tar.gz
 		tarGzName := fmt.Sprintf("mihotui-%s-%s.tar.gz", version, t.Suffix)
 		tarGzPath := filepath.Join(distDir, tarGzName)
@@ -250,21 +241,4 @@ func fileSHA256(filePath string) (string, error) {
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-func copyFile(src, dst string, mode os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
 }
