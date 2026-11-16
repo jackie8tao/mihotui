@@ -182,48 +182,35 @@ func createTarGz(tarGzPath, binPath string) error {
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
 
-	// 1. Add binary as "mihotui" and alias "mihomo-tui" (with executable mode 0755)
-	if err := addFileToTar(tw, binPath, "mihotui", 0755); err != nil {
-		return err
+	entries := []struct {
+		src      string
+		dst      string
+		mode     int64
+		optional bool
+	}{
+		// 1. Core binary (required)
+		{src: binPath, dst: "mihotui", mode: 0755, optional: false},
+
+		// 2. Configuration examples
+		{src: filepath.Join("configs", "config.example.yaml"), dst: "configs/config.example.yaml", mode: 0644, optional: true},
+		{src: filepath.Join("configs", "config.example.yaml"), dst: "config.example.yaml", mode: 0644, optional: true},
+		{src: filepath.Join("configs", "subscriptions.example.yaml"), dst: "configs/subscriptions.example.yaml", mode: 0644, optional: true},
+
+		// 3. Documentation & deployment scripts
+		{src: "README.md", dst: "README.md", mode: 0644, optional: true},
+		{src: filepath.Join("scripts", "install.sh"), dst: "install.sh", mode: 0755, optional: true},
+		{src: filepath.Join("scripts", "systemd", "mihomo.service"), dst: "mihomo.service", mode: 0644, optional: true},
 	}
 
-	// 2. Add configs directory files
-	configFiles := []string{"config.example.yaml", "subscriptions.example.yaml"}
-	for _, cf := range configFiles {
-		src := filepath.Join("configs", cf)
-		if _, err := os.Stat(src); err == nil {
-			if err := addFileToTar(tw, src, "configs/"+cf, 0644); err != nil {
-				return fmt.Errorf("failed to add %s to tar: %w", src, err)
+	for _, e := range entries {
+		if _, err := os.Stat(e.src); err != nil {
+			if e.optional && os.IsNotExist(err) {
+				continue
 			}
-			// Also add config.example.yaml at root of archive for ease of access
-			if cf == "config.example.yaml" {
-				if err := addFileToTar(tw, src, "config.example.yaml", 0644); err != nil {
-					return fmt.Errorf("failed to add root config example to tar: %w", err)
-				}
-			}
+			return fmt.Errorf("stat %s failed: %w", e.src, err)
 		}
-	}
-
-	// 3. Add README.md (if exists)
-	if _, err := os.Stat("README.md"); err == nil {
-		if err := addFileToTar(tw, "README.md", "README.md", 0644); err != nil {
-			return fmt.Errorf("failed to add README.md to tar: %w", err)
-		}
-	}
-
-	// 4. Add install.sh
-	installScript := filepath.Join("scripts", "install.sh")
-	if _, err := os.Stat(installScript); err == nil {
-		if err := addFileToTar(tw, installScript, "install.sh", 0755); err != nil {
-			return fmt.Errorf("failed to add install.sh to tar: %w", err)
-		}
-	}
-
-	// 5. Add mihomo.service
-	serviceFile := filepath.Join("scripts", "systemd", "mihomo.service")
-	if _, err := os.Stat(serviceFile); err == nil {
-		if err := addFileToTar(tw, serviceFile, "mihomo.service", 0644); err != nil {
-			return fmt.Errorf("failed to add mihomo.service to tar: %w", err)
+		if err := addFileToTar(tw, e.src, e.dst, e.mode); err != nil {
+			return fmt.Errorf("failed to add %s to tar: %w", e.dst, err)
 		}
 	}
 
