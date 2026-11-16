@@ -54,9 +54,16 @@ type Manager struct {
 	saveFn        SaveFunc
 }
 
-// NewManager initializes a new Manager with optional configurations.
-func NewManager(customConfigDir string, opts ...ManagerOption) (*Manager, error) {
-	configDir := resolveMihomoConfigDir(customConfigDir)
+// NewManager initializes a new Manager for the given Mihomo configuration directory.
+func NewManager(configDir string, opts ...ManagerOption) (*Manager, error) {
+	configDir = strings.TrimSpace(configDir)
+	if configDir == "" {
+		return nil, errors.New("profile: config directory cannot be empty")
+	}
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return nil, fmt.Errorf("profile: invalid config directory %q: %w", configDir, err)
+	}
 
 	m := &Manager{
 		configDir: configDir,
@@ -70,24 +77,6 @@ func NewManager(customConfigDir string, opts ...ManagerOption) (*Manager, error)
 	}
 
 	return m, nil
-}
-
-// resolveMihomoConfigDir ensures and returns the configuration directory for Mihomo.
-func resolveMihomoConfigDir(custom string) string {
-	if strings.TrimSpace(custom) != "" {
-		_ = os.MkdirAll(custom, 0755)
-		return custom
-	}
-
-	if userConfigDir, err := os.UserConfigDir(); err == nil {
-		dir := filepath.Join(userConfigDir, "mihotui", "mihomo")
-		_ = os.MkdirAll(dir, 0755)
-		return dir
-	}
-
-	defaultDir := filepath.Join(".", "mihomo")
-	_ = os.MkdirAll(defaultDir, 0755)
-	return defaultDir
 }
 
 func (m *Manager) ConfigDir() string {

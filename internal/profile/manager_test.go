@@ -33,6 +33,28 @@ func TestParseUserinfo(t *testing.T) {
 	}
 }
 
+func TestNewManager_Validation(t *testing.T) {
+	if _, err := NewManager(""); err == nil {
+		t.Fatal("expected error for empty configDir, got nil")
+	}
+
+	if _, err := NewManager("   "); err == nil {
+		t.Fatal("expected error for whitespace configDir, got nil")
+	}
+
+	// Passing an existing regular file path as configDir should fail
+	tmpFile, err := os.CreateTemp(t.TempDir(), "not-a-dir-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filePath := tmpFile.Name()
+	_ = tmpFile.Close()
+
+	if _, err := NewManager(filePath); err == nil {
+		t.Fatalf("expected error when configDir %q is a file, got nil", filePath)
+	}
+}
+
 func TestManager_AddUpdateDelete(t *testing.T) {
 	// Create temp directory for testing
 	tempDir, err := os.MkdirTemp("", "mihomo-profile-test-*")
