@@ -8,13 +8,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/app/views"
-	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -65,19 +63,17 @@ type (
 		profileName string
 		err         error
 	}
-	subUpdatedMsg struct {
-		name string
-		err  error
-	}
-	subAddedMsg struct {
-		name string
-		err  error
-	}
-	subDeletedMsg struct {
-		name string
-		err  error
+	statusMsg struct {
+		text    string
+		isError bool
 	}
 )
+
+func statusCmd(text string, isError bool) tea.Cmd {
+	return func() tea.Msg {
+		return statusMsg{text: text, isError: isError}
+	}
+}
 
 // AppModel is the main Bubble Tea model.
 type AppModel struct {
@@ -90,22 +86,21 @@ type AppModel struct {
 	height    int
 	activeTab TabIndex
 
-	// Tab-specific States
+	// Tab-specific States & Sub-Models
 	proxiesState ProxiesTabState
 	configsState ConfigsTabState
-	subsState    SubscriptionsTabState
+	subsTab      *SubscriptionsModel
 
 	// Shared Domain Data
-	version       mihomo.Version
-	config        mihomo.Config
-	memory        mihomo.Memory
-	proxies       map[string]mihomo.ProxyItem
-	groups        []mihomo.ProxyItem
-	profiles      []profile.Profile
-	subscriptions []config.Subscription
-	traffic       mihomo.Traffic
-	totalUp       int64
-	totalDown     int64
+	version   mihomo.Version
+	config    mihomo.Config
+	memory    mihomo.Memory
+	proxies   map[string]mihomo.ProxyItem
+	groups    []mihomo.ProxyItem
+	profiles  []profile.Profile
+	traffic   mihomo.Traffic
+	totalUp   int64
+	totalDown int64
 
 	// Channels & Async Lifecycle
 	trafficChan chan mihomo.Traffic
@@ -118,31 +113,18 @@ type AppModel struct {
 
 // New initializes and returns a new AppModel.
 func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
-	nameInput := textinput.New()
-	nameInput.Placeholder = "e.g. My-Airport"
-	nameInput.Focus()
-	nameInput.Width = 46
-
-	urlInput := textinput.New()
-	urlInput.Placeholder = "https://sub.example.com/api/v1/..."
-	urlInput.Width = 46
-
+	keys := DefaultKeyMap()
 	return &AppModel{
 		client:     cli,
 		profileMgr: mgr,
-		keys:       DefaultKeyMap(),
+		keys:       keys,
 		activeTab:  TabOverview,
 		width:      80,
 		height:     24,
 		proxiesState: ProxiesTabState{
 			FocusPane: views.PaneGroups,
 		},
-		subsState: SubscriptionsTabState{
-			ModalActive: views.ModalNone,
-			NameInput:   nameInput,
-			URLInput:    urlInput,
-			InputFocus:  0,
-		},
+		subsTab:     NewSubscriptionsModel(mgr, keys),
 		proxies:     make(map[string]mihomo.ProxyItem),
 		trafficChan: make(chan mihomo.Traffic, 50),
 	}
@@ -233,6 +215,7 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 
 	case key.Matches(msg, m.keys.Refresh):
 		m.statusMsg = "Refreshing data..."
+		m.subsTab.Reload()
 		return tea.Batch(m.fetchDataCmd(), m.fetchProfilesCmd()), true
 
 	case key.Matches(msg, m.keys.SwitchMode):
@@ -315,12 +298,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.configsState.Cursor >= len(m.profiles) {
 			m.configsState.Cursor = 0
 		}
-		if m.profileMgr != nil {
-			m.subscriptions = m.profileMgr.ListSubscriptions()
-			if m.subsState.Cursor >= len(m.subscriptions) {
-				m.subsState.Cursor = 0
-			}
-		}
 		return m, nil
 
 	case profileAppliedMsg:
@@ -334,41 +311,16 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isError = false
 		return m, tea.Batch(m.fetchProfilesCmd(), m.fetchDataCmd())
 
-	case subUpdatedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Update sub failed: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
+	case statusMsg:
+		m.statusMsg = msg.text
+		m.isError = msg.isError
+		return m, nil
 
-		m.statusMsg = fmt.Sprintf("Subscription [%s] updated successfully!", msg.name)
-		m.isError = false
+	case subscriptionsChangedMsg:
 		return m, m.fetchProfilesCmd()
 
-	case subAddedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Add subscription failed: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.statusMsg = fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name)
-		m.isError = false
-		m.subsState.ModalActive = views.ModalNone
-		m.subsState.NameInput.SetValue("")
-		m.subsState.URLInput.SetValue("")
-		return m, m.fetchProfilesCmd()
-
-	case subDeletedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Delete sub failed: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.statusMsg = fmt.Sprintf("Subscription [%s] deleted!", msg.name)
-		m.isError = false
-		return m, m.fetchProfilesCmd()
+	case subUpdatedMsg, subAddedMsg, subDeletedMsg:
+		return m, m.subsTab.Update(msg)
 
 	case delayResultMsg:
 		item, ok := m.proxies[msg.proxyName]
@@ -417,8 +369,8 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// 1. Modal Interception
-		if cmd, handled := m.updateAddSubModal(msg); handled {
-			return m, cmd
+		if m.activeTab == TabSubscriptions && m.subsTab.CapturingInput() {
+			return m, m.subsTab.Update(msg)
 		}
 
 		// 2. Global Hotkeys
@@ -437,7 +389,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			}
 		case TabSubscriptions:
-			if cmd := m.updateSubscriptionsTab(msg); cmd != nil {
+			if cmd := m.subsTab.Update(msg); cmd != nil {
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -509,15 +461,7 @@ func (m *AppModel) View() string {
 			ProfileCursor: m.configsState.Cursor,
 		})
 	case TabSubscriptions:
-		body = views.RenderSubscriptions(views.SubscriptionsProps{
-			Width:            m.width,
-			Height:           m.height,
-			Subscriptions:    m.subscriptions,
-			SubCursor:        m.subsState.Cursor,
-			ModalActive:      m.subsState.ModalActive,
-			SubNameInputView: m.subsState.NameInput.View(),
-			SubURLInputView:  m.subsState.URLInput.View(),
-		})
+		body = m.subsTab.View(m.width, m.height)
 	}
 
 	// Bottom Status & Help
@@ -534,7 +478,7 @@ func (m *AppModel) View() string {
 	case TabConfigs:
 		helpText = "[↑/↓] Move | [Enter] Apply Profile | " + helpText
 	case TabSubscriptions:
-		helpText = "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete | " + helpText
+		helpText = m.subsTab.Help() + " | " + helpText
 	}
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 

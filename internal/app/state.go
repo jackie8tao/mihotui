@@ -1,8 +1,6 @@
 package app
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-
 	"github.com/jackie8tao/mihotui/internal/app/views"
 )
 
@@ -16,13 +14,4 @@ type ProxiesTabState struct {
 // ConfigsTabState encapsulates the list cursor state for Tab 3 (Configs).
 type ConfigsTabState struct {
 	Cursor int
-}
-
-// SubscriptionsTabState encapsulates the list cursor and modal state for Tab 4 (Subscriptions).
-type SubscriptionsTabState struct {
-	Cursor      int
-	ModalActive views.ModalType
-	NameInput   textinput.Model
-	URLInput    textinput.Model
-	InputFocus  int // 0: Name, 1: URL
 }
