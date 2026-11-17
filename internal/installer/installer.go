@@ -85,17 +85,11 @@ func delegateEtcOwnership(etcDir string) error {
 		return nil
 	}
 
-	sudoUID := strings.TrimSpace(os.Getenv("SUDO_UID"))
 	sudoGID := strings.TrimSpace(os.Getenv("SUDO_GID"))
-	if sudoUID == "" || sudoGID == "" {
-		fmt.Printf("Note: Configuration directory %s is owned by root. To manage subscriptions as a non-root user, run: sudo chown -R <user>:<group> %s\n", etcDir, etcDir)
+	if sudoGID == "" {
 		return nil
 	}
 
-	uid, err := strconv.Atoi(sudoUID)
-	if err != nil || uid <= 0 {
-		return nil
-	}
 	gid, err := strconv.Atoi(sudoGID)
 	if err != nil || gid < 0 {
 		return nil
@@ -105,15 +99,15 @@ func delegateEtcOwnership(etcDir string) error {
 		if walkErr != nil {
 			return walkErr
 		}
-		return os.Chown(path, uid, gid)
+		return os.Chown(path, -1, gid)
 	})
 	if err != nil {
-		return fmt.Errorf("installer: failed to delegate ownership of %q to uid=%d gid=%d: %w", etcDir, uid, gid, err)
+		return fmt.Errorf(
+			"installer: failed to delegate ownership of %q to gid=%d: %w",
+			etcDir, gid, err,
+		)
 	}
 
-	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-		fmt.Printf("==> Granted configuration ownership of %s to user %s\n", etcDir, sudoUser)
-	}
 	return nil
 }
 
