@@ -1,4 +1,4 @@
-package app
+package tabs
 
 import (
 	"context"
@@ -22,24 +22,23 @@ type (
 		profileName string
 		err         error
 	}
-	profileAppliedEventMsg struct{}
 )
 
 // ConfigsModel encapsulates state, interactions, and rendering for the Configs tab.
 type ConfigsModel struct {
 	client     mihomo.Client
 	profileMgr *profile.Manager
-	keys       KeyMap
+	keys       keyMap
 	profiles   []profile.Profile
 	cursor     int
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
-func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager, keys KeyMap) *ConfigsModel {
+func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
-		keys:       keys,
+		keys:       defaultKeyMap(),
 	}
 }
 
@@ -83,7 +82,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 			profileAppliedEventCmd(),
 		)
 
-	case subscriptionsChangedMsg:
+	case SubscriptionsChangedMsg:
 		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:
@@ -162,6 +161,6 @@ func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 
 func profileAppliedEventCmd() tea.Cmd {
 	return func() tea.Msg {
-		return profileAppliedEventMsg{}
+		return ProfileAppliedEventMsg{}
 	}
 }

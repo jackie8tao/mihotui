@@ -1,4 +1,4 @@
-package app
+package tabs
 
 import (
 	"context"
@@ -29,13 +29,12 @@ type (
 		name string
 		err  error
 	}
-	subscriptionsChangedMsg struct{}
 )
 
-// SubscriptionsModel encapsulates state, interactions, and view rendering for the Subscriptions tab.
+// SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
-	keys          KeyMap
+	keys          keyMap
 	subscriptions []config.Subscription
 	cursor        int
 
@@ -46,7 +45,7 @@ type SubscriptionsModel struct {
 }
 
 // NewSubscriptionsModel initializes a self-contained SubscriptionsModel.
-func NewSubscriptionsModel(mgr *profile.Manager, keys KeyMap) *SubscriptionsModel {
+func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()
@@ -58,7 +57,7 @@ func NewSubscriptionsModel(mgr *profile.Manager, keys KeyMap) *SubscriptionsMode
 
 	m := &SubscriptionsModel{
 		profileMgr:  mgr,
-		keys:        keys,
+		keys:        defaultKeyMap(),
 		modalActive: views.ModalNone,
 		nameInput:   nameInput,
 		urlInput:    urlInput,
@@ -311,6 +310,6 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 
 func subscriptionsChangedCmd() tea.Cmd {
 	return func() tea.Msg {
-		return subscriptionsChangedMsg{}
+		return SubscriptionsChangedMsg{}
 	}
 }

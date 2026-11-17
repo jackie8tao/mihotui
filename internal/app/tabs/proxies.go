@@ -1,4 +1,4 @@
-package app
+package tabs
 
 import (
 	"context"
@@ -43,7 +43,7 @@ type (
 // ProxiesModel encapsulates state, interactions, and rendering for the Proxies tab.
 type ProxiesModel struct {
 	client      mihomo.Client
-	keys        KeyMap
+	keys        keyMap
 	focusPane   views.FocusPane
 	groupCursor int
 	nodeCursor  int
@@ -52,10 +52,10 @@ type ProxiesModel struct {
 }
 
 // NewProxiesModel initializes a self-contained ProxiesModel.
-func NewProxiesModel(cli mihomo.Client, keys KeyMap) *ProxiesModel {
+func NewProxiesModel(cli mihomo.Client) *ProxiesModel {
 	return &ProxiesModel{
 		client:    cli,
-		keys:      keys,
+		keys:      defaultKeyMap(),
 		focusPane: views.PaneGroups,
 		proxies:   make(map[string]mihomo.ProxyItem),
 	}
@@ -120,7 +120,7 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 			m.fetchProxiesCmd(),
 		)
 
-	case profileAppliedEventMsg:
+	case ProfileAppliedEventMsg:
 		return m.fetchProxiesCmd()
 
 	case tea.KeyMsg:

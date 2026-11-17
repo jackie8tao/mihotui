@@ -10,54 +10,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jackie8tao/mihotui/internal/app/tabs"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-// TabPage defines the contract for an independent TUI tab sub-model.
-type TabPage interface {
-	Title() string
-	Help() string
-	CapturingInput() bool
-	Init() tea.Cmd
-	Update(msg tea.Msg) tea.Cmd
-	View(width, height int) string
-}
-
-// Shared messages exchanged between AppModel and tab sub-models.
-type (
-	trafficMsg     mihomo.Traffic
-	modeUpdatedMsg struct {
-		newMode string
-		err     error
-	}
-	modeSyncedMsg struct {
-		mode string
-	}
-	statusMsg struct {
-		text    string
-		isError bool
-	}
-)
-
-func statusCmd(text string, isError bool) tea.Cmd {
-	return func() tea.Msg {
-		return statusMsg{text: text, isError: isError}
-	}
-}
-
-func modeSyncedCmd(mode string) tea.Cmd {
-	return func() tea.Msg {
-		return modeSyncedMsg{mode: mode}
-	}
-}
-
-// AppModel is the main Bubble Tea container model routing events to independent TabPage sub-models.
+// AppModel is the main Bubble Tea container model routing events to independent tabs.Page sub-models.
 type AppModel struct {
 	client    mihomo.Client
 	keys      KeyMap
-	tabs      []TabPage
+	tabs      []tabs.Page
 	activeTab int
 
 	width  int
@@ -73,15 +36,14 @@ type AppModel struct {
 
 // New initializes and returns a new AppModel.
 func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
-	keys := DefaultKeyMap()
 	return &AppModel{
 		client: cli,
-		keys:   keys,
-		tabs: []TabPage{
-			NewOverviewModel(cli),
-			NewProxiesModel(cli, keys),
-			NewConfigsModel(cli, mgr, keys),
-			NewSubscriptionsModel(mgr, keys),
+		keys:   DefaultKeyMap(),
+		tabs: []tabs.Page{
+			tabs.NewOverviewModel(cli),
+			tabs.NewProxiesModel(cli),
+			tabs.NewConfigsModel(cli, mgr),
+			tabs.NewSubscriptionsModel(mgr),
 		},
 		width:       80,
 		height:      24,
@@ -113,7 +75,7 @@ func (m *AppModel) waitForTrafficCmd() tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return trafficMsg(t)
+		return tabs.TrafficMsg(t)
 	}
 }
 
@@ -122,7 +84,7 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		err := m.client.UpdateMode(ctx, mode)
-		return modeUpdatedMsg{newMode: mode, err: err}
+		return tabs.ModeUpdatedMsg{NewMode: mode, Err: err}
 	}
 }
 
@@ -184,26 +146,26 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case trafficMsg:
+	case tabs.TrafficMsg:
 		return m, tea.Batch(m.waitForTrafficCmd(), m.broadcast(msg))
 
-	case statusMsg:
-		m.statusMsg = msg.text
-		m.isError = msg.isError
+	case tabs.StatusMsg:
+		m.statusMsg = msg.Text
+		m.isError = msg.IsError
 		return m, nil
 
-	case modeSyncedMsg:
-		m.mode = msg.mode
+	case tabs.ModeSyncedMsg:
+		m.mode = msg.Mode
 		return m, nil
 
-	case modeUpdatedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Update mode failed: %v", msg.err)
+	case tabs.ModeUpdatedMsg:
+		if msg.Err != nil {
+			m.statusMsg = fmt.Sprintf("Update mode failed: %v", msg.Err)
 			m.isError = true
 			return m, nil
 		}
-		m.mode = msg.newMode
-		m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.newMode))
+		m.mode = msg.NewMode
+		m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.NewMode))
 		m.isError = false
 		return m, m.broadcast(msg)
 
@@ -240,7 +202,7 @@ func (m *AppModel) View() string {
 			renderedTabs = append(renderedTabs, theme.TabInactiveStyle.Render(tab.Title()))
 		}
 	}
-	tabs := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
 	modeBadge := lipgloss.NewStyle().
 		Bold(true).
@@ -249,7 +211,7 @@ func (m *AppModel) View() string {
 		Padding(0, 1).
 		Render(strings.ToUpper(m.mode))
 
-	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabs, "  ", modeBadge)
+	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabBar, "  ", modeBadge)
 
 	active := m.tabs[m.activeTab]
 	body := active.View(m.width, m.height)

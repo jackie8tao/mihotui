@@ -1,4 +1,4 @@
-package app
+package tabs
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func (m *OverviewModel) Init() tea.Cmd {
 
 func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case trafficMsg:
+	case TrafficMsg:
 		m.traffic = mihomo.Traffic(msg)
 		m.totalUp += m.traffic.Up
 		m.totalDown += m.traffic.Down
@@ -79,12 +79,12 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(cmds...)
 
-	case modeUpdatedMsg:
-		if msg.err == nil {
-			m.config.Mode = msg.newMode
+	case ModeUpdatedMsg:
+		if msg.Err == nil {
+			m.config.Mode = msg.NewMode
 		}
 
-	case profileAppliedEventMsg:
+	case ProfileAppliedEventMsg:
 		return m.fetchOverviewCmd(false)
 	}
 
