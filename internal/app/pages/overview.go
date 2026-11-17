@@ -1,4 +1,4 @@
-package tabs
+package pages
 
 import (
 	"context"

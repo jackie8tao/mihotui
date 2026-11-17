@@ -1,4 +1,4 @@
-package tabs
+package pages
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
@@ -6,7 +6,7 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-// Page defines the contract for an independent TUI tab sub-model.
+// Page defines the contract for an independent TUI page sub-model.
 type Page interface {
 	Title() string
 	Help() string
@@ -16,7 +16,7 @@ type Page interface {
 	View(width, height int) string
 }
 
-// Shared messages exchanged between the root AppModel and tab sub-models.
+// Shared messages exchanged between the root AppModel and page sub-models.
 type (
 	TrafficMsg     mihomo.Traffic
 	ModeUpdatedMsg struct {

@@ -10,18 +10,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/jackie8tao/mihotui/internal/app/tabs"
+	"github.com/jackie8tao/mihotui/internal/app/pages"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-// AppModel is the main Bubble Tea container model routing events to independent tabs.Page sub-models.
+// AppModel is the main Bubble Tea container model routing events to independent pages.Page sub-models.
 type AppModel struct {
-	client    mihomo.Client
-	keys      KeyMap
-	tabs      []tabs.Page
-	activeTab int
+	client     mihomo.Client
+	keys       KeyMap
+	pages      []pages.Page
+	activePage int
 
 	width  int
 	height int
@@ -39,11 +39,11 @@ func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	return &AppModel{
 		client: cli,
 		keys:   DefaultKeyMap(),
-		tabs: []tabs.Page{
-			tabs.NewOverviewModel(cli),
-			tabs.NewProxiesModel(cli),
-			tabs.NewConfigsModel(cli, mgr),
-			tabs.NewSubscriptionsModel(mgr),
+		pages: []pages.Page{
+			pages.NewOverviewModel(cli),
+			pages.NewProxiesModel(cli),
+			pages.NewConfigsModel(cli, mgr),
+			pages.NewSubscriptionsModel(mgr),
 		},
 		width:       80,
 		height:      24,
@@ -61,8 +61,8 @@ func (m *AppModel) Init() tea.Cmd {
 	}()
 
 	cmds := []tea.Cmd{m.waitForTrafficCmd()}
-	for _, tab := range m.tabs {
-		if cmd := tab.Init(); cmd != nil {
+	for _, p := range m.pages {
+		if cmd := p.Init(); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 	}
@@ -75,7 +75,7 @@ func (m *AppModel) waitForTrafficCmd() tea.Cmd {
 		if !ok {
 			return nil
 		}
-		return tabs.TrafficMsg(t)
+		return pages.TrafficMsg(t)
 	}
 }
 
@@ -84,7 +84,7 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		err := m.client.UpdateMode(ctx, mode)
-		return tabs.ModeUpdatedMsg{NewMode: mode, Err: err}
+		return pages.ModeUpdatedMsg{NewMode: mode, Err: err}
 	}
 }
 
@@ -97,8 +97,8 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 		return tea.Quit, true
 
 	case key.Matches(msg, m.keys.Tab):
-		if len(m.tabs) > 0 {
-			m.activeTab = (m.activeTab + 1) % len(m.tabs)
+		if len(m.pages) > 0 {
+			m.activePage = (m.activePage + 1) % len(m.pages)
 		}
 		return nil, true
 
@@ -106,8 +106,8 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 		m.statusMsg = "Refreshing data..."
 		m.isError = false
 		var cmds []tea.Cmd
-		for _, tab := range m.tabs {
-			if cmd := tab.Init(); cmd != nil {
+		for _, p := range m.pages {
+			if cmd := p.Init(); cmd != nil {
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -131,8 +131,8 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 
 func (m *AppModel) broadcast(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
-	for _, tab := range m.tabs {
-		if cmd := tab.Update(msg); cmd != nil {
+	for _, p := range m.pages {
+		if cmd := p.Update(msg); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 	}
@@ -146,19 +146,19 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case tabs.TrafficMsg:
+	case pages.TrafficMsg:
 		return m, tea.Batch(m.waitForTrafficCmd(), m.broadcast(msg))
 
-	case tabs.StatusMsg:
+	case pages.StatusMsg:
 		m.statusMsg = msg.Text
 		m.isError = msg.IsError
 		return m, nil
 
-	case tabs.ModeSyncedMsg:
+	case pages.ModeSyncedMsg:
 		m.mode = msg.Mode
 		return m, nil
 
-	case tabs.ModeUpdatedMsg:
+	case pages.ModeUpdatedMsg:
 		if msg.Err != nil {
 			m.statusMsg = fmt.Sprintf("Update mode failed: %v", msg.Err)
 			m.isError = true
@@ -170,10 +170,10 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.broadcast(msg)
 
 	case tea.KeyMsg:
-		if len(m.tabs) == 0 {
+		if len(m.pages) == 0 {
 			return m, nil
 		}
-		active := m.tabs[m.activeTab]
+		active := m.pages[m.activePage]
 		if active.CapturingInput() {
 			return m, active.Update(msg)
 		}
@@ -188,18 +188,18 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *AppModel) View() string {
-	if len(m.tabs) == 0 {
+	if len(m.pages) == 0 {
 		return ""
 	}
 
 	title := theme.TitleStyle.Render(" MihoTui ")
 
 	var renderedTabs []string
-	for i, tab := range m.tabs {
-		if i == m.activeTab {
-			renderedTabs = append(renderedTabs, theme.TabActiveStyle.Render(tab.Title()))
+	for i, p := range m.pages {
+		if i == m.activePage {
+			renderedTabs = append(renderedTabs, theme.TabActiveStyle.Render(p.Title()))
 		} else {
-			renderedTabs = append(renderedTabs, theme.TabInactiveStyle.Render(tab.Title()))
+			renderedTabs = append(renderedTabs, theme.TabInactiveStyle.Render(p.Title()))
 		}
 	}
 	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
@@ -213,7 +213,7 @@ func (m *AppModel) View() string {
 
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabBar, "  ", modeBadge)
 
-	active := m.tabs[m.activeTab]
+	active := m.pages[m.activePage]
 	body := active.View(m.width, m.height)
 
 	statusColor := theme.ColorMuted
@@ -223,8 +223,8 @@ func (m *AppModel) View() string {
 	status := lipgloss.NewStyle().Foreground(statusColor).Render(" " + m.statusMsg)
 
 	helpText := "[Tab] Switch View | [m] Mode | [r] Refresh | [q] Quit"
-	if tabHelp := active.Help(); tabHelp != "" {
-		helpText = tabHelp + " | " + helpText
+	if pageHelp := active.Help(); pageHelp != "" {
+		helpText = pageHelp + " | " + helpText
 	}
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 
