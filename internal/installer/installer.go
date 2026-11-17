@@ -37,14 +37,20 @@ func Install(ctx context.Context, opts Options) error {
 	}
 
 	// 1. Ensure suite directories exist
-	for _, dir := range []string{opts.AppPaths.BinDir, opts.AppPaths.EtcDir} {
+	needCreatedDirs := []string{
+		opts.AppPaths.BinDir,
+		opts.AppPaths.EtcDir,
+		filepath.Join(opts.AppPaths.EtcDir, "mihomo"),
+		filepath.Join(opts.AppPaths.EtcDir, "mihotui"),
+	}
+	for _, dir := range needCreatedDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("installer: create dir %q: %w", dir, err)
 		}
 	}
 
 	// 2. Configure etc directory ownership
-	if err := delegateEtcOwnership(opts.AppPaths.EtcDir); err != nil {
+	if err := delegateDirOwnership(opts.AppPaths.EtcDir); err != nil {
 		return fmt.Errorf("installer: %w", err)
 	}
 
@@ -75,11 +81,10 @@ func Install(ctx context.Context, opts Options) error {
 	return nil
 }
 
-// delegateEtcOwnership transfers ownership of etcDir (etc/mihotui and etc/mihomo)
-// to the invoking non-root user when install is executed via sudo on Unix-like systems.
-// This allows non-root `mihotui start` to save config and subscriptions without sudo,
-// while keeping bin/ binaries protected under root ownership.
-func delegateEtcOwnership(etcDir string) error {
+// delegateDirOwnership updates the group ownership of dir and all entries within it
+// to SUDO_GID when executed as root via sudo on Unix-like systems, allowing non-root
+// users in that group to manage files inside dir without sudo.
+func delegateDirOwnership(dir string) error {
 	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
 		return nil
 	}
@@ -94,14 +99,14 @@ func delegateEtcOwnership(etcDir string) error {
 		return nil
 	}
 
-	err = filepath.WalkDir(etcDir, func(path string, d fs.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		return os.Chown(path, -1, gid)
 	})
 	if err != nil {
-		return fmt.Errorf("chown %q (gid %d): %w", etcDir, gid, err)
+		return fmt.Errorf("chown %q (gid %d): %w", dir, gid, err)
 	}
 
 	return nil
