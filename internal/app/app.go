@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -12,56 +11,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jackie8tao/mihotui/internal/app/theme"
-	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-type TabIndex int
+// TabPage defines the contract for an independent TUI tab sub-model.
+type TabPage interface {
+	Title() string
+	Help() string
+	CapturingInput() bool
+	Init() tea.Cmd
+	Update(msg tea.Msg) tea.Cmd
+	View(width, height int) string
+}
 
-const (
-	TabOverview TabIndex = iota
-	TabProxies
-	TabConfigs
-	TabSubscriptions
-)
-
-const (
-	defaultTestURL       = "http://www.gstatic.com/generate_204"
-	defaultTestTimeoutMs = 3000
-)
-
-// Messages
+// Shared messages exchanged between AppModel and tab sub-models.
 type (
-	initialDataMsg struct {
-		version *mihomo.Version
-		config  *mihomo.Config
-		proxies *mihomo.ProxiesResponse
-		memory  *mihomo.Memory
-		err     error
-	}
 	trafficMsg     mihomo.Traffic
-	delayResultMsg struct {
-		proxyName string
-		delay     int
-		err       error
-	}
 	modeUpdatedMsg struct {
 		newMode string
 		err     error
 	}
-	proxySelectedMsg struct {
-		groupName string
-		proxyName string
-		err       error
-	}
-	profilesLoadedMsg struct {
-		profiles []profile.Profile
-		err      error
-	}
-	profileAppliedMsg struct {
-		profileName string
-		err         error
+	modeSyncedMsg struct {
+		mode string
 	}
 	statusMsg struct {
 		text    string
@@ -75,38 +47,26 @@ func statusCmd(text string, isError bool) tea.Cmd {
 	}
 }
 
-// AppModel is the main Bubble Tea model.
+func modeSyncedCmd(mode string) tea.Cmd {
+	return func() tea.Msg {
+		return modeSyncedMsg{mode: mode}
+	}
+}
+
+// AppModel is the main Bubble Tea container model routing events to independent TabPage sub-models.
 type AppModel struct {
-	client     mihomo.Client
-	profileMgr *profile.Manager
-	keys       KeyMap
+	client    mihomo.Client
+	keys      KeyMap
+	tabs      []TabPage
+	activeTab int
 
-	// Global Layout & Navigation
-	width     int
-	height    int
-	activeTab TabIndex
+	width  int
+	height int
+	mode   string
 
-	// Tab-specific States & Sub-Models
-	proxiesState ProxiesTabState
-	configsState ConfigsTabState
-	subsTab      *SubscriptionsModel
-
-	// Shared Domain Data
-	version   mihomo.Version
-	config    mihomo.Config
-	memory    mihomo.Memory
-	proxies   map[string]mihomo.ProxyItem
-	groups    []mihomo.ProxyItem
-	profiles  []profile.Profile
-	traffic   mihomo.Traffic
-	totalUp   int64
-	totalDown int64
-
-	// Channels & Async Lifecycle
 	trafficChan chan mihomo.Traffic
 	cancelCtx   context.CancelFunc
 
-	// Status / Notifications
 	statusMsg string
 	isError   bool
 }
@@ -115,17 +75,16 @@ type AppModel struct {
 func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	keys := DefaultKeyMap()
 	return &AppModel{
-		client:     cli,
-		profileMgr: mgr,
-		keys:       keys,
-		activeTab:  TabOverview,
-		width:      80,
-		height:     24,
-		proxiesState: ProxiesTabState{
-			FocusPane: views.PaneGroups,
+		client: cli,
+		keys:   keys,
+		tabs: []TabPage{
+			NewOverviewModel(cli),
+			NewProxiesModel(cli, keys),
+			NewConfigsModel(cli, mgr, keys),
+			NewSubscriptionsModel(mgr, keys),
 		},
-		subsTab:     NewSubscriptionsModel(mgr, keys),
-		proxies:     make(map[string]mihomo.ProxyItem),
+		width:       80,
+		height:      24,
 		trafficChan: make(chan mihomo.Traffic, 50),
 	}
 }
@@ -139,11 +98,13 @@ func (m *AppModel) Init() tea.Cmd {
 		_ = m.client.SubscribeTraffic(ctx, m.trafficChan)
 	}()
 
-	return tea.Batch(
-		m.fetchDataCmd(),
-		m.fetchProfilesCmd(),
-		m.waitForTrafficCmd(),
-	)
+	cmds := []tea.Cmd{m.waitForTrafficCmd()}
+	for _, tab := range m.tabs {
+		if cmd := tab.Init(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *AppModel) waitForTrafficCmd() tea.Cmd {
@@ -153,33 +114,6 @@ func (m *AppModel) waitForTrafficCmd() tea.Cmd {
 			return nil
 		}
 		return trafficMsg(t)
-	}
-}
-
-func (m *AppModel) fetchDataCmd() tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		v, err := m.client.GetVersion(ctx)
-		if err != nil {
-			return initialDataMsg{err: err}
-		}
-		c, err := m.client.GetConfig(ctx)
-		if err != nil {
-			return initialDataMsg{err: err}
-		}
-		p, err := m.client.GetProxies(ctx)
-		if err != nil {
-			return initialDataMsg{err: err}
-		}
-		mem, _ := m.client.GetMemory(ctx)
-
-		return initialDataMsg{
-			version: v,
-			config:  c,
-			proxies: p,
-			memory:  mem,
-		}
 	}
 }
 
@@ -201,27 +135,25 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 		return tea.Quit, true
 
 	case key.Matches(msg, m.keys.Tab):
-		switch m.activeTab {
-		case TabOverview:
-			m.activeTab = TabProxies
-		case TabProxies:
-			m.activeTab = TabConfigs
-		case TabConfigs:
-			m.activeTab = TabSubscriptions
-		case TabSubscriptions:
-			m.activeTab = TabOverview
+		if len(m.tabs) > 0 {
+			m.activeTab = (m.activeTab + 1) % len(m.tabs)
 		}
 		return nil, true
 
 	case key.Matches(msg, m.keys.Refresh):
 		m.statusMsg = "Refreshing data..."
-		m.subsTab.Reload()
-		return tea.Batch(m.fetchDataCmd(), m.fetchProfilesCmd()), true
+		m.isError = false
+		var cmds []tea.Cmd
+		for _, tab := range m.tabs {
+			if cmd := tab.Init(); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
+		return tea.Batch(cmds...), true
 
 	case key.Matches(msg, m.keys.SwitchMode):
-		curr := strings.ToLower(m.config.Mode)
 		next := "rule"
-		switch curr {
+		switch strings.ToLower(m.mode) {
 		case "rule":
 			next = "global"
 		case "global":
@@ -235,125 +167,34 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *AppModel) broadcast(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
+	for _, tab := range m.tabs {
+		if cmd := tab.Update(msg); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+	return tea.Batch(cmds...)
+}
 
+func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		return m, nil
 
 	case trafficMsg:
-		m.traffic = mihomo.Traffic(msg)
-		m.totalUp += m.traffic.Up
-		m.totalDown += m.traffic.Down
-		cmds = append(cmds, m.waitForTrafficCmd())
-
-	case initialDataMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("API Connection Error: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.version = *msg.version
-		m.config = *msg.config
-		if msg.memory != nil {
-			m.memory = *msg.memory
-		}
-		m.proxies = msg.proxies.Proxies
-
-		// Filter and sort proxy groups (Selector, URLTest, Fallback, etc.)
-		var groups []mihomo.ProxyItem
-		for _, item := range m.proxies {
-			if len(item.All) > 0 {
-				groups = append(groups, item)
-			}
-		}
-		sort.Slice(groups, func(i, j int) bool {
-			if groups[i].Name == "GLOBAL" {
-				return true
-			}
-			if groups[j].Name == "GLOBAL" {
-				return false
-			}
-			return groups[i].Name < groups[j].Name
-		})
-		m.groups = groups
-		if m.proxiesState.GroupCursor >= len(m.groups) {
-			m.proxiesState.GroupCursor = 0
-		}
-		m.statusMsg = "Connected to Mihomo"
-		m.isError = false
-		return m, nil
-
-	case profilesLoadedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Load profiles error: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.profiles = msg.profiles
-		if m.configsState.Cursor >= len(m.profiles) {
-			m.configsState.Cursor = 0
-		}
-		return m, nil
-
-	case profileAppliedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Hot-reload profile failed: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.statusMsg = fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName)
-		m.isError = false
-		return m, tea.Batch(m.fetchProfilesCmd(), m.fetchDataCmd())
+		return m, tea.Batch(m.waitForTrafficCmd(), m.broadcast(msg))
 
 	case statusMsg:
 		m.statusMsg = msg.text
 		m.isError = msg.isError
 		return m, nil
 
-	case subscriptionsChangedMsg:
-		return m, m.fetchProfilesCmd()
-
-	case subUpdatedMsg, subAddedMsg, subDeletedMsg:
-		return m, m.subsTab.Update(msg)
-
-	case delayResultMsg:
-		item, ok := m.proxies[msg.proxyName]
-		if !ok {
-			return m, nil
-		}
-		item.TestingDelay = false
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err)
-			m.isError = true
-			m.proxies[msg.proxyName] = item
-			return m, nil
-		}
-
-		item.History = append(item.History, mihomo.DelayHistory{
-			Time:  time.Now(),
-			Delay: msg.delay,
-		})
-		m.statusMsg = fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay))
-		m.isError = false
-		m.proxies[msg.proxyName] = item
+	case modeSyncedMsg:
+		m.mode = msg.mode
 		return m, nil
-
-	case proxySelectedMsg:
-		if msg.err != nil {
-			m.statusMsg = fmt.Sprintf("Select proxy failed: %v", msg.err)
-			m.isError = true
-			return m, nil
-		}
-
-		m.statusMsg = fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName)
-		m.isError = false
-		return m, m.fetchDataCmd()
 
 	case modeUpdatedMsg:
 		if msg.err != nil {
@@ -361,110 +202,58 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isError = true
 			return m, nil
 		}
-
-		m.config.Mode = msg.newMode
+		m.mode = msg.newMode
 		m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.newMode))
 		m.isError = false
-		return m, nil
+		return m, m.broadcast(msg)
 
 	case tea.KeyMsg:
-		// 1. Modal Interception
-		if m.activeTab == TabSubscriptions && m.subsTab.CapturingInput() {
-			return m, m.subsTab.Update(msg)
+		if len(m.tabs) == 0 {
+			return m, nil
 		}
-
-		// 2. Global Hotkeys
+		active := m.tabs[m.activeTab]
+		if active.CapturingInput() {
+			return m, active.Update(msg)
+		}
 		if cmd, handled := m.handleGlobalKeys(msg); handled {
 			return m, cmd
 		}
+		return m, active.Update(msg)
 
-		// 3. Tab-specific Updates
-		switch m.activeTab {
-		case TabProxies:
-			if cmd := m.updateProxiesTab(msg); cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		case TabConfigs:
-			if cmd := m.updateConfigsTab(msg); cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		case TabSubscriptions:
-			if cmd := m.subsTab.Update(msg); cmd != nil {
-				cmds = append(cmds, cmd)
-			}
-		}
+	default:
+		return m, m.broadcast(msg)
 	}
-
-	return m, tea.Batch(cmds...)
 }
 
 func (m *AppModel) View() string {
-	// Top Header with Tabs
-	title := theme.TitleStyle.Render(" MihoTui ")
-
-	tab1 := theme.TabInactiveStyle.Render("1. Overview")
-	tab2 := theme.TabInactiveStyle.Render("2. Proxies")
-	tab3 := theme.TabInactiveStyle.Render("3. Configs")
-	tab4 := theme.TabInactiveStyle.Render("4. Subscriptions")
-
-	switch m.activeTab {
-	case TabOverview:
-		tab1 = theme.TabActiveStyle.Render("1. Overview")
-	case TabProxies:
-		tab2 = theme.TabActiveStyle.Render("2. Proxies")
-	case TabConfigs:
-		tab3 = theme.TabActiveStyle.Render("3. Configs")
-	case TabSubscriptions:
-		tab4 = theme.TabActiveStyle.Render("4. Subscriptions")
+	if len(m.tabs) == 0 {
+		return ""
 	}
 
-	tabs := lipgloss.JoinHorizontal(lipgloss.Top, tab1, " ", tab2, " ", tab3, " ", tab4)
+	title := theme.TitleStyle.Render(" MihoTui ")
+
+	var renderedTabs []string
+	for i, tab := range m.tabs {
+		if i == m.activeTab {
+			renderedTabs = append(renderedTabs, theme.TabActiveStyle.Render(tab.Title()))
+		} else {
+			renderedTabs = append(renderedTabs, theme.TabInactiveStyle.Render(tab.Title()))
+		}
+	}
+	tabs := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
 	modeBadge := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(theme.ColorDark).
 		Background(theme.ColorSecondary).
 		Padding(0, 1).
-		Render(strings.ToUpper(m.config.Mode))
+		Render(strings.ToUpper(m.mode))
 
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabs, "  ", modeBadge)
 
-	// Main Body
-	var body string
-	switch m.activeTab {
-	case TabOverview:
-		body = views.RenderOverview(views.OverviewProps{
-			Width:     m.width,
-			Traffic:   m.traffic,
-			TotalUp:   m.totalUp,
-			TotalDown: m.totalDown,
-			Config:    m.config,
-			Version:   m.version,
-			Memory:    m.memory,
-		})
-	case TabProxies:
-		body = views.RenderProxies(views.ProxiesProps{
-			Width:       m.width,
-			Height:      m.height,
-			FocusPane:   m.proxiesState.FocusPane,
-			Groups:      m.groups,
-			Proxies:     m.proxies,
-			GroupCursor: m.proxiesState.GroupCursor,
-			NodeCursor:  m.proxiesState.NodeCursor,
-		})
-	case TabConfigs:
-		body = views.RenderConfigs(views.ConfigsProps{
-			Width:         m.width,
-			Height:        m.height,
-			ConfigDir:     m.profileMgr.ConfigDir(),
-			Profiles:      m.profiles,
-			ProfileCursor: m.configsState.Cursor,
-		})
-	case TabSubscriptions:
-		body = m.subsTab.View(m.width, m.height)
-	}
+	active := m.tabs[m.activeTab]
+	body := active.View(m.width, m.height)
 
-	// Bottom Status & Help
 	statusColor := theme.ColorMuted
 	if m.isError {
 		statusColor = theme.ColorError
@@ -472,13 +261,8 @@ func (m *AppModel) View() string {
 	status := lipgloss.NewStyle().Foreground(statusColor).Render(" " + m.statusMsg)
 
 	helpText := "[Tab] Switch View | [m] Mode | [r] Refresh | [q] Quit"
-	switch m.activeTab {
-	case TabProxies:
-		helpText = "[←/→] Pane | [↑/↓] Move | [Enter] Select | [t] Ping | [T] Ping Group | " + helpText
-	case TabConfigs:
-		helpText = "[↑/↓] Move | [Enter] Apply Profile | " + helpText
-	case TabSubscriptions:
-		helpText = m.subsTab.Help() + " | " + helpText
+	if tabHelp := active.Help(); tabHelp != "" {
+		helpText = tabHelp + " | " + helpText
 	}
 	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
 

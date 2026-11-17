@@ -68,12 +68,21 @@ func NewSubscriptionsModel(mgr *profile.Manager, keys KeyMap) *SubscriptionsMode
 	return m
 }
 
+func (m *SubscriptionsModel) Title() string {
+	return "4. Subscriptions"
+}
+
 func (m *SubscriptionsModel) Help() string {
 	return "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete"
 }
 
 func (m *SubscriptionsModel) CapturingInput() bool {
 	return m.modalActive == views.ModalAddSub
+}
+
+func (m *SubscriptionsModel) Init() tea.Cmd {
+	m.Reload()
+	return nil
 }
 
 func (m *SubscriptionsModel) Reload() {
