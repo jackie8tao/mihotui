@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
@@ -48,15 +49,15 @@ func (m *AppModel) testDelayCmd(nodeName string) tea.Cmd {
 func (m *AppModel) updateProxiesTab(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, m.keys.Left):
-		m.proxiesState.FocusPane = PaneGroups
+		m.proxiesState.FocusPane = views.PaneGroups
 
 	case key.Matches(msg, m.keys.Right):
 		if len(m.groups) > 0 {
-			m.proxiesState.FocusPane = PaneNodes
+			m.proxiesState.FocusPane = views.PaneNodes
 		}
 
 	case key.Matches(msg, m.keys.Up):
-		if m.proxiesState.FocusPane == PaneGroups {
+		if m.proxiesState.FocusPane == views.PaneGroups {
 			if m.proxiesState.GroupCursor > 0 {
 				m.proxiesState.GroupCursor--
 				m.proxiesState.NodeCursor = 0
@@ -68,7 +69,7 @@ func (m *AppModel) updateProxiesTab(msg tea.KeyMsg) tea.Cmd {
 		}
 
 	case key.Matches(msg, m.keys.Down):
-		if m.proxiesState.FocusPane == PaneGroups {
+		if m.proxiesState.FocusPane == views.PaneGroups {
 			if m.proxiesState.GroupCursor < len(m.groups)-1 {
 				m.proxiesState.GroupCursor++
 				m.proxiesState.NodeCursor = 0
@@ -81,14 +82,14 @@ func (m *AppModel) updateProxiesTab(msg tea.KeyMsg) tea.Cmd {
 		}
 
 	case key.Matches(msg, m.keys.Enter):
-		if m.proxiesState.FocusPane == PaneNodes {
+		if m.proxiesState.FocusPane == views.PaneNodes {
 			grp := m.currentGroup()
 			node := m.currentSelectedNode()
 			if grp != nil && node != "" {
 				return m.selectProxyCmd(grp.Name, node)
 			}
 		} else {
-			m.proxiesState.FocusPane = PaneNodes
+			m.proxiesState.FocusPane = views.PaneNodes
 		}
 
 	case key.Matches(msg, m.keys.TestDelay):

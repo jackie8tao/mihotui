@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
 )
 
@@ -63,13 +64,13 @@ func (m *AppModel) deleteSubCmd(name string) tea.Cmd {
 }
 
 func (m *AppModel) updateAddSubModal(msg tea.KeyMsg) (tea.Cmd, bool) {
-	if m.subsState.ModalActive != ModalAddSub {
+	if m.subsState.ModalActive != views.ModalAddSub {
 		return nil, false
 	}
 
 	switch msg.String() {
 	case "esc":
-		m.subsState.ModalActive = ModalNone
+		m.subsState.ModalActive = views.ModalNone
 		return nil, true
 
 	case "tab", "down":
@@ -134,7 +135,7 @@ func (m *AppModel) updateSubscriptionsTab(msg tea.KeyMsg) tea.Cmd {
 		m.statusMsg = "Updating all subscriptions..."
 		return m.updateAllSubsCmd()
 	case key.Matches(msg, m.keys.AddSub):
-		m.subsState.ModalActive = ModalAddSub
+		m.subsState.ModalActive = views.ModalAddSub
 		m.subsState.InputFocus = 0
 		m.subsState.NameInput.Focus()
 		m.subsState.URLInput.Blur()

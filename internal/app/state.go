@@ -2,11 +2,13 @@ package app
 
 import (
 	"github.com/charmbracelet/bubbles/textinput"
+
+	"github.com/jackie8tao/mihotui/internal/app/views"
 )
 
 // ProxiesTabState encapsulates the UI navigation and focus state for Tab 2 (Proxies).
 type ProxiesTabState struct {
-	FocusPane   FocusPane
+	FocusPane   views.FocusPane
 	GroupCursor int
 	NodeCursor  int
 }
@@ -19,7 +21,7 @@ type ConfigsTabState struct {
 // SubscriptionsTabState encapsulates the list cursor and modal state for Tab 4 (Subscriptions).
 type SubscriptionsTabState struct {
 	Cursor      int
-	ModalActive ModalType
+	ModalActive views.ModalType
 	NameInput   textinput.Model
 	URLInput    textinput.Model
 	InputFocus  int // 0: Name, 1: URL

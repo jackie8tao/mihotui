@@ -18,78 +18,26 @@ type KeyMap struct {
 	UpdateAll  key.Binding
 	AddSub     key.Binding
 	DeleteSub  key.Binding
-	Esc        key.Binding
 	Quit       key.Binding
-	Help       key.Binding
 }
 
 // DefaultKeyMap returns the default keybindings.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
-		Up: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
-		Left: key.NewBinding(
-			key.WithKeys("left", "h"),
-			key.WithHelp("←/h", "group left"),
-		),
-		Right: key.NewBinding(
-			key.WithKeys("right", "l"),
-			key.WithHelp("→/l", "node right"),
-		),
-		Tab: key.NewBinding(
-			key.WithKeys("tab"),
-			key.WithHelp("tab", "switch tab"),
-		),
-		Enter: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "select / apply"),
-		),
-		TestDelay: key.NewBinding(
-			key.WithKeys("t"),
-			key.WithHelp("t", "test delay"),
-		),
-		TestAll: key.NewBinding(
-			key.WithKeys("T"),
-			key.WithHelp("T", "test all in group"),
-		),
-		SwitchMode: key.NewBinding(
-			key.WithKeys("m"),
-			key.WithHelp("m", "switch mode"),
-		),
-		Refresh: key.NewBinding(
-			key.WithKeys("r"),
-			key.WithHelp("r", "refresh data"),
-		),
-		UpdateSub: key.NewBinding(
-			key.WithKeys("u"),
-			key.WithHelp("u", "update sub"),
-		),
-		UpdateAll: key.NewBinding(
-			key.WithKeys("U"),
-			key.WithHelp("U", "update all subs"),
-		),
-		AddSub: key.NewBinding(
-			key.WithKeys("a"),
-			key.WithHelp("a", "add subscription"),
-		),
-		DeleteSub: key.NewBinding(
-			key.WithKeys("d"),
-			key.WithHelp("d", "delete subscription"),
-		),
-		Esc: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "cancel / close"),
-		),
-		Quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "quit"),
-		),
+		Up:         key.NewBinding(key.WithKeys("up", "k")),
+		Down:       key.NewBinding(key.WithKeys("down", "j")),
+		Left:       key.NewBinding(key.WithKeys("left", "h")),
+		Right:      key.NewBinding(key.WithKeys("right", "l")),
+		Tab:        key.NewBinding(key.WithKeys("tab")),
+		Enter:      key.NewBinding(key.WithKeys("enter")),
+		TestDelay:  key.NewBinding(key.WithKeys("t")),
+		TestAll:    key.NewBinding(key.WithKeys("T")),
+		SwitchMode: key.NewBinding(key.WithKeys("m")),
+		Refresh:    key.NewBinding(key.WithKeys("r")),
+		UpdateSub:  key.NewBinding(key.WithKeys("u")),
+		UpdateAll:  key.NewBinding(key.WithKeys("U")),
+		AddSub:     key.NewBinding(key.WithKeys("a")),
+		DeleteSub:  key.NewBinding(key.WithKeys("d")),
+		Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c")),
 	}
 }
-

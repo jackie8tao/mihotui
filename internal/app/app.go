@@ -28,22 +28,9 @@ const (
 	TabSubscriptions
 )
 
-type FocusPane = views.FocusPane
-
 const (
-	PaneGroups = views.PaneGroups
-	PaneNodes  = views.PaneNodes
-)
-
-type ModalType = views.ModalType
-
-const (
-	ModalNone   = views.ModalNone
-	ModalAddSub = views.ModalAddSub
-
 	defaultTestURL       = "http://www.gstatic.com/generate_204"
 	defaultTestTimeoutMs = 3000
-	defaultRefreshRateMs = 1000
 )
 
 // Messages
@@ -90,13 +77,11 @@ type (
 		name string
 		err  error
 	}
-	tickMsg time.Time
 )
 
 // AppModel is the main Bubble Tea model.
 type AppModel struct {
 	client     mihomo.Client
-	cfg        *config.AppConfig
 	profileMgr *profile.Manager
 	keys       KeyMap
 
@@ -132,12 +117,7 @@ type AppModel struct {
 }
 
 // New initializes and returns a new AppModel.
-func New(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager) *AppModel {
-	return NewAppModel(cli, cfg, mgr)
-}
-
-// NewAppModel initializes the AppModel.
-func NewAppModel(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager) *AppModel {
+func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()
@@ -149,17 +129,16 @@ func NewAppModel(cli mihomo.Client, cfg *config.AppConfig, mgr *profile.Manager)
 
 	return &AppModel{
 		client:     cli,
-		cfg:        cfg,
 		profileMgr: mgr,
 		keys:       DefaultKeyMap(),
 		activeTab:  TabOverview,
 		width:      80,
 		height:     24,
 		proxiesState: ProxiesTabState{
-			FocusPane: PaneGroups,
+			FocusPane: views.PaneGroups,
 		},
 		subsState: SubscriptionsTabState{
-			ModalActive: ModalNone,
+			ModalActive: views.ModalNone,
 			NameInput:   nameInput,
 			URLInput:    urlInput,
 			InputFocus:  0,
@@ -182,14 +161,7 @@ func (m *AppModel) Init() tea.Cmd {
 		m.fetchDataCmd(),
 		m.fetchProfilesCmd(),
 		m.waitForTrafficCmd(),
-		m.tickCmd(),
 	)
-}
-
-func (m *AppModel) tickCmd() tea.Cmd {
-	return tea.Tick(time.Duration(defaultRefreshRateMs)*time.Millisecond, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
 }
 
 func (m *AppModel) waitForTrafficCmd() tea.Cmd {
@@ -288,9 +260,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-	case tickMsg:
-		cmds = append(cmds, m.tickCmd())
-
 	case trafficMsg:
 		m.traffic = mihomo.Traffic(msg)
 		m.totalUp += m.traffic.Up
@@ -385,7 +354,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.statusMsg = fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name)
 		m.isError = false
-		m.subsState.ModalActive = ModalNone
+		m.subsState.ModalActive = views.ModalNone
 		m.subsState.NameInput.SetValue("")
 		m.subsState.URLInput.SetValue("")
 		return m, m.fetchProfilesCmd()

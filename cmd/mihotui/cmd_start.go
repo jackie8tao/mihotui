@@ -68,7 +68,7 @@ func runTUI(cfgPath string) error {
 		return fmt.Errorf("failed to create Mihomo API client: %w", err)
 	}
 
-	appModel := app.New(mihoCli, cfg, profileMgr)
+	appModel := app.New(mihoCli, profileMgr)
 	p := tea.NewProgram(
 		appModel,
 		tea.WithAltScreen(),
