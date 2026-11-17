@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -49,12 +47,7 @@ func Install(ctx context.Context, opts Options) error {
 		}
 	}
 
-	// 2. Configure etc directory ownership
-	if err := delegateDirOwnership(opts.AppPaths.EtcDir); err != nil {
-		return fmt.Errorf("installer: %w", err)
-	}
-
-	// 3. Check if already installed
+	// 2. Check if already installed
 	mihomoBinPath := opts.AppPaths.MihomoBinPath()
 	if !opts.Force {
 		if fi, err := os.Stat(mihomoBinPath); err == nil && !fi.IsDir() {
@@ -63,7 +56,7 @@ func Install(ctx context.Context, opts Options) error {
 		}
 	}
 
-	// 4. Install core binary from local archive or remote release
+	// 3. Install core binary from local archive or remote release
 	if archivePath := strings.TrimSpace(opts.ArchivePath); archivePath != "" {
 		if err := installLocalArchive(archivePath, mihomoBinPath); err != nil {
 			return fmt.Errorf("installer: %w", err)
@@ -74,41 +67,10 @@ func Install(ctx context.Context, opts Options) error {
 		}
 	}
 
-	// 5. Ensure Executable Permissions
+	// 4. Ensure Executable Permissions
 	if err := os.Chmod(mihomoBinPath, 0755); err != nil {
 		return fmt.Errorf("installer: chmod %q: %w", mihomoBinPath, err)
 	}
-	return nil
-}
-
-// delegateDirOwnership updates the group ownership of dir and all entries within it
-// to SUDO_GID when executed as root via sudo on Unix-like systems, allowing non-root
-// users in that group to manage files inside dir without sudo.
-func delegateDirOwnership(dir string) error {
-	if runtime.GOOS == "windows" || os.Geteuid() != 0 {
-		return nil
-	}
-
-	sudoGID := strings.TrimSpace(os.Getenv("SUDO_GID"))
-	if sudoGID == "" {
-		return nil
-	}
-
-	gid, err := strconv.Atoi(sudoGID)
-	if err != nil || gid < 0 {
-		return nil
-	}
-
-	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		return os.Chown(path, -1, gid)
-	})
-	if err != nil {
-		return fmt.Errorf("chown %q (gid %d): %w", dir, gid, err)
-	}
-
 	return nil
 }
 
@@ -161,10 +123,6 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 	}
 	assetName := fmt.Sprintf("mihomo-%s-%s.gz", target, version)
 	downloadURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", DefaultMihomoRepo, version, assetName)
-
-	fmt.Printf("==> Downloading Mihomo core (%s) for %s/%s...\n", version, runtime.GOOS, runtime.GOARCH)
-	fmt.Printf("    Source: %s\n", downloadURL)
-	fmt.Printf("    Target: %s\n", targetBinPath)
 
 	downloadReq, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
