@@ -16,11 +16,21 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-// AppModel is the main Bubble Tea container model routing events to independent pages.Page sub-models.
+// Page defines the contract for an independent TUI page sub-model consumed by AppModel.
+type Page interface {
+	Title() string
+	Help() string
+	CapturingInput() bool
+	Init() tea.Cmd
+	Update(msg tea.Msg) tea.Cmd
+	View(width, height int) string
+}
+
+// AppModel is the main Bubble Tea container model routing events to independent Page sub-models.
 type AppModel struct {
 	client     mihomo.Client
 	keys       KeyMap
-	pages      []pages.Page
+	pages      []Page
 	activePage int
 
 	width  int
@@ -39,7 +49,7 @@ func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	return &AppModel{
 		client: cli,
 		keys:   DefaultKeyMap(),
-		pages: []pages.Page{
+		pages: []Page{
 			pages.NewOverviewModel(cli),
 			pages.NewProxiesModel(cli),
 			pages.NewConfigsModel(cli, mgr),

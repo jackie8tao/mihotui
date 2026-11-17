@@ -6,16 +6,6 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-// Page defines the contract for an independent TUI page sub-model.
-type Page interface {
-	Title() string
-	Help() string
-	CapturingInput() bool
-	Init() tea.Cmd
-	Update(msg tea.Msg) tea.Cmd
-	View(width, height int) string
-}
-
 // Shared messages exchanged between the root AppModel and page sub-models.
 type (
 	TrafficMsg     mihomo.Traffic
