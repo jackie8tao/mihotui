@@ -19,11 +19,11 @@ func (m *AppModel) currentSubscription() *config.Subscription {
 	return &m.subscriptions[m.subsState.Cursor]
 }
 
-func (m *AppModel) updateSubCmd(subID, name string) tea.Cmd {
+func (m *AppModel) updateSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 		defer cancel()
-		_, err := m.profileMgr.UpdateSubscription(ctx, subID)
+		_, err := m.profileMgr.UpdateSubscription(ctx, name)
 		return subUpdatedMsg{name: name, err: err}
 	}
 }
@@ -35,7 +35,7 @@ func (m *AppModel) updateAllSubsCmd() tea.Cmd {
 		subs := m.profileMgr.ListSubscriptions()
 		var errs []string
 		for _, s := range subs {
-			if _, err := m.profileMgr.UpdateSubscription(ctx, s.ID); err != nil {
+			if _, err := m.profileMgr.UpdateSubscription(ctx, s.Name); err != nil {
 				errs = append(errs, fmt.Sprintf("%s: %v", s.Name, err))
 			}
 		}
@@ -55,9 +55,9 @@ func (m *AppModel) addSubCmd(name, url string) tea.Cmd {
 	}
 }
 
-func (m *AppModel) deleteSubCmd(subID, name string) tea.Cmd {
+func (m *AppModel) deleteSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.profileMgr.DeleteSubscription(subID, true)
+		err := m.profileMgr.DeleteSubscription(name, true)
 		return subDeletedMsg{name: name, err: err}
 	}
 }
@@ -128,7 +128,7 @@ func (m *AppModel) updateSubscriptionsTab(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			m.statusMsg = fmt.Sprintf("Updating subscription [%s]...", sub.Name)
-			return m.updateSubCmd(sub.ID, sub.Name)
+			return m.updateSubCmd(sub.Name)
 		}
 	case key.Matches(msg, m.keys.UpdateAll):
 		m.statusMsg = "Updating all subscriptions..."
@@ -143,7 +143,7 @@ func (m *AppModel) updateSubscriptionsTab(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			m.statusMsg = fmt.Sprintf("Deleting subscription [%s]...", sub.Name)
-			return m.deleteSubCmd(sub.ID, sub.Name)
+			return m.deleteSubCmd(sub.Name)
 		}
 	}
 

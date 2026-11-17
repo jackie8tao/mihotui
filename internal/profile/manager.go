@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"net/http"
 	"os"
@@ -112,7 +113,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 
 	subMap := make(map[string]*config.Subscription)
 	for i := range m.subscriptions {
-		subMap[m.subscriptions[i].FileName] = &m.subscriptions[i]
+		subMap[sanitizeFileName(m.subscriptions[i].Name)] = &m.subscriptions[i]
 	}
 
 	var profiles []Profile
@@ -148,7 +149,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 			FullPath:     fullPath,
 			Size:         info.Size(),
 			ModTime:      info.ModTime(),
-			IsActive:     name == m.activeProfile || fullPath == m.activeProfile,
+			IsActive:     name == m.activeProfile || displayName == m.activeProfile || fullPath == m.activeProfile,
 			Subscription: sub,
 		})
 	}
@@ -190,12 +191,14 @@ func ParseUserinfo(raw string) *config.SubUserInfo {
 
 var safeFileNameRe = regexp.MustCompile(`[^a-zA-Z0-9_\-]+`)
 
-// sanitizeFileName converts arbitrary name to safe alphanumeric file name.
+// sanitizeFileName deterministically converts a subscription name to a safe alphanumeric file name.
 func sanitizeFileName(name string) string {
 	clean := safeFileNameRe.ReplaceAllString(name, "_")
 	clean = strings.Trim(clean, "_")
 	if clean == "" {
-		clean = fmt.Sprintf("sub_%d", time.Now().Unix())
+		h := fnv.New32a()
+		_, _ = h.Write([]byte(name))
+		clean = fmt.Sprintf("sub_%08x", h.Sum32())
 	}
 	return clean + ".yaml"
 }
@@ -210,24 +213,20 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 	}
 
 	fileName := sanitizeFileName(name)
-	targetPath := filepath.Join(m.configDir, fileName)
-
-	// Avoid duplicate file collision
-	counter := 1
-	for {
-		if _, err := os.Stat(targetPath); errors.Is(err, os.ErrNotExist) {
-			break
+	for _, existing := range m.subscriptions {
+		if existing.Name == name || sanitizeFileName(existing.Name) == fileName {
+			return nil, fmt.Errorf("subscription %q already exists (conflicts with %q)", name, existing.Name)
 		}
-		fileName = fmt.Sprintf("%s_%d.yaml", strings.TrimSuffix(sanitizeFileName(name), ".yaml"), counter)
-		targetPath = filepath.Join(m.configDir, fileName)
-		counter++
+	}
+
+	targetPath := filepath.Join(m.configDir, fileName)
+	if _, err := os.Stat(targetPath); err == nil {
+		return nil, fmt.Errorf("profile file %q already exists", fileName)
 	}
 
 	sub := config.Subscription{
-		ID:        fmt.Sprintf("sub_%d", time.Now().UnixNano()),
 		Name:      name,
 		URL:       rawURL,
-		FileName:  fileName,
 		UpdatedAt: time.Now(),
 	}
 
@@ -248,11 +247,11 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 }
 
 // UpdateSubscription re-downloads an existing subscription.
-func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*config.Subscription, error) {
+func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.Subscription, error) {
 	var targetSub *config.Subscription
 	var subIndex int
 	for i := range m.subscriptions {
-		if m.subscriptions[i].ID == subID {
+		if m.subscriptions[i].Name == name {
 			targetSub = &m.subscriptions[i]
 			subIndex = i
 			break
@@ -260,10 +259,10 @@ func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*config
 	}
 
 	if targetSub == nil {
-		return nil, fmt.Errorf("subscription %q not found", subID)
+		return nil, fmt.Errorf("subscription %q not found", name)
 	}
 
-	targetPath := filepath.Join(m.configDir, targetSub.FileName)
+	targetPath := filepath.Join(m.configDir, sanitizeFileName(targetSub.Name))
 	userInfo, err := m.downloadAndValidate(ctx, targetSub.URL, targetPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update subscription %q: %w", targetSub.Name, err)
@@ -282,22 +281,22 @@ func (m *Manager) UpdateSubscription(ctx context.Context, subID string) (*config
 }
 
 // DeleteSubscription removes subscription record and optionally deletes local file.
-func (m *Manager) DeleteSubscription(subID string, deleteFile bool) error {
+func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	var fileName string
 	found := false
 	var newSubs []config.Subscription
 
 	for _, sub := range m.subscriptions {
-		if sub.ID == subID {
+		if sub.Name == name {
 			found = true
-			fileName = sub.FileName
+			fileName = sanitizeFileName(sub.Name)
 			continue
 		}
 		newSubs = append(newSubs, sub)
 	}
 
 	if !found {
-		return fmt.Errorf("subscription %q not found", subID)
+		return fmt.Errorf("subscription %q not found", name)
 	}
 
 	m.subscriptions = newSubs

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -37,17 +38,22 @@ func runTUI(cfgPath string) error {
 		return fmt.Errorf("failed to resolve app paths: %w", err)
 	}
 
-	cfg, err := config.LoadConfig(cfgPath, appPaths.MihotuiConfig)
+	if cfgPath == "" {
+		cfgPath = filepath.Join(appPaths.EtcDir, "mihotui", "config.yaml")
+	}
+	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	profileMgr, err := profile.NewManager(appPaths.MihomoDir,
-		profile.WithActiveProfile(cfg.ActiveProfile),
+	mihomoCfgDir := filepath.Join(appPaths.EtcDir, "mihomo")
+	profileMgr, err := profile.NewManager(
+		mihomoCfgDir,
+		profile.WithActiveProfile(cfg.ActiveSubscriptionName),
 		profile.WithSubscriptions(cfg.Subscriptions),
-		profile.WithSaveFunc(func(activeProfile string, subs []config.Subscription) error {
-			cfg.ActiveProfile = activeProfile
-			cfg.Subscriptions = subs
+		profile.WithSaveFunc(func(activeSubscription string, subscriptions []config.Subscription) error {
+			cfg.ActiveSubscriptionName = activeSubscription
+			cfg.Subscriptions = subscriptions
 			return config.SaveConfig(cfg)
 		}),
 	)
@@ -67,7 +73,6 @@ func runTUI(cfgPath string) error {
 		appModel,
 		tea.WithAltScreen(),
 	)
-
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("error running TUI application: %w", err)
 	}

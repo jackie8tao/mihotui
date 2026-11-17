@@ -6,97 +6,80 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	loadedConfigMu   sync.RWMutex
-	loadedConfigPath string
+	appConfigMu   sync.RWMutex
+	appConfigPath string
 )
 
-// LoadedConfigPath returns the path of the currently loaded config file.
-func LoadedConfigPath() string {
-	loadedConfigMu.RLock()
-	defer loadedConfigMu.RUnlock()
-	return loadedConfigPath
+// ConfigPath returns the path of the currently loaded app config file.
+func ConfigPath() string {
+	appConfigMu.RLock()
+	defer appConfigMu.RUnlock()
+	return appConfigPath
 }
 
-// SetLoadedConfigPath sets the process-level loaded configuration path.
-func SetLoadedConfigPath(path string) {
-	loadedConfigMu.Lock()
-	defer loadedConfigMu.Unlock()
-	loadedConfigPath = path
+// SetConfigPath sets the process-level loaded configuration path.
+func SetConfigPath(path string) {
+	appConfigMu.Lock()
+	defer appConfigMu.Unlock()
+	appConfigPath = path
 }
 
 // AppConfig represents user configuration and state persistence for mihotui.
 type AppConfig struct {
-	ApiURL        string         `yaml:"api_url"`        // external controller API URL
-	Secret        string         `yaml:"secret"`         // external controller API secret
-	ActiveProfile string         `yaml:"active_profile"` // active profile file name
-	Subscriptions []Subscription `yaml:"subscriptions"`  // managed subscriptions list
+	ApiURL                 string         `yaml:"api_url"`                  // external controller API URL
+	Secret                 string         `yaml:"secret"`                   // external controller API secret
+	ActiveSubscriptionName string         `yaml:"active_subscription_name"` // active subscription name
+	Subscriptions          []Subscription `yaml:"subscriptions"`            // managed subscriptions list
 }
 
-// DefaultConfig returns reasonable defaults.
-func DefaultConfig() *AppConfig {
-	return &AppConfig{
-		ApiURL:        "http://127.0.0.1:9090",
-		Secret:        "",
-		ActiveProfile: "",
-		Subscriptions: nil,
-	}
+// SubUserInfo represents subscription traffic quota & expiration header.
+type SubUserInfo struct {
+	Upload   int64     `json:"upload" yaml:"upload"`
+	Download int64     `json:"download" yaml:"download"`
+	Total    int64     `json:"total" yaml:"total"`
+	Expire   time.Time `json:"expire" yaml:"expire"`
 }
 
-// LoadConfig loads configuration from explicitPath if specified (failing fast if missing or invalid).
-// Otherwise it loads from defaultPath (the suite-local config path <appRoot>/etc/mihotui/config.yaml),
-// initializing in-memory defaults bound to defaultPath if the file does not yet exist.
-func LoadConfig(explicitPath, defaultPath string) (*AppConfig, error) {
-	if explicitPath != "" {
-		return loadStrictConfigFile(explicitPath)
-	}
-
-	if defaultPath == "" {
-		return nil, errors.New("config: default config path cannot be empty")
-	}
-
-	cfg, err := loadStrictConfigFile(defaultPath)
-	if err == nil {
-		return cfg, nil
-	}
-	if !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-
-	SetLoadedConfigPath(defaultPath)
-	return DefaultConfig(), nil
+// Subscription represents a managed subscription source.
+type Subscription struct {
+	Name      string       `json:"name" yaml:"name"`
+	URL       string       `json:"url" yaml:"url"`
+	UpdatedAt time.Time    `json:"updated_at" yaml:"updated_at"`
+	UserInfo  *SubUserInfo `json:"user_info,omitempty" yaml:"user_info,omitempty"`
 }
 
-func loadStrictConfigFile(path string) (*AppConfig, error) {
-	data, err := os.ReadFile(path)
+// LoadConfig loads configuration from config path.
+func LoadConfig(cfgPath string) (*AppConfig, error) {
+	if cfgPath == "" {
+		return nil, errors.New("config: config path cannot be empty")
+	}
+
+	data, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config %q: %w", path, err)
+		return nil, fmt.Errorf("failed to read config %q: %w", cfgPath, err)
 	}
 
-	cfg := DefaultConfig()
+	cfg := &AppConfig{}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config %q: %w", path, err)
+		return nil, fmt.Errorf("failed to parse config %q: %w", cfgPath, err)
 	}
 
-	SetLoadedConfigPath(path)
+	SetConfigPath(cfgPath)
 	return cfg, nil
 }
 
-// SaveConfig saves the configuration back to disk atomically using the current LoadedConfigPath().
+// SaveConfig saves the configuration back to disk atomically using the current ConfigPath().
 func SaveConfig(cfg *AppConfig) error {
-	return SaveConfigTo(cfg, LoadedConfigPath())
-}
-
-// SaveConfigTo saves the configuration to targetPath atomically and updates LoadedConfigPath.
-func SaveConfigTo(cfg *AppConfig, targetPath string) error {
+	targetPath := ConfigPath()
 	if targetPath == "" {
 		return errors.New("config: target config path cannot be empty")
 	}
-
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -115,7 +98,5 @@ func SaveConfigTo(cfg *AppConfig, targetPath string) error {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to replace config file: %w", err)
 	}
-
-	SetLoadedConfigPath(targetPath)
 	return nil
 }
