@@ -37,8 +37,7 @@ type AppModel struct {
 	height int
 	mode   string
 
-	trafficChan chan mihomo.Traffic
-	cancelCtx   context.CancelFunc
+	cancelCtx context.CancelFunc
 
 	statusMsg string
 	isError   bool
@@ -46,47 +45,31 @@ type AppModel struct {
 
 // New initializes and returns a new AppModel.
 func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &AppModel{
 		client: cli,
 		keys:   DefaultKeyMap(),
 		pages: []Page{
-			pages.NewOverviewModel(cli),
+			pages.NewOverviewModel(ctx, cli),
 			pages.NewProxiesModel(cli),
 			pages.NewConfigsModel(cli, mgr),
 			pages.NewSubscriptionsModel(mgr),
 		},
-		width:       80,
-		height:      24,
-		trafficChan: make(chan mihomo.Traffic, 50),
+		width:     80,
+		height:    24,
+		cancelCtx: cancel,
 	}
 }
 
 func (m *AppModel) Init() tea.Cmd {
-	ctx, cancel := context.WithCancel(context.Background())
-	m.cancelCtx = cancel
-
-	// Start WebSocket traffic listener in background
-	go func() {
-		_ = m.client.SubscribeTraffic(ctx, m.trafficChan)
-	}()
-
-	cmds := []tea.Cmd{m.waitForTrafficCmd()}
+	var cmds []tea.Cmd
 	for _, p := range m.pages {
 		if cmd := p.Init(); cmd != nil {
 			cmds = append(cmds, cmd)
 		}
 	}
 	return tea.Batch(cmds...)
-}
-
-func (m *AppModel) waitForTrafficCmd() tea.Cmd {
-	return func() tea.Msg {
-		t, ok := <-m.trafficChan
-		if !ok {
-			return nil
-		}
-		return pages.TrafficMsg(t)
-	}
 }
 
 func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
@@ -155,9 +138,6 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
-
-	case pages.TrafficMsg:
-		return m, tea.Batch(m.waitForTrafficCmd(), m.broadcast(msg))
 
 	case pages.StatusMsg:
 		m.statusMsg = msg.Text

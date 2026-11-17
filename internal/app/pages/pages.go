@@ -2,13 +2,10 @@ package pages
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 // Shared messages exchanged between the root AppModel and page sub-models.
 type (
-	TrafficMsg     mihomo.Traffic
 	ModeUpdatedMsg struct {
 		NewMode string
 		Err     error

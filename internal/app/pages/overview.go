@@ -11,6 +11,8 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
+type trafficMsg mihomo.Traffic
+
 type overviewLoadedMsg struct {
 	version      *mihomo.Version
 	config       *mihomo.Config
@@ -21,19 +23,26 @@ type overviewLoadedMsg struct {
 
 // OverviewModel encapsulates state, data loading, and rendering for the Overview tab.
 type OverviewModel struct {
-	client    mihomo.Client
-	version   mihomo.Version
-	config    mihomo.Config
-	memory    mihomo.Memory
-	traffic   mihomo.Traffic
-	totalUp   int64
-	totalDown int64
+	ctx         context.Context
+	client      mihomo.Client
+	trafficChan chan mihomo.Traffic
+	version     mihomo.Version
+	config      mihomo.Config
+	memory      mihomo.Memory
+	traffic     mihomo.Traffic
+	totalUp     int64
+	totalDown   int64
 }
 
-// NewOverviewModel initializes a self-contained OverviewModel.
-func NewOverviewModel(cli mihomo.Client) *OverviewModel {
+// NewOverviewModel initializes a self-contained OverviewModel bound to the lifecycle ctx.
+func NewOverviewModel(ctx context.Context, cli mihomo.Client) *OverviewModel {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return &OverviewModel{
-		client: cli,
+		ctx:         ctx,
+		client:      cli,
+		trafficChan: make(chan mihomo.Traffic, 50),
 	}
 }
 
@@ -50,15 +59,20 @@ func (m *OverviewModel) CapturingInput() bool {
 }
 
 func (m *OverviewModel) Init() tea.Cmd {
-	return m.fetchOverviewCmd(true)
+	go func() {
+		_ = m.client.SubscribeTraffic(m.ctx, m.trafficChan)
+	}()
+
+	return tea.Batch(m.fetchOverviewCmd(true), m.waitForTrafficCmd())
 }
 
 func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case TrafficMsg:
+	case trafficMsg:
 		m.traffic = mihomo.Traffic(msg)
 		m.totalUp += m.traffic.Up
 		m.totalDown += m.traffic.Down
+		return m.waitForTrafficCmd()
 
 	case overviewLoadedMsg:
 		if msg.err != nil {
@@ -123,6 +137,20 @@ func (m *OverviewModel) fetchOverviewCmd(notifyStatus bool) tea.Cmd {
 			config:       c,
 			memory:       mem,
 			notifyStatus: notifyStatus,
+		}
+	}
+}
+
+func (m *OverviewModel) waitForTrafficCmd() tea.Cmd {
+	return func() tea.Msg {
+		select {
+		case <-m.ctx.Done():
+			return nil
+		case t, ok := <-m.trafficChan:
+			if !ok {
+				return nil
+			}
+			return trafficMsg(t)
 		}
 	}
 }
