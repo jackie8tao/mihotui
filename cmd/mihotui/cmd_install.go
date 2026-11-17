@@ -13,8 +13,6 @@ import (
 var (
 	installTargetDir   string
 	installArchivePath string
-	installCoreVer     string
-	installMirror      string
 	installForce       bool
 )
 
@@ -25,48 +23,31 @@ var installCmd = &cobra.Command{
 bundle directory, or extract directly from a local gzip archive (.gz),
 and initialize its configuration directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		paths, err := resolveInstallPaths()
-		if err != nil {
-			return err
-		}
-
 		opts := installer.Options{
-			Paths:       paths,
 			ArchivePath: installArchivePath,
-			Version:     installCoreVer,
-			Mirror:      installMirror,
 			Force:       installForce,
 		}
-
-		res, err := installer.Install(context.Background(), opts)
+		if installTargetDir != "" {
+			opts.AppPaths = config.NewAppPaths(installTargetDir)
+		} else {
+			paths, err := config.ResolveAppPaths()
+			if err != nil {
+				return fmt.Errorf("resolve app path failed: %w", err)
+			}
+			opts.AppPaths = paths
+		}
+		err := installer.Install(context.Background(), opts)
 		if err != nil {
 			return fmt.Errorf("installation failed: %w", err)
 		}
-
-		fmt.Println("\n==================================================")
-		fmt.Printf("Mihomo Core successfully installed into bundle!\n")
-		fmt.Printf("Bundle Root   : %s\n", res.TargetDir)
-		fmt.Printf("Core Binary   : %s\n", res.MihomoBin)
-		fmt.Printf("Core Config   : %s\n", res.MihomoConfig)
-		fmt.Printf("TUI Config    : %s\n", res.MihotuiConfig)
-		fmt.Println("==================================================")
 		return nil
 	},
 }
 
 func init() {
-	installCmd.Flags().StringVarP(&installTargetDir, "dir", "d", "", "Target bundle root directory (defaults to current suite root)")
+	installCmd.Flags().StringVarP(&installTargetDir, "directory", "d", "", "Target bundle root directory (defaults to current suite root)")
 	installCmd.Flags().StringVarP(&installArchivePath, "archive", "a", "", "Local Mihomo gzip archive (.gz) for offline installation")
-	installCmd.Flags().StringVarP(&installCoreVer, "version", "v", "latest", "Mihomo core release version to install")
-	installCmd.Flags().StringVarP(&installMirror, "mirror", "m", "", "GitHub download mirror prefix (e.g. https://ghproxy.net/)")
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "Force overwrite existing binary")
 
 	rootCmd.AddCommand(installCmd)
-}
-
-func resolveInstallPaths() (*config.AppPaths, error) {
-	if installTargetDir != "" {
-		return config.NewAppPaths(installTargetDir), nil
-	}
-	return config.ResolveAppPaths()
 }

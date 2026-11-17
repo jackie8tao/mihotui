@@ -9,13 +9,17 @@ import (
 
 // AppPaths holds resolved runtime paths for the self-contained suite layout.
 type AppPaths struct {
-	AppRoot       string // <bundle_root>
-	BinDir        string // <bundle_root>/bin
-	EtcDir        string // <bundle_root>/etc
-	MihomoDir     string // <bundle_root>/etc/mihomo
-	MihomoBin     string // <bundle_root>/bin/mihomo
-	MihotuiDir    string // <bundle_root>/etc/mihotui
-	MihotuiConfig string // <bundle_root>/etc/mihotui/config.yaml
+	AppRoot string // <bundle_root>
+	BinDir  string // <bundle_root>/bin
+	EtcDir  string // <bundle_root>/etc
+}
+
+func (a AppPaths) MihomoBinPath() string {
+	return filepath.Join(a.BinDir, "mihomo")
+}
+
+func (a AppPaths) MihomoEtcDir() string {
+	return filepath.Join(a.EtcDir, "mihomo")
 }
 
 // NewAppPaths constructs standard AppPaths for any given suite root directory.
@@ -26,29 +30,24 @@ func NewAppPaths(appRoot string) *AppPaths {
 	if runtime.GOOS == "windows" {
 		mihomoBin += ".exe"
 	}
-	mihotuiDir := filepath.Join(etcDir, "mihotui")
 
 	return &AppPaths{
-		AppRoot:       appRoot,
-		BinDir:        binDir,
-		EtcDir:        etcDir,
-		MihomoDir:     filepath.Join(etcDir, "mihomo"),
-		MihomoBin:     mihomoBin,
-		MihotuiDir:    mihotuiDir,
-		MihotuiConfig: filepath.Join(mihotuiDir, "config.yaml"),
+		AppRoot: appRoot,
+		BinDir:  binDir,
+		EtcDir:  etcDir,
 	}
 }
 
 // ResolveAppPaths derives the suite directory paths based on the executable's real location.
 // Assumed self-contained bundle directory layout:
-//   <appRoot>/
-//   ├── bin/
-//   │   ├── mihotui (realExecPath)
-//   │   └── mihomo  (MihomoBin)
-//   └── etc/
-//       ├── mihotui/
-//       │   └── config.yaml (MihotuiConfig)
-//       └── mihomo/ (MihomoDir)
+//
+//	<appRoot>/
+//	├── bin/
+//	│   ├── mihotui
+//	│   └── mihomo
+//	└── etc/
+//	    ├── mihotui/
+//	    └── mihomo/
 //
 // If the executable is in a "bin" folder, appRoot is its parent folder.
 // Otherwise, appRoot is the executable's directory.
@@ -72,4 +71,3 @@ func ResolveAppPaths() (*AppPaths, error) {
 
 	return NewAppPaths(appRoot), nil
 }
-
