@@ -32,15 +32,11 @@ and initialize its configuration directory.`,
 		} else {
 			paths, err := config.ResolveAppPaths()
 			if err != nil {
-				return fmt.Errorf("resolve app path failed: %w", err)
+				return fmt.Errorf("resolve app paths: %w", err)
 			}
 			opts.AppPaths = paths
 		}
-		err := installer.Install(context.Background(), opts)
-		if err != nil {
-			return fmt.Errorf("installation failed: %w", err)
-		}
-		return nil
+		return installer.Install(context.Background(), opts)
 	},
 }
 

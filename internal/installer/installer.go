@@ -33,19 +33,19 @@ type Options struct {
 // Install installs the Mihomo core binary and initializes the suite configuration directories.
 func Install(ctx context.Context, opts Options) error {
 	if opts.AppPaths == nil || strings.TrimSpace(opts.AppPaths.AppRoot) == "" {
-		return errors.New("installer: app paths cannot be nil or empty")
+		return errors.New("installer: invalid app paths")
 	}
 
 	// 1. Ensure suite directories exist
 	for _, dir := range []string{opts.AppPaths.BinDir, opts.AppPaths.EtcDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("installer: failed to create directory %q: %w", dir, err)
+			return fmt.Errorf("installer: create dir %q: %w", dir, err)
 		}
 	}
 
 	// 2. Configure etc directory ownership
 	if err := delegateEtcOwnership(opts.AppPaths.EtcDir); err != nil {
-		return err
+		return fmt.Errorf("installer: %w", err)
 	}
 
 	// 3. Check if already installed
@@ -58,20 +58,19 @@ func Install(ctx context.Context, opts Options) error {
 	}
 
 	// 4. Install core binary from local archive or remote release
-	archivePath := strings.TrimSpace(opts.ArchivePath)
-	if archivePath != "" {
+	if archivePath := strings.TrimSpace(opts.ArchivePath); archivePath != "" {
 		if err := installLocalArchive(archivePath, mihomoBinPath); err != nil {
-			return fmt.Errorf("installer: archive extraction failed: %w", err)
+			return fmt.Errorf("installer: %w", err)
 		}
 	} else {
 		if err := installRemoteArchive(ctx, mihomoBinPath); err != nil {
-			return fmt.Errorf("installer: download failed: %w", err)
+			return fmt.Errorf("installer: %w", err)
 		}
 	}
 
 	// 5. Ensure Executable Permissions
 	if err := os.Chmod(mihomoBinPath, 0755); err != nil {
-		return fmt.Errorf("installer: failed to set executable permission: %w", err)
+		return fmt.Errorf("installer: chmod %q: %w", mihomoBinPath, err)
 	}
 	return nil
 }
@@ -102,10 +101,7 @@ func delegateEtcOwnership(etcDir string) error {
 		return os.Chown(path, -1, gid)
 	})
 	if err != nil {
-		return fmt.Errorf(
-			"installer: failed to delegate ownership of %q to gid=%d: %w",
-			etcDir, gid, err,
-		)
+		return fmt.Errorf("chown %q (gid %d): %w", etcDir, gid, err)
 	}
 
 	return nil
@@ -126,7 +122,7 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 	latestURL := fmt.Sprintf("https://github.com/%s/releases/latest", DefaultMihomoRepo)
 	latestReq, err := http.NewRequestWithContext(ctx, http.MethodHead, latestURL, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("build latest request: %w", err)
 	}
 	latestReq.Header.Set("User-Agent", "mihotui-installer")
 
@@ -139,24 +135,24 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 
 	latestResp, err := latestClient.Do(latestReq)
 	if err != nil {
-		return fmt.Errorf("failed to query latest release: %w", err)
+		return fmt.Errorf("query latest release: %w", err)
 	}
 	latestResp.Body.Close()
 
 	location := latestResp.Header.Get("Location")
 	if location == "" {
-		return fmt.Errorf("latest release query returned HTTP %d without redirect Location", latestResp.StatusCode)
+		return fmt.Errorf("missing redirect location (HTTP %d)", latestResp.StatusCode)
 	}
 
 	_, version, ok := strings.Cut(location, "/releases/tag/")
 	version = strings.TrimRight(strings.SplitN(version, "?", 2)[0], "/")
 	if !ok || version == "" {
-		return fmt.Errorf("failed to parse release tag from location %q", location)
+		return fmt.Errorf("parse release tag from %q", location)
 	}
 
 	target, ok := assetTargets[runtime.GOOS+"/"+runtime.GOARCH]
 	if !ok {
-		return fmt.Errorf("no prebuilt release asset available for %s/%s", runtime.GOOS, runtime.GOARCH)
+		return fmt.Errorf("unsupported platform %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	assetName := fmt.Sprintf("mihomo-%s-%s.gz", target, version)
 	downloadURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", DefaultMihomoRepo, version, assetName)
@@ -167,7 +163,7 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 
 	downloadReq, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("build download request: %w", err)
 	}
 	downloadReq.Header.Set("User-Agent", "mihotui-installer")
 
@@ -177,12 +173,12 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 
 	downloadResp, err := downloadClient.Do(downloadReq)
 	if err != nil {
-		return err
+		return fmt.Errorf("download binary: %w", err)
 	}
 	defer downloadResp.Body.Close()
 
 	if downloadResp.StatusCode != http.StatusOK {
-		return fmt.Errorf("HTTP request failed with status %d", downloadResp.StatusCode)
+		return fmt.Errorf("download binary: unexpected HTTP %d", downloadResp.StatusCode)
 	}
 
 	return extractGzip(downloadResp.Body, targetBinPath)
@@ -191,15 +187,15 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 func installLocalArchive(archivePath, targetBinPath string) error {
 	info, err := os.Stat(archivePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("stat archive %q: %w", archivePath, err)
 	}
 	if info.IsDir() {
-		return fmt.Errorf("%q is a directory, expected a .gz file", archivePath)
+		return fmt.Errorf("expected .gz file, got directory %q", archivePath)
 	}
 
 	f, err := os.Open(archivePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("open archive %q: %w", archivePath, err)
 	}
 	defer f.Close()
 
@@ -210,14 +206,14 @@ func extractGzip(r io.Reader, targetBinPath string) error {
 	// Mihomo releases for Linux/macOS are single gzip-compressed binaries.
 	gzReader, err := gzip.NewReader(r)
 	if err != nil {
-		return fmt.Errorf("failed to read gzip stream: %w", err)
+		return fmt.Errorf("read gzip: %w", err)
 	}
 	defer gzReader.Close()
 
 	tmpPath := targetBinPath + ".tmp"
 	tmpFile, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
 	if err != nil {
-		return err
+		return fmt.Errorf("create temp binary: %w", err)
 	}
 	defer func() {
 		tmpFile.Close()
@@ -225,12 +221,15 @@ func extractGzip(r io.Reader, targetBinPath string) error {
 	}()
 
 	if _, err := io.Copy(tmpFile, gzReader); err != nil {
-		return fmt.Errorf("failed to extract binary: %w", err)
+		return fmt.Errorf("extract binary: %w", err)
 	}
 
 	if err := tmpFile.Close(); err != nil {
-		return err
+		return fmt.Errorf("close temp binary: %w", err)
 	}
 
-	return os.Rename(tmpPath, targetBinPath)
+	if err := os.Rename(tmpPath, targetBinPath); err != nil {
+		return fmt.Errorf("replace binary: %w", err)
+	}
+	return nil
 }
