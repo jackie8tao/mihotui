@@ -34,6 +34,7 @@ type (
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
+	onStatus      StatusCmdFunc
 	keys          keyMap
 	subscriptions []config.Subscription
 	cursor        int
@@ -45,7 +46,7 @@ type SubscriptionsModel struct {
 }
 
 // NewSubscriptionsModel initializes a self-contained SubscriptionsModel.
-func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
+func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *SubscriptionsModel {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()
@@ -57,6 +58,7 @@ func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
 
 	m := &SubscriptionsModel{
 		profileMgr:  mgr,
+		onStatus:    onStatus,
 		keys:        defaultKeyMap(),
 		modalActive: views.ModalNone,
 		nameInput:   nameInput,
@@ -104,34 +106,34 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case subUpdatedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("Update sub failed: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("Update sub failed: %v", msg.err), true)
 		}
 		m.Reload()
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
 			subscriptionsChangedCmd(),
 		)
 
 	case subAddedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("Add subscription failed: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("Add subscription failed: %v", msg.err), true)
 		}
 		m.modalActive = views.ModalNone
 		m.nameInput.SetValue("")
 		m.urlInput.SetValue("")
 		m.Reload()
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
 			subscriptionsChangedCmd(),
 		)
 
 	case subDeletedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("Delete sub failed: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("Delete sub failed: %v", msg.err), true)
 		}
 		m.Reload()
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
 			subscriptionsChangedCmd(),
 		)
 
@@ -194,10 +196,10 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 		name := strings.TrimSpace(m.nameInput.Value())
 		subURL := strings.TrimSpace(m.urlInput.Value())
 		if name == "" || subURL == "" {
-			return statusCmd("Name and URL cannot be empty", true)
+			return emitStatus(m.onStatus, "Name and URL cannot be empty", true)
 		}
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Downloading subscription [%s]...", name), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Downloading subscription [%s]...", name), false),
 			m.addSubCmd(name, subURL),
 		)
 
@@ -226,13 +228,13 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
-				statusCmd(fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
+				emitStatus(m.onStatus, fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
 				m.updateSubCmd(sub.Name),
 			)
 		}
 	case key.Matches(msg, m.keys.UpdateAll):
 		return tea.Batch(
-			statusCmd("Updating all subscriptions...", false),
+			emitStatus(m.onStatus, "Updating all subscriptions...", false),
 			m.updateAllSubsCmd(),
 		)
 	case key.Matches(msg, m.keys.AddSub):
@@ -244,7 +246,7 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
-				statusCmd(fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
+				emitStatus(m.onStatus, fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
 				m.deleteSubCmd(sub.Name),
 			)
 		}

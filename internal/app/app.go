@@ -16,6 +16,24 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
+// Global messages handled by the root AppModel container.
+type (
+	// StatusMsg reports status bar updates to AppModel.
+	StatusMsg struct {
+		Text    string
+		IsError bool
+	}
+	// ModeSyncedMsg synchronizes the global outbound mode badge from the core.
+	ModeSyncedMsg struct {
+		Mode string
+	}
+	// ModeUpdatedMsg carries the result of an interactive mode switch.
+	ModeUpdatedMsg struct {
+		NewMode string
+		Err     error
+	}
+)
+
 // Page defines the contract for an independent TUI page sub-model consumed by AppModel.
 type Page interface {
 	Title() string
@@ -24,6 +42,10 @@ type Page interface {
 	Init() tea.Cmd
 	Update(msg tea.Msg) tea.Cmd
 	View(width, height int) string
+}
+
+type modeSetter interface {
+	SetMode(mode string)
 }
 
 // AppModel is the main Bubble Tea container model routing events to independent Page sub-models.
@@ -47,14 +69,25 @@ type AppModel struct {
 func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	reportStatus := func(text string, isError bool) tea.Cmd {
+		return func() tea.Msg {
+			return StatusMsg{Text: text, IsError: isError}
+		}
+	}
+	syncMode := func(mode string) tea.Cmd {
+		return func() tea.Msg {
+			return ModeSyncedMsg{Mode: mode}
+		}
+	}
+
 	return &AppModel{
 		client: cli,
 		keys:   DefaultKeyMap(),
 		pages: []Page{
-			pages.NewOverviewModel(ctx, cli),
-			pages.NewProxiesModel(cli),
-			pages.NewConfigsModel(cli, mgr),
-			pages.NewSubscriptionsModel(mgr),
+			pages.NewOverviewModel(ctx, cli, reportStatus, syncMode),
+			pages.NewProxiesModel(cli, reportStatus),
+			pages.NewConfigsModel(cli, mgr, reportStatus),
+			pages.NewSubscriptionsModel(mgr, reportStatus),
 		},
 		width:     80,
 		height:    24,
@@ -77,7 +110,7 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		err := m.client.UpdateMode(ctx, mode)
-		return pages.ModeUpdatedMsg{NewMode: mode, Err: err}
+		return ModeUpdatedMsg{NewMode: mode, Err: err}
 	}
 }
 
@@ -139,16 +172,16 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		return m, nil
 
-	case pages.StatusMsg:
+	case StatusMsg:
 		m.statusMsg = msg.Text
 		m.isError = msg.IsError
 		return m, nil
 
-	case pages.ModeSyncedMsg:
+	case ModeSyncedMsg:
 		m.mode = msg.Mode
 		return m, nil
 
-	case pages.ModeUpdatedMsg:
+	case ModeUpdatedMsg:
 		if msg.Err != nil {
 			m.statusMsg = fmt.Sprintf("Update mode failed: %v", msg.Err)
 			m.isError = true
@@ -157,7 +190,12 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mode = msg.NewMode
 		m.statusMsg = fmt.Sprintf("Mode switched to: %s", strings.ToUpper(msg.NewMode))
 		m.isError = false
-		return m, m.broadcast(msg)
+		for _, p := range m.pages {
+			if setter, ok := p.(modeSetter); ok {
+				setter.SetMode(msg.NewMode)
+			}
+		}
+		return m, nil
 
 	case tea.KeyMsg:
 		if len(m.pages) == 0 {

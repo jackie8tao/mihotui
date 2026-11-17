@@ -25,6 +25,8 @@ type overviewLoadedMsg struct {
 type OverviewModel struct {
 	ctx         context.Context
 	client      mihomo.Client
+	onStatus    StatusCmdFunc
+	onModeSync  ModeSyncCmdFunc
 	trafficChan chan mihomo.Traffic
 	version     mihomo.Version
 	config      mihomo.Config
@@ -35,15 +37,22 @@ type OverviewModel struct {
 }
 
 // NewOverviewModel initializes a self-contained OverviewModel bound to the lifecycle ctx.
-func NewOverviewModel(ctx context.Context, cli mihomo.Client) *OverviewModel {
+func NewOverviewModel(ctx context.Context, cli mihomo.Client, onStatus StatusCmdFunc, onModeSync ModeSyncCmdFunc) *OverviewModel {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return &OverviewModel{
 		ctx:         ctx,
 		client:      cli,
+		onStatus:    onStatus,
+		onModeSync:  onModeSync,
 		trafficChan: make(chan mihomo.Traffic, 50),
 	}
+}
+
+// SetMode updates the locally displayed outbound mode when switched globally.
+func (m *OverviewModel) SetMode(mode string) {
+	m.config.Mode = mode
 }
 
 func (m *OverviewModel) Title() string {
@@ -76,7 +85,7 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 
 	case overviewLoadedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("API Connection Error: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("API Connection Error: %v", msg.err), true)
 		}
 		if msg.version != nil {
 			m.version = *msg.version
@@ -87,16 +96,11 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.memory != nil {
 			m.memory = *msg.memory
 		}
-		cmds := []tea.Cmd{modeSyncedCmd(m.config.Mode)}
+		cmds := []tea.Cmd{emitModeSync(m.onModeSync, m.config.Mode)}
 		if msg.notifyStatus {
-			cmds = append(cmds, statusCmd("Connected to Mihomo", false))
+			cmds = append(cmds, emitStatus(m.onStatus, "Connected to Mihomo", false))
 		}
 		return tea.Batch(cmds...)
-
-	case ModeUpdatedMsg:
-		if msg.Err == nil {
-			m.config.Mode = msg.NewMode
-		}
 
 	case ProfileAppliedEventMsg:
 		return m.fetchOverviewCmd(false)

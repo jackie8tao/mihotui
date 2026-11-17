@@ -28,16 +28,18 @@ type (
 type ConfigsModel struct {
 	client     mihomo.Client
 	profileMgr *profile.Manager
+	onStatus   StatusCmdFunc
 	keys       keyMap
 	profiles   []profile.Profile
 	cursor     int
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
-func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
+func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager, onStatus StatusCmdFunc) *ConfigsModel {
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
+		onStatus:   onStatus,
 		keys:       defaultKeyMap(),
 	}
 }
@@ -62,7 +64,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case profilesLoadedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("Load profiles error: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("Load profiles error: %v", msg.err), true)
 		}
 		m.profiles = msg.profiles
 		if len(m.profiles) == 0 {
@@ -74,10 +76,10 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 
 	case profileAppliedMsg:
 		if msg.err != nil {
-			return statusCmd(fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
+			return emitStatus(m.onStatus, fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
 		}
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
 			m.fetchProfilesCmd(),
 			profileAppliedEventCmd(),
 		)
@@ -129,7 +131,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(
-			statusCmd(fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name), false),
+			emitStatus(m.onStatus, fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name), false),
 			m.applyProfileCmd(p),
 		)
 	}

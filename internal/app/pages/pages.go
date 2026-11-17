@@ -4,31 +4,28 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Shared messages exchanged between the root AppModel and page sub-models.
+// Inter-page events routed through the host container between page sub-models.
 type (
-	ModeUpdatedMsg struct {
-		NewMode string
-		Err     error
-	}
-	ModeSyncedMsg struct {
-		Mode string
-	}
-	StatusMsg struct {
-		Text    string
-		IsError bool
-	}
 	SubscriptionsChangedMsg struct{}
 	ProfileAppliedEventMsg  struct{}
 )
 
-func statusCmd(text string, isError bool) tea.Cmd {
-	return func() tea.Msg {
-		return StatusMsg{Text: text, IsError: isError}
+// StatusCmdFunc produces a command to display status text in the host container.
+type StatusCmdFunc func(text string, isError bool) tea.Cmd
+
+// ModeSyncCmdFunc produces a command to synchronize the outbound mode badge in the host container.
+type ModeSyncCmdFunc func(mode string) tea.Cmd
+
+func emitStatus(fn StatusCmdFunc, text string, isError bool) tea.Cmd {
+	if fn == nil {
+		return nil
 	}
+	return fn(text, isError)
 }
 
-func modeSyncedCmd(mode string) tea.Cmd {
-	return func() tea.Msg {
-		return ModeSyncedMsg{Mode: mode}
+func emitModeSync(fn ModeSyncCmdFunc, mode string) tea.Cmd {
+	if fn == nil {
+		return nil
 	}
+	return fn(mode)
 }
