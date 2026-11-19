@@ -4,16 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/jackie8tao/mihotui/internal/config"
 )
@@ -50,7 +45,6 @@ type Manager struct {
 	configDir     string
 	activeProfile string
 	subscriptions []config.Subscription
-	httpClient    *http.Client
 	saveFn        SaveFunc
 }
 
@@ -67,9 +61,6 @@ func NewManager(configDir string, opts ...ManagerOption) (*Manager, error) {
 
 	m := &Manager{
 		configDir: configDir,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
 	}
 
 	for _, opt := range opts {
@@ -156,38 +147,6 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 	return profiles, nil
 }
 
-// parseUserinfo parses the Subscription-Userinfo header.
-func parseUserinfo(raw string) *config.SubUserInfo {
-	if raw == "" {
-		return nil
-	}
-
-	info := &config.SubUserInfo{}
-	parts := strings.Split(raw, ";")
-	for _, part := range parts {
-		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		k := strings.ToLower(strings.TrimSpace(kv[0]))
-		val, _ := strconv.ParseInt(strings.TrimSpace(kv[1]), 10, 64)
-
-		switch k {
-		case "upload":
-			info.Upload = val
-		case "download":
-			info.Download = val
-		case "total":
-			info.Total = val
-		case "expire":
-			if val > 0 {
-				info.Expire = time.Unix(val, 0)
-			}
-		}
-	}
-	return info
-}
-
 var validSubNameRe = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
 
 // AddSubscription registers a new subscription, downloads it, and saves metadata.
@@ -221,7 +180,7 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 	}
 
 	// Perform initial download
-	userInfo, err := m.downloadAndValidate(ctx, rawURL, targetPath)
+	userInfo, err := downloadAndValidate(ctx, rawURL, targetPath)
 	if err != nil {
 		_ = os.Remove(targetPath)
 		return nil, fmt.Errorf("profile: download subscription %q: %w", name, err)
@@ -252,7 +211,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	}
 
 	targetPath := filepath.Join(m.configDir, targetSub.Name+".yaml")
-	userInfo, err := m.downloadAndValidate(ctx, targetSub.URL, targetPath)
+	userInfo, err := downloadAndValidate(ctx, targetSub.URL, targetPath)
 	if err != nil {
 		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
 	}
@@ -297,55 +256,4 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 		_ = os.Remove(filepath.Join(m.configDir, fileName))
 	}
 	return nil
-}
-
-// downloadAndValidate downloads config from URL, verifies YAML, and writes atomically.
-func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*config.SubUserInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// Use Clash.Meta / mihomo UA so subscription providers return standard mihomo YAML
-	req.Header.Set("User-Agent", "Clash.Meta; mihomo/1.18.0; mihotui")
-
-	resp, err := m.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download failed with HTTP status %d", resp.StatusCode)
-	}
-
-	// Parse Userinfo if header present
-	var userInfo *config.SubUserInfo
-	if rawUI := resp.Header.Get("subscription-userinfo"); rawUI != "" {
-		userInfo = parseUserinfo(rawUI)
-	}
-
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate basic YAML structure to prevent saving 404 HTML pages
-	var testMap map[string]any
-	if err := yaml.Unmarshal(content, &testMap); err != nil {
-		return nil, fmt.Errorf("downloaded content is not valid YAML: %w", err)
-	}
-
-	// Write atomically via temporary file
-	tmpPath := targetPath + ".tmp"
-	if err := os.WriteFile(tmpPath, content, 0644); err != nil {
-		return nil, err
-	}
-
-	if err := os.Rename(tmpPath, targetPath); err != nil {
-		_ = os.Remove(tmpPath)
-		return nil, err
-	}
-
-	return userInfo, nil
 }
