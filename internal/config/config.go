@@ -32,10 +32,10 @@ func SetConfigPath(path string) {
 
 // AppConfig represents user configuration and state persistence for mihotui.
 type AppConfig struct {
-	ApiURL                 string         `yaml:"api_url"`                  // external controller API URL
-	Secret                 string         `yaml:"secret"`                   // external controller API secret
-	ActiveSubscriptionName string         `yaml:"active_subscription_name"` // active subscription name
-	Subscriptions          []Subscription `yaml:"subscriptions"`            // managed subscriptions list
+	ApiURL        string         `yaml:"api_url"`                  // external controller API URL
+	Secret        string         `yaml:"secret"`                   // external controller API secret
+	ActiveSubName string         `yaml:"active_subscription_name"` // active subscription name
+	Subscriptions []Subscription `yaml:"subscriptions"`            // managed subscriptions list
 }
 
 // SubUserInfo represents subscription traffic quota & expiration header.
