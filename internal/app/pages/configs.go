@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jackie8tao/mihotui/internal/app/events"
-	"github.com/jackie8tao/mihotui/internal/app/keys"
+	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
@@ -121,15 +121,15 @@ func (m *ConfigsModel) currentProfile() *profile.Profile {
 
 func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, keys.Up):
+	case key.Matches(msg, keymaps.Up):
 		if m.selectedIdx > 0 {
 			m.selectedIdx--
 		}
-	case key.Matches(msg, keys.Down):
+	case key.Matches(msg, keymaps.Down):
 		if m.selectedIdx < len(m.profiles)-1 {
 			m.selectedIdx++
 		}
-	case key.Matches(msg, keys.Enter):
+	case key.Matches(msg, keymaps.Enter):
 		p := m.currentProfile()
 		if p == nil {
 			return nil

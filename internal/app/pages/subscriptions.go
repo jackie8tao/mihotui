@@ -12,7 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jackie8tao/mihotui/internal/app/events"
-	"github.com/jackie8tao/mihotui/internal/app/keys"
+	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
@@ -222,15 +222,15 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 
 func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, keys.Up):
+	case key.Matches(msg, keymaps.Up):
 		if m.selectedIdx > 0 {
 			m.selectedIdx--
 		}
-	case key.Matches(msg, keys.Down):
+	case key.Matches(msg, keymaps.Down):
 		if m.selectedIdx < len(m.subscriptions)-1 {
 			m.selectedIdx++
 		}
-	case key.Matches(msg, keys.UpdateSub), key.Matches(msg, keys.Enter):
+	case key.Matches(msg, keymaps.UpdateSub), key.Matches(msg, keymaps.Enter):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
@@ -238,17 +238,17 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 				m.updateSubCmd(sub.Name),
 			)
 		}
-	case key.Matches(msg, keys.UpdateAll):
+	case key.Matches(msg, keymaps.UpdateAll):
 		return tea.Batch(
 			events.StatusCmd("Updating all subscriptions...", false),
 			m.updateAllSubsCmd(),
 		)
-	case key.Matches(msg, keys.AddSub):
+	case key.Matches(msg, keymaps.AddSub):
 		m.modalActive = views.ModalAddSub
 		m.inputFocus = 0
 		m.nameInput.Focus()
 		m.urlInput.Blur()
-	case key.Matches(msg, keys.DeleteSub):
+	case key.Matches(msg, keymaps.DeleteSub):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(

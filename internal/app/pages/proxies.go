@@ -11,7 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jackie8tao/mihotui/internal/app/events"
-	"github.com/jackie8tao/mihotui/internal/app/keys"
+	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -211,15 +211,15 @@ func (m *ProxiesModel) currentSelectedNode() string {
 
 func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, keys.Left):
+	case key.Matches(msg, keymaps.Left):
 		m.focusPane = views.PaneGroups
 
-	case key.Matches(msg, keys.Right):
+	case key.Matches(msg, keymaps.Right):
 		if len(m.groups) > 0 {
 			m.focusPane = views.PaneNodes
 		}
 
-	case key.Matches(msg, keys.Up):
+	case key.Matches(msg, keymaps.Up):
 		if m.focusPane == views.PaneGroups {
 			if m.selectedGroupIdx > 0 {
 				m.selectedGroupIdx--
@@ -229,7 +229,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.selectedNodeIdx--
 		}
 
-	case key.Matches(msg, keys.Down):
+	case key.Matches(msg, keymaps.Down):
 		if m.focusPane == views.PaneGroups {
 			if m.selectedGroupIdx < len(m.groups)-1 {
 				m.selectedGroupIdx++
@@ -242,7 +242,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			}
 		}
 
-	case key.Matches(msg, keys.Enter):
+	case key.Matches(msg, keymaps.Enter):
 		if m.focusPane != views.PaneNodes {
 			if len(m.groups) > 0 {
 				m.focusPane = views.PaneNodes
@@ -255,7 +255,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return m.selectProxyCmd(grp.Name, node)
 		}
 
-	case key.Matches(msg, keys.TestDelay):
+	case key.Matches(msg, keymaps.TestDelay):
 		node := m.currentSelectedNode()
 		if node == "" {
 			return nil
@@ -269,7 +269,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.testDelayCmd(node),
 		)
 
-	case key.Matches(msg, keys.TestAll):
+	case key.Matches(msg, keymaps.TestAll):
 		grp := m.currentGroup()
 		if grp == nil || len(grp.All) == 0 {
 			return nil

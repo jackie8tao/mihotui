@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jackie8tao/mihotui/internal/app/events"
-	"github.com/jackie8tao/mihotui/internal/app/keys"
+	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/pages"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/profile"
@@ -84,19 +84,19 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 
 func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 	switch {
-	case key.Matches(msg, keys.Quit):
+	case key.Matches(msg, keymaps.Quit):
 		if m.cancelCtx != nil {
 			m.cancelCtx()
 		}
 		return tea.Quit, true
 
-	case key.Matches(msg, keys.Tab):
+	case key.Matches(msg, keymaps.Tab):
 		if len(m.pages) > 0 {
 			m.activePage = (m.activePage + 1) % len(m.pages)
 		}
 		return nil, true
 
-	case key.Matches(msg, keys.Refresh):
+	case key.Matches(msg, keymaps.Refresh):
 		m.statusMsg = "Refreshing data..."
 		m.isError = false
 		var cmds []tea.Cmd
@@ -107,7 +107,7 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return tea.Batch(cmds...), true
 
-	case key.Matches(msg, keys.SwitchMode):
+	case key.Matches(msg, keymaps.SwitchMode):
 		next := "rule"
 		switch strings.ToLower(m.mode) {
 		case "rule":
