@@ -179,7 +179,7 @@ func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	field1 := fmt.Sprintf("Subscription Name:\n%s", p.SubNameInputView)
 	field2 := fmt.Sprintf("Subscription URL:\n%s", p.SubURLInputView)
 
-	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Tab] Next Field | [Enter] Confirm & Download | [Esc] Cancel")
+	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[↑/↓] Switch Field | [Enter] Confirm & Download | [Esc] Cancel")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", field1, "\n", field2, "\n", help)
 	modal := modalStyle.Render(content)

@@ -176,15 +176,11 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 		m.modalActive = views.ModalNone
 		return nil
 
-	case key.Matches(msg, keymaps.Tab, keymaps.Down):
+	case key.Matches(msg, keymaps.Down):
 		if m.inputFocus == 0 {
 			m.inputFocus = 1
 			m.nameInput.Blur()
 			m.urlInput.Focus()
-		} else {
-			m.inputFocus = 0
-			m.urlInput.Blur()
-			m.nameInput.Focus()
 		}
 		return nil
 
