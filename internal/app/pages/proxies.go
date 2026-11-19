@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -44,7 +45,6 @@ type (
 type ProxiesModel struct {
 	client      mihomo.Client
 	onStatus    StatusCmdFunc
-	keys        keyMap
 	focusPane   views.FocusPane
 	groupCursor int
 	nodeCursor  int
@@ -57,7 +57,6 @@ func NewProxiesModel(cli mihomo.Client, onStatus StatusCmdFunc) *ProxiesModel {
 	return &ProxiesModel{
 		client:    cli,
 		onStatus:  onStatus,
-		keys:      defaultKeyMap(),
 		focusPane: views.PaneGroups,
 		proxies:   make(map[string]mihomo.ProxyItem),
 	}
@@ -207,15 +206,15 @@ func (m *ProxiesModel) currentSelectedNode() string {
 
 func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, m.keys.Left):
+	case key.Matches(msg, keys.Left):
 		m.focusPane = views.PaneGroups
 
-	case key.Matches(msg, m.keys.Right):
+	case key.Matches(msg, keys.Right):
 		if len(m.groups) > 0 {
 			m.focusPane = views.PaneNodes
 		}
 
-	case key.Matches(msg, m.keys.Up):
+	case key.Matches(msg, keys.Up):
 		if m.focusPane == views.PaneGroups {
 			if m.groupCursor > 0 {
 				m.groupCursor--
@@ -225,7 +224,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.nodeCursor--
 		}
 
-	case key.Matches(msg, m.keys.Down):
+	case key.Matches(msg, keys.Down):
 		if m.focusPane == views.PaneGroups {
 			if m.groupCursor < len(m.groups)-1 {
 				m.groupCursor++
@@ -238,7 +237,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			}
 		}
 
-	case key.Matches(msg, m.keys.Enter):
+	case key.Matches(msg, keys.Enter):
 		if m.focusPane != views.PaneNodes {
 			if len(m.groups) > 0 {
 				m.focusPane = views.PaneNodes
@@ -251,7 +250,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return m.selectProxyCmd(grp.Name, node)
 		}
 
-	case key.Matches(msg, m.keys.TestDelay):
+	case key.Matches(msg, keys.TestDelay):
 		node := m.currentSelectedNode()
 		if node == "" {
 			return nil
@@ -265,7 +264,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.testDelayCmd(node),
 		)
 
-	case key.Matches(msg, m.keys.TestAll):
+	case key.Matches(msg, keys.TestAll):
 		grp := m.currentGroup()
 		if grp == nil || len(grp.All) == 0 {
 			return nil

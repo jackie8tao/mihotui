@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/pages"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/internal/profile"
@@ -51,7 +52,6 @@ type modeSetter interface {
 // AppModel is the main Bubble Tea container model routing events to independent Page sub-models.
 type AppModel struct {
 	client     mihomo.Client
-	keys       KeyMap
 	pages      []Page
 	activePage int
 
@@ -82,7 +82,6 @@ func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 
 	return &AppModel{
 		client: cli,
-		keys:   DefaultKeyMap(),
 		pages: []Page{
 			pages.NewOverviewModel(ctx, cli, reportStatus, syncMode),
 			pages.NewProxiesModel(cli, reportStatus),
@@ -116,19 +115,19 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 
 func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 	switch {
-	case key.Matches(msg, m.keys.Quit):
+	case key.Matches(msg, keys.Quit):
 		if m.cancelCtx != nil {
 			m.cancelCtx()
 		}
 		return tea.Quit, true
 
-	case key.Matches(msg, m.keys.Tab):
+	case key.Matches(msg, keys.Tab):
 		if len(m.pages) > 0 {
 			m.activePage = (m.activePage + 1) % len(m.pages)
 		}
 		return nil, true
 
-	case key.Matches(msg, m.keys.Refresh):
+	case key.Matches(msg, keys.Refresh):
 		m.statusMsg = "Refreshing data..."
 		m.isError = false
 		var cmds []tea.Cmd
@@ -139,7 +138,7 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 		}
 		return tea.Batch(cmds...), true
 
-	case key.Matches(msg, m.keys.SwitchMode):
+	case key.Matches(msg, keys.SwitchMode):
 		next := "rule"
 		switch strings.ToLower(m.mode) {
 		case "rule":

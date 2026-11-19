@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
@@ -35,7 +36,6 @@ type (
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
 	onStatus      StatusCmdFunc
-	keys          keyMap
 	subscriptions []config.Subscription
 	cursor        int
 
@@ -59,7 +59,6 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 	m := &SubscriptionsModel{
 		profileMgr:  mgr,
 		onStatus:    onStatus,
-		keys:        defaultKeyMap(),
 		modalActive: views.ModalNone,
 		nameInput:   nameInput,
 		urlInput:    urlInput,
@@ -216,15 +215,15 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 
 func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, m.keys.Up):
+	case key.Matches(msg, keys.Up):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case key.Matches(msg, m.keys.Down):
+	case key.Matches(msg, keys.Down):
 		if m.cursor < len(m.subscriptions)-1 {
 			m.cursor++
 		}
-	case key.Matches(msg, m.keys.UpdateSub), key.Matches(msg, m.keys.Enter):
+	case key.Matches(msg, keys.UpdateSub), key.Matches(msg, keys.Enter):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
@@ -232,17 +231,17 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 				m.updateSubCmd(sub.Name),
 			)
 		}
-	case key.Matches(msg, m.keys.UpdateAll):
+	case key.Matches(msg, keys.UpdateAll):
 		return tea.Batch(
 			emitStatus(m.onStatus, "Updating all subscriptions...", false),
 			m.updateAllSubsCmd(),
 		)
-	case key.Matches(msg, m.keys.AddSub):
+	case key.Matches(msg, keys.AddSub):
 		m.modalActive = views.ModalAddSub
 		m.inputFocus = 0
 		m.nameInput.Focus()
 		m.urlInput.Blur()
-	case key.Matches(msg, m.keys.DeleteSub):
+	case key.Matches(msg, keys.DeleteSub):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(

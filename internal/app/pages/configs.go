@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
@@ -29,7 +30,6 @@ type ConfigsModel struct {
 	client     mihomo.Client
 	profileMgr *profile.Manager
 	onStatus   StatusCmdFunc
-	keys       keyMap
 	profiles   []profile.Profile
 	cursor     int
 }
@@ -40,7 +40,6 @@ func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager, onStatus StatusCmd
 		client:     cli,
 		profileMgr: mgr,
 		onStatus:   onStatus,
-		keys:       defaultKeyMap(),
 	}
 }
 
@@ -117,15 +116,15 @@ func (m *ConfigsModel) currentProfile() *profile.Profile {
 
 func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
-	case key.Matches(msg, m.keys.Up):
+	case key.Matches(msg, keys.Up):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case key.Matches(msg, m.keys.Down):
+	case key.Matches(msg, keys.Down):
 		if m.cursor < len(m.profiles)-1 {
 			m.cursor++
 		}
-	case key.Matches(msg, m.keys.Enter):
+	case key.Matches(msg, keys.Enter):
 		p := m.currentProfile()
 		if p == nil {
 			return nil
