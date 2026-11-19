@@ -32,15 +32,15 @@ type (
 	}
 )
 
-// subscriptionsChangedMsg notifies ConfigsModel to reload local profile files.
-type subscriptionsChangedMsg struct{}
+// subChangedMsg notifies ConfigsModel to reload local profile files.
+type subChangedMsg struct{}
 
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
 	onStatus      StatusCmdFunc
 	subscriptions []config.Subscription
-	cursor        int
+	selectedIdx   int
 
 	modalActive views.ModalType
 	nameInput   textinput.Model
@@ -56,7 +56,7 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 	nameInput.Width = 46
 
 	urlInput := textinput.New()
-	urlInput.Placeholder = "https://sub.example.com/api/v1/..."
+	urlInput.Placeholder = "https://example.com/api/v1/..."
 	urlInput.Width = 46
 
 	m := &SubscriptionsModel{
@@ -91,16 +91,16 @@ func (m *SubscriptionsModel) Init() tea.Cmd {
 func (m *SubscriptionsModel) Reload() {
 	if m.profileMgr == nil {
 		m.subscriptions = nil
-		m.cursor = 0
+		m.selectedIdx = 0
 		return
 	}
 	m.subscriptions = m.profileMgr.ListSubscriptions()
 	if len(m.subscriptions) == 0 {
-		m.cursor = 0
+		m.selectedIdx = 0
 		return
 	}
-	if m.cursor >= len(m.subscriptions) {
-		m.cursor = len(m.subscriptions) - 1
+	if m.selectedIdx >= len(m.subscriptions) {
+		m.selectedIdx = len(m.subscriptions) - 1
 	}
 }
 
@@ -154,7 +154,7 @@ func (m *SubscriptionsModel) View(width, height int) string {
 		Width:            width,
 		Height:           height,
 		Subscriptions:    m.subscriptions,
-		SubCursor:        m.cursor,
+		SelectedIdx:      m.selectedIdx,
 		ModalActive:      m.modalActive,
 		SubNameInputView: m.nameInput.View(),
 		SubURLInputView:  m.urlInput.View(),
@@ -162,10 +162,10 @@ func (m *SubscriptionsModel) View(width, height int) string {
 }
 
 func (m *SubscriptionsModel) currentSubscription() *config.Subscription {
-	if len(m.subscriptions) == 0 || m.cursor < 0 || m.cursor >= len(m.subscriptions) {
+	if len(m.subscriptions) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.subscriptions) {
 		return nil
 	}
-	return &m.subscriptions[m.cursor]
+	return &m.subscriptions[m.selectedIdx]
 }
 
 func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
@@ -219,12 +219,12 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keys.Up):
-		if m.cursor > 0 {
-			m.cursor--
+		if m.selectedIdx > 0 {
+			m.selectedIdx--
 		}
 	case key.Matches(msg, keys.Down):
-		if m.cursor < len(m.subscriptions)-1 {
-			m.cursor++
+		if m.selectedIdx < len(m.subscriptions)-1 {
+			m.selectedIdx++
 		}
 	case key.Matches(msg, keys.UpdateSub), key.Matches(msg, keys.Enter):
 		sub := m.currentSubscription()
@@ -314,6 +314,6 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 
 func subscriptionsChangedCmd() tea.Cmd {
 	return func() tea.Msg {
-		return subscriptionsChangedMsg{}
+		return subChangedMsg{}
 	}
 }

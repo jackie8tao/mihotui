@@ -35,22 +35,22 @@ type OverviewProps struct {
 
 // ProxiesProps contains the data needed to render the proxies tab.
 type ProxiesProps struct {
-	Width       int
-	Height      int
-	FocusPane   FocusPane
-	Groups      []mihomo.ProxyItem
-	Proxies     map[string]mihomo.ProxyItem
-	GroupCursor int
-	NodeCursor  int
+	Width            int
+	Height           int
+	FocusPane        FocusPane
+	Groups           []mihomo.ProxyItem
+	Proxies          map[string]mihomo.ProxyItem
+	SelectedGroupIdx int
+	SelectedNodeIdx  int
 }
 
 // ConfigsProps contains the data needed to render the configs tab.
 type ConfigsProps struct {
-	Width         int
-	Height        int
-	ConfigDir     string
-	Profiles      []profile.Profile
-	ProfileCursor int
+	Width       int
+	Height      int
+	ConfigDir   string
+	Profiles    []profile.Profile
+	SelectedIdx int
 }
 
 // SubscriptionsProps contains the data needed to render the subscriptions tab.
@@ -58,7 +58,7 @@ type SubscriptionsProps struct {
 	Width            int
 	Height           int
 	Subscriptions    []config.Subscription
-	SubCursor        int
+	SelectedIdx      int
 	ModalActive      ModalType
 	SubNameInputView string
 	SubURLInputView  string

@@ -40,8 +40,8 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 		}
 
 		startIdx := 0
-		if p.SubCursor >= visibleRows {
-			startIdx = p.SubCursor - visibleRows + 1
+		if p.SelectedIdx >= visibleRows {
+			startIdx = p.SelectedIdx - visibleRows + 1
 		}
 		endIdx := startIdx + visibleRows
 		if endIdx > len(p.Subscriptions) {
@@ -58,7 +58,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 
 			tag := lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("[SUB] ")
 			line := fmt.Sprintf("%s%s", tag, name)
-			if i == p.SubCursor {
+			if i == p.SelectedIdx {
 				line = theme.SelectedRowStyle.Render("▶ " + line)
 			} else {
 				line = "  " + line
@@ -74,8 +74,8 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 
 	// 2. Render Right Column: Subscription Details
 	var curr *config.Subscription
-	if len(p.Subscriptions) > 0 && p.SubCursor >= 0 && p.SubCursor < len(p.Subscriptions) {
-		curr = &p.Subscriptions[p.SubCursor]
+	if len(p.Subscriptions) > 0 && p.SelectedIdx >= 0 && p.SelectedIdx < len(p.Subscriptions) {
+		curr = &p.Subscriptions[p.SelectedIdx]
 	}
 
 	var rightContent string

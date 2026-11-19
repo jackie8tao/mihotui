@@ -39,8 +39,8 @@ func RenderConfigs(p ConfigsProps) string {
 		}
 
 		startIdx := 0
-		if p.ProfileCursor >= visibleRows {
-			startIdx = p.ProfileCursor - visibleRows + 1
+		if p.SelectedIdx >= visibleRows {
+			startIdx = p.SelectedIdx - visibleRows + 1
 		}
 		endIdx := startIdx + visibleRows
 		if endIdx > len(p.Profiles) {
@@ -66,7 +66,7 @@ func RenderConfigs(p ConfigsProps) string {
 			}
 
 			line := fmt.Sprintf("%s%s%s", activeMark, tag, name)
-			if i == p.ProfileCursor {
+			if i == p.SelectedIdx {
 				line = theme.SelectedRowStyle.Render("▶ " + line[2:])
 			}
 
@@ -80,8 +80,8 @@ func RenderConfigs(p ConfigsProps) string {
 
 	// 2. Render Right Column: Profile Details
 	var curr *profile.Profile
-	if len(p.Profiles) > 0 && p.ProfileCursor >= 0 && p.ProfileCursor < len(p.Profiles) {
-		curr = &p.Profiles[p.ProfileCursor]
+	if len(p.Profiles) > 0 && p.SelectedIdx >= 0 && p.SelectedIdx < len(p.Profiles) {
+		curr = &p.Profiles[p.SelectedIdx]
 	}
 
 	var rightContent string

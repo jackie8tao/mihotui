@@ -43,13 +43,13 @@ type (
 
 // ProxiesModel encapsulates state, interactions, and rendering for the Proxies tab.
 type ProxiesModel struct {
-	client      mihomo.Client
-	onStatus    StatusCmdFunc
-	focusPane   views.FocusPane
-	groupCursor int
-	nodeCursor  int
-	proxies     map[string]mihomo.ProxyItem
-	groups      []mihomo.ProxyItem
+	client           mihomo.Client
+	onStatus         StatusCmdFunc
+	focusPane        views.FocusPane
+	selectedGroupIdx int
+	selectedNodeIdx  int
+	proxies          map[string]mihomo.ProxyItem
+	groups           []mihomo.ProxyItem
 }
 
 // NewProxiesModel initializes a self-contained ProxiesModel.
@@ -133,13 +133,13 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 
 func (m *ProxiesModel) View(width, height int) string {
 	return views.RenderProxies(views.ProxiesProps{
-		Width:       width,
-		Height:      height,
-		FocusPane:   m.focusPane,
-		Groups:      m.groups,
-		Proxies:     m.proxies,
-		GroupCursor: m.groupCursor,
-		NodeCursor:  m.nodeCursor,
+		Width:            width,
+		Height:           height,
+		FocusPane:        m.focusPane,
+		Groups:           m.groups,
+		Proxies:          m.proxies,
+		SelectedGroupIdx: m.selectedGroupIdx,
+		SelectedNodeIdx:  m.selectedNodeIdx,
 	})
 }
 
@@ -164,19 +164,19 @@ func (m *ProxiesModel) applyLoadedProxies(proxies map[string]mihomo.ProxyItem) {
 	m.groups = groups
 
 	if len(m.groups) == 0 {
-		m.groupCursor = 0
-		m.nodeCursor = 0
+		m.selectedGroupIdx = 0
+		m.selectedNodeIdx = 0
 		return
 	}
-	if m.groupCursor >= len(m.groups) {
-		m.groupCursor = len(m.groups) - 1
+	if m.selectedGroupIdx >= len(m.groups) {
+		m.selectedGroupIdx = len(m.groups) - 1
 	}
 
-	nodes := m.groups[m.groupCursor].All
+	nodes := m.groups[m.selectedGroupIdx].All
 	if len(nodes) == 0 {
-		m.nodeCursor = 0
-	} else if m.nodeCursor >= len(nodes) {
-		m.nodeCursor = len(nodes) - 1
+		m.selectedNodeIdx = 0
+	} else if m.selectedNodeIdx >= len(nodes) {
+		m.selectedNodeIdx = len(nodes) - 1
 	}
 }
 
@@ -190,18 +190,18 @@ func (m *ProxiesModel) clearTestingFlags() {
 }
 
 func (m *ProxiesModel) currentGroup() *mihomo.ProxyItem {
-	if len(m.groups) == 0 || m.groupCursor < 0 || m.groupCursor >= len(m.groups) {
+	if len(m.groups) == 0 || m.selectedGroupIdx < 0 || m.selectedGroupIdx >= len(m.groups) {
 		return nil
 	}
-	return &m.groups[m.groupCursor]
+	return &m.groups[m.selectedGroupIdx]
 }
 
 func (m *ProxiesModel) currentSelectedNode() string {
 	grp := m.currentGroup()
-	if grp == nil || len(grp.All) == 0 || m.nodeCursor < 0 || m.nodeCursor >= len(grp.All) {
+	if grp == nil || len(grp.All) == 0 || m.selectedNodeIdx < 0 || m.selectedNodeIdx >= len(grp.All) {
 		return ""
 	}
-	return grp.All[m.nodeCursor]
+	return grp.All[m.selectedNodeIdx]
 }
 
 func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
@@ -216,24 +216,24 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 
 	case key.Matches(msg, keys.Up):
 		if m.focusPane == views.PaneGroups {
-			if m.groupCursor > 0 {
-				m.groupCursor--
-				m.nodeCursor = 0
+			if m.selectedGroupIdx > 0 {
+				m.selectedGroupIdx--
+				m.selectedNodeIdx = 0
 			}
-		} else if m.nodeCursor > 0 {
-			m.nodeCursor--
+		} else if m.selectedNodeIdx > 0 {
+			m.selectedNodeIdx--
 		}
 
 	case key.Matches(msg, keys.Down):
 		if m.focusPane == views.PaneGroups {
-			if m.groupCursor < len(m.groups)-1 {
-				m.groupCursor++
-				m.nodeCursor = 0
+			if m.selectedGroupIdx < len(m.groups)-1 {
+				m.selectedGroupIdx++
+				m.selectedNodeIdx = 0
 			}
 		} else {
 			grp := m.currentGroup()
-			if grp != nil && m.nodeCursor < len(grp.All)-1 {
-				m.nodeCursor++
+			if grp != nil && m.selectedNodeIdx < len(grp.All)-1 {
+				m.selectedNodeIdx++
 			}
 		}
 

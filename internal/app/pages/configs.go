@@ -27,11 +27,11 @@ type (
 
 // ConfigsModel encapsulates state, interactions, and rendering for the Configs tab.
 type ConfigsModel struct {
-	client     mihomo.Client
-	profileMgr *profile.Manager
-	onStatus   StatusCmdFunc
-	profiles   []profile.Profile
-	cursor     int
+	client      mihomo.Client
+	profileMgr  *profile.Manager
+	onStatus    StatusCmdFunc
+	profiles    []profile.Profile
+	selectedIdx int
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
@@ -67,9 +67,9 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 		}
 		m.profiles = msg.profiles
 		if len(m.profiles) == 0 {
-			m.cursor = 0
-		} else if m.cursor >= len(m.profiles) {
-			m.cursor = len(m.profiles) - 1
+			m.selectedIdx = 0
+		} else if m.selectedIdx >= len(m.profiles) {
+			m.selectedIdx = len(m.profiles) - 1
 		}
 		return nil
 
@@ -83,7 +83,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 			profileAppliedEventCmd(),
 		)
 
-	case subscriptionsChangedMsg:
+	case subChangedMsg:
 		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:
@@ -99,30 +99,30 @@ func (m *ConfigsModel) View(width, height int) string {
 		configDir = m.profileMgr.ConfigDir()
 	}
 	return views.RenderConfigs(views.ConfigsProps{
-		Width:         width,
-		Height:        height,
-		ConfigDir:     configDir,
-		Profiles:      m.profiles,
-		ProfileCursor: m.cursor,
+		Width:       width,
+		Height:      height,
+		ConfigDir:   configDir,
+		Profiles:    m.profiles,
+		SelectedIdx: m.selectedIdx,
 	})
 }
 
 func (m *ConfigsModel) currentProfile() *profile.Profile {
-	if len(m.profiles) == 0 || m.cursor < 0 || m.cursor >= len(m.profiles) {
+	if len(m.profiles) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.profiles) {
 		return nil
 	}
-	return &m.profiles[m.cursor]
+	return &m.profiles[m.selectedIdx]
 }
 
 func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keys.Up):
-		if m.cursor > 0 {
-			m.cursor--
+		if m.selectedIdx > 0 {
+			m.selectedIdx--
 		}
 	case key.Matches(msg, keys.Down):
-		if m.cursor < len(m.profiles)-1 {
-			m.cursor++
+		if m.selectedIdx < len(m.profiles)-1 {
+			m.selectedIdx++
 		}
 	case key.Matches(msg, keys.Enter):
 		p := m.currentProfile()

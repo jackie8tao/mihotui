@@ -39,7 +39,7 @@ func RenderProxies(p ProxiesProps) string {
 			}
 
 			line := fmt.Sprintf("[%d] %s", len(g.All), name)
-			if i == p.GroupCursor {
+			if i == p.SelectedGroupIdx {
 				if p.FocusPane == PaneGroups {
 					line = theme.SelectedRowStyle.Render("▶ " + line)
 				} else {
@@ -62,8 +62,8 @@ func RenderProxies(p ProxiesProps) string {
 
 	// 2. Render Right Column: Nodes in selected Group
 	var currGroup *mihomo.ProxyItem
-	if len(p.Groups) > 0 && p.GroupCursor >= 0 && p.GroupCursor < len(p.Groups) {
-		currGroup = &p.Groups[p.GroupCursor]
+	if len(p.Groups) > 0 && p.SelectedGroupIdx >= 0 && p.SelectedGroupIdx < len(p.Groups) {
+		currGroup = &p.Groups[p.SelectedGroupIdx]
 	}
 
 	var rightLines []string
@@ -77,8 +77,8 @@ func RenderProxies(p ProxiesProps) string {
 		}
 
 		startIdx := 0
-		if p.NodeCursor >= visibleRows {
-			startIdx = p.NodeCursor - visibleRows + 1
+		if p.SelectedNodeIdx >= visibleRows {
+			startIdx = p.SelectedNodeIdx - visibleRows + 1
 		}
 		endIdx := startIdx + visibleRows
 		if endIdx > len(currGroup.All) {
@@ -139,7 +139,7 @@ func RenderProxies(p ProxiesProps) string {
 				delayStr,
 			)
 
-			if i == p.NodeCursor && p.FocusPane == PaneNodes {
+			if i == p.SelectedNodeIdx && p.FocusPane == PaneNodes {
 				row = theme.SelectedRowStyle.Render("▶ " + row[2:])
 			}
 
