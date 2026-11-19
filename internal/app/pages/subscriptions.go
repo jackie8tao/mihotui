@@ -59,7 +59,7 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 	urlInput.Placeholder = "https://example.com/api/v1/..."
 	urlInput.Width = 46
 
-	m := &SubscriptionsModel{
+	return &SubscriptionsModel{
 		profileMgr:  mgr,
 		onStatus:    onStatus,
 		modalActive: views.ModalNone,
@@ -67,8 +67,6 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 		urlInput:    urlInput,
 		inputFocus:  0,
 	}
-	m.Reload()
-	return m
 }
 
 // Title returns the tab header title for the Subscriptions page.
@@ -88,13 +86,11 @@ func (m *SubscriptionsModel) CapturingInput() bool {
 
 // Init reloads the initial subscription list and resets modal input state.
 func (m *SubscriptionsModel) Init() tea.Cmd {
-	m.Reload()
+	m.reload()
 	return nil
 }
 
-// Reload refreshes the subscription list from the profile manager, clamps the selection index,
-// and resets the add-subscription modal and its text inputs.
-func (m *SubscriptionsModel) Reload() {
+func (m *SubscriptionsModel) reload() {
 	m.modalActive = views.ModalNone
 	m.inputFocus = 0
 	m.nameInput.SetValue("")
@@ -124,7 +120,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			return emitStatus(m.onStatus, fmt.Sprintf("Update sub failed: %v", msg.err), true)
 		}
-		m.Reload()
+		m.reload()
 		return tea.Batch(
 			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
 			subscriptionsChangedCmd(),
@@ -134,7 +130,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			return emitStatus(m.onStatus, fmt.Sprintf("Add subscription failed: %v", msg.err), true)
 		}
-		m.Reload()
+		m.reload()
 		return tea.Batch(
 			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
 			subscriptionsChangedCmd(),
@@ -144,7 +140,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			return emitStatus(m.onStatus, fmt.Sprintf("Delete sub failed: %v", msg.err), true)
 		}
-		m.Reload()
+		m.reload()
 		return tea.Batch(
 			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
 			subscriptionsChangedCmd(),
