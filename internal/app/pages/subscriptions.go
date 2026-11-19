@@ -2,7 +2,6 @@ package pages
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -47,6 +46,10 @@ type SubscriptionsModel struct {
 
 // NewSubscriptionsModel initializes a self-contained SubscriptionsModel.
 func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
+	if mgr == nil {
+		panic("pages: nil profile manager")
+	}
+
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()
@@ -94,11 +97,6 @@ func (m *SubscriptionsModel) reload() {
 	m.urlInput.SetValue("")
 	m.urlInput.Blur()
 
-	if m.profileMgr == nil {
-		m.subscriptions = nil
-		m.selectedIdx = 0
-		return
-	}
 	m.subscriptions = m.profileMgr.ListSubscriptions()
 	if len(m.subscriptions) == 0 {
 		m.selectedIdx = 0
@@ -263,9 +261,6 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 
 func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return subUpdatedMsg{name: name, err: errors.New("profile manager unavailable")}
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 		defer cancel()
 		_, err := m.profileMgr.UpdateSubscription(ctx, name)
@@ -275,9 +270,6 @@ func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 
 func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return subUpdatedMsg{name: "All", err: errors.New("profile manager unavailable")}
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		subs := m.profileMgr.ListSubscriptions()
@@ -296,9 +288,6 @@ func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 
 func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return subAddedMsg{name: name, err: errors.New("profile manager unavailable")}
-		}
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
 		_, err := m.profileMgr.AddSubscription(ctx, name, url)
@@ -308,9 +297,6 @@ func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 
 func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return subDeletedMsg{name: name, err: errors.New("profile manager unavailable")}
-		}
 		err := m.profileMgr.DeleteSubscription(name, true)
 		return subDeletedMsg{name: name, err: err}
 	}
