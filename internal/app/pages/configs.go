@@ -93,7 +93,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 			events.ProfileAppliedCmd(),
 		)
 
-	case events.SubscriptionsChangedMsg:
+	case events.SubChangedMsg:
 		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:

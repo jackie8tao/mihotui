@@ -117,7 +117,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		m.reload()
 		return tea.Batch(
 			events.StatusCmd(fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
-			events.SubscriptionsChangedCmd(),
+			events.SubChangedCmd(),
 		)
 
 	case subAddedMsg:
@@ -127,7 +127,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		m.reload()
 		return tea.Batch(
 			events.StatusCmd(fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
-			events.SubscriptionsChangedCmd(),
+			events.SubChangedCmd(),
 		)
 
 	case subDeletedMsg:
@@ -137,7 +137,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		m.reload()
 		return tea.Batch(
 			events.StatusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
-			events.SubscriptionsChangedCmd(),
+			events.SubChangedCmd(),
 		)
 
 	case tea.KeyMsg:
