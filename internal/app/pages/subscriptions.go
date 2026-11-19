@@ -32,6 +32,9 @@ type (
 	}
 )
 
+// subscriptionsChangedMsg notifies ConfigsModel to reload local profile files.
+type subscriptionsChangedMsg struct{}
+
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
@@ -311,6 +314,6 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 
 func subscriptionsChangedCmd() tea.Cmd {
 	return func() tea.Msg {
-		return SubscriptionsChangedMsg{}
+		return subscriptionsChangedMsg{}
 	}
 }

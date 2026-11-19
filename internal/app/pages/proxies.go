@@ -121,7 +121,7 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 			m.fetchProxiesCmd(),
 		)
 
-	case ProfileAppliedEventMsg:
+	case profileAppliedEventMsg:
 		return m.fetchProxiesCmd()
 
 	case tea.KeyMsg:

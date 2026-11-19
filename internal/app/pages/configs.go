@@ -83,7 +83,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 			profileAppliedEventCmd(),
 		)
 
-	case SubscriptionsChangedMsg:
+	case subscriptionsChangedMsg:
 		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:
@@ -162,6 +162,6 @@ func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 
 func profileAppliedEventCmd() tea.Cmd {
 	return func() tea.Msg {
-		return ProfileAppliedEventMsg{}
+		return profileAppliedEventMsg{}
 	}
 }

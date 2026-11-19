@@ -5,10 +5,7 @@ import (
 )
 
 // Inter-page events routed through the host container between page sub-models.
-type (
-	SubscriptionsChangedMsg struct{}
-	ProfileAppliedEventMsg  struct{}
-)
+type profileAppliedEventMsg struct{}
 
 // StatusCmdFunc produces a command to display status text in the host container.
 type StatusCmdFunc func(text string, isError bool) tea.Cmd

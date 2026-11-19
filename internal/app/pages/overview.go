@@ -102,7 +102,7 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 		}
 		return tea.Batch(cmds...)
 
-	case ProfileAppliedEventMsg:
+	case profileAppliedEventMsg:
 		return m.fetchOverviewCmd(false)
 	}
 
