@@ -62,22 +62,27 @@ func NewProxiesModel(cli mihomo.Client, onStatus StatusCmdFunc) *ProxiesModel {
 	}
 }
 
+// Title returns the tab header title for the Proxies page.
 func (m *ProxiesModel) Title() string {
 	return "2. Proxies"
 }
 
+// Help returns the keybinding hints displayed in the footer for the Proxies page.
 func (m *ProxiesModel) Help() string {
 	return "[←/→] Pane | [↑/↓] Move | [Enter] Select | [t] Ping | [T] Ping Group"
 }
 
+// CapturingInput reports whether the Proxies page is currently capturing raw keyboard input.
 func (m *ProxiesModel) CapturingInput() bool {
 	return false
 }
 
+// Init triggers the initial fetch of proxy groups and nodes.
 func (m *ProxiesModel) Init() tea.Cmd {
 	return m.fetchProxiesCmd()
 }
 
+// Update handles proxy loading, latency testing, node selection, and keyboard navigation.
 func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case proxiesLoadedMsg:
@@ -131,6 +136,7 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// View renders the Proxies page within the given terminal dimensions.
 func (m *ProxiesModel) View(width, height int) string {
 	return views.RenderProxies(views.ProxiesProps{
 		Width:            width,

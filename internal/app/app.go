@@ -94,6 +94,7 @@ func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 	}
 }
 
+// Init initializes all registered page sub-models.
 func (m *AppModel) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	for _, p := range m.pages {
@@ -164,6 +165,7 @@ func (m *AppModel) broadcast(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// Update routes Bubble Tea messages and keyboard events to global handlers and page sub-models.
 func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -214,6 +216,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// View renders the global header, active page content, and status/help footer.
 func (m *AppModel) View() string {
 	if len(m.pages) == 0 {
 		return ""

@@ -71,24 +71,37 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 	return m
 }
 
+// Title returns the tab header title for the Subscriptions page.
 func (m *SubscriptionsModel) Title() string {
 	return "4. Subscriptions"
 }
 
+// Help returns the keybinding hints displayed in the footer for the Subscriptions page.
 func (m *SubscriptionsModel) Help() string {
 	return "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete"
 }
 
+// CapturingInput reports whether the add-subscription modal is currently active and capturing keyboard input.
 func (m *SubscriptionsModel) CapturingInput() bool {
 	return m.modalActive == views.ModalAddSub
 }
 
+// Init reloads the initial subscription list and resets modal input state.
 func (m *SubscriptionsModel) Init() tea.Cmd {
 	m.Reload()
 	return nil
 }
 
+// Reload refreshes the subscription list from the profile manager, clamps the selection index,
+// and resets the add-subscription modal and its text inputs.
 func (m *SubscriptionsModel) Reload() {
+	m.modalActive = views.ModalNone
+	m.inputFocus = 0
+	m.nameInput.SetValue("")
+	m.nameInput.Focus()
+	m.urlInput.SetValue("")
+	m.urlInput.Blur()
+
 	if m.profileMgr == nil {
 		m.subscriptions = nil
 		m.selectedIdx = 0
@@ -104,6 +117,7 @@ func (m *SubscriptionsModel) Reload() {
 	}
 }
 
+// Update handles asynchronous subscription results and keyboard interactions for the Subscriptions page.
 func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case subUpdatedMsg:
@@ -120,9 +134,6 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			return emitStatus(m.onStatus, fmt.Sprintf("Add subscription failed: %v", msg.err), true)
 		}
-		m.modalActive = views.ModalNone
-		m.nameInput.SetValue("")
-		m.urlInput.SetValue("")
 		m.Reload()
 		return tea.Batch(
 			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
@@ -149,6 +160,7 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// View renders the Subscriptions page within the given terminal dimensions.
 func (m *SubscriptionsModel) View(width, height int) string {
 	return views.RenderSubscriptions(views.SubscriptionsProps{
 		Width:            width,

@@ -55,18 +55,22 @@ func (m *OverviewModel) SetMode(mode string) {
 	m.config.Mode = mode
 }
 
+// Title returns the tab header title for the Overview page.
 func (m *OverviewModel) Title() string {
 	return "1. Overview"
 }
 
+// Help returns the keybinding hints displayed in the footer for the Overview page.
 func (m *OverviewModel) Help() string {
 	return ""
 }
 
+// CapturingInput reports whether the Overview page is currently capturing raw keyboard input.
 func (m *OverviewModel) CapturingInput() bool {
 	return false
 }
 
+// Init starts the background traffic listener and fetches initial overview metrics.
 func (m *OverviewModel) Init() tea.Cmd {
 	go func() {
 		_ = m.client.SubscribeTraffic(m.ctx, m.trafficChan)
@@ -75,6 +79,7 @@ func (m *OverviewModel) Init() tea.Cmd {
 	return tea.Batch(m.fetchOverviewCmd(true), m.waitForTrafficCmd())
 }
 
+// Update handles traffic updates, overview metrics responses, and cross-page reload events.
 func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case trafficMsg:
@@ -109,6 +114,7 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// View renders the Overview page within the given terminal dimensions.
 func (m *OverviewModel) View(width, height int) string {
 	return views.RenderOverview(views.OverviewProps{
 		Width:     width,

@@ -43,22 +43,27 @@ func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager, onStatus StatusCmd
 	}
 }
 
+// Title returns the tab header title for the Configs page.
 func (m *ConfigsModel) Title() string {
 	return "3. Configs"
 }
 
+// Help returns the keybinding hints displayed in the footer for the Configs page.
 func (m *ConfigsModel) Help() string {
 	return "[↑/↓] Move | [Enter] Apply Profile"
 }
 
+// CapturingInput reports whether the Configs page is currently capturing raw keyboard input.
 func (m *ConfigsModel) CapturingInput() bool {
 	return false
 }
 
+// Init triggers the initial scan of local configuration profiles.
 func (m *ConfigsModel) Init() tea.Cmd {
 	return m.fetchProfilesCmd()
 }
 
+// Update handles profile list loading, hot-reload results, subscription change events, and keyboard navigation.
 func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case profilesLoadedMsg:
@@ -93,6 +98,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
+// View renders the Configs page within the given terminal dimensions.
 func (m *ConfigsModel) View(width, height int) string {
 	configDir := ""
 	if m.profileMgr != nil {
