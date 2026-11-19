@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/events"
 	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
@@ -29,17 +30,15 @@ type (
 type ConfigsModel struct {
 	client      mihomo.Client
 	profileMgr  *profile.Manager
-	onStatus    StatusCmdFunc
 	profiles    []profile.Profile
 	selectedIdx int
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
-func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager, onStatus StatusCmdFunc) *ConfigsModel {
+func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
-		onStatus:   onStatus,
 	}
 }
 
@@ -68,7 +67,7 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case profilesLoadedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Load profiles error: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Load profiles error: %v", msg.err), true)
 		}
 		m.profiles = msg.profiles
 		if len(m.profiles) == 0 {
@@ -80,15 +79,15 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 
 	case profileAppliedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
 		}
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
+			events.StatusCmd(fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
 			m.fetchProfilesCmd(),
-			profileAppliedEventCmd(),
+			events.ProfileAppliedCmd(),
 		)
 
-	case subChangedMsg:
+	case events.SubscriptionsChangedMsg:
 		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:
@@ -136,7 +135,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name), false),
+			events.StatusCmd(fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name), false),
 			m.applyProfileCmd(p),
 		)
 	}
@@ -163,11 +162,5 @@ func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 			_ = m.profileMgr.SetActiveProfile(p.FileName)
 		}
 		return profileAppliedMsg{profileName: p.Name, err: err}
-	}
-}
-
-func profileAppliedEventCmd() tea.Cmd {
-	return func() tea.Msg {
-		return profileAppliedEventMsg{}
 	}
 }

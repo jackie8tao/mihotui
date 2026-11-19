@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/events"
 	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
@@ -32,13 +33,9 @@ type (
 	}
 )
 
-// subChangedMsg notifies ConfigsModel to reload local profile files.
-type subChangedMsg struct{}
-
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
 	profileMgr    *profile.Manager
-	onStatus      StatusCmdFunc
 	subscriptions []config.Subscription
 	selectedIdx   int
 
@@ -49,7 +46,7 @@ type SubscriptionsModel struct {
 }
 
 // NewSubscriptionsModel initializes a self-contained SubscriptionsModel.
-func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *SubscriptionsModel {
+func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
 	nameInput := textinput.New()
 	nameInput.Placeholder = "e.g. My-Airport"
 	nameInput.Focus()
@@ -61,7 +58,6 @@ func NewSubscriptionsModel(mgr *profile.Manager, onStatus StatusCmdFunc) *Subscr
 
 	return &SubscriptionsModel{
 		profileMgr:  mgr,
-		onStatus:    onStatus,
 		modalActive: views.ModalNone,
 		nameInput:   nameInput,
 		urlInput:    urlInput,
@@ -118,32 +114,32 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case subUpdatedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Update sub failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Update sub failed: %v", msg.err), true)
 		}
 		m.reload()
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
-			subscriptionsChangedCmd(),
+			events.StatusCmd(fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
+			events.SubscriptionsChangedCmd(),
 		)
 
 	case subAddedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Add subscription failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Add subscription failed: %v", msg.err), true)
 		}
 		m.reload()
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
-			subscriptionsChangedCmd(),
+			events.StatusCmd(fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
+			events.SubscriptionsChangedCmd(),
 		)
 
 	case subDeletedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Delete sub failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Delete sub failed: %v", msg.err), true)
 		}
 		m.reload()
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
-			subscriptionsChangedCmd(),
+			events.StatusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
+			events.SubscriptionsChangedCmd(),
 		)
 
 	case tea.KeyMsg:
@@ -206,10 +202,10 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 		name := strings.TrimSpace(m.nameInput.Value())
 		subURL := strings.TrimSpace(m.urlInput.Value())
 		if name == "" || subURL == "" {
-			return emitStatus(m.onStatus, "Name and URL cannot be empty", true)
+			return events.StatusCmd("Name and URL cannot be empty", true)
 		}
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Downloading subscription [%s]...", name), false),
+			events.StatusCmd(fmt.Sprintf("Downloading subscription [%s]...", name), false),
 			m.addSubCmd(name, subURL),
 		)
 
@@ -238,13 +234,13 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
-				emitStatus(m.onStatus, fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
+				events.StatusCmd(fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
 				m.updateSubCmd(sub.Name),
 			)
 		}
 	case key.Matches(msg, keys.UpdateAll):
 		return tea.Batch(
-			emitStatus(m.onStatus, "Updating all subscriptions...", false),
+			events.StatusCmd("Updating all subscriptions...", false),
 			m.updateAllSubsCmd(),
 		)
 	case key.Matches(msg, keys.AddSub):
@@ -256,7 +252,7 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
-				emitStatus(m.onStatus, fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
+				events.StatusCmd(fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
 				m.deleteSubCmd(sub.Name),
 			)
 		}
@@ -317,11 +313,5 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 		}
 		err := m.profileMgr.DeleteSubscription(name, true)
 		return subDeletedMsg{name: name, err: err}
-	}
-}
-
-func subscriptionsChangedCmd() tea.Cmd {
-	return func() tea.Msg {
-		return subChangedMsg{}
 	}
 }

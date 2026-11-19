@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/events"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -25,8 +26,6 @@ type overviewLoadedMsg struct {
 type OverviewModel struct {
 	ctx         context.Context
 	client      mihomo.Client
-	onStatus    StatusCmdFunc
-	onModeSync  ModeSyncCmdFunc
 	trafficChan chan mihomo.Traffic
 	version     mihomo.Version
 	config      mihomo.Config
@@ -37,22 +36,15 @@ type OverviewModel struct {
 }
 
 // NewOverviewModel initializes a self-contained OverviewModel bound to the lifecycle ctx.
-func NewOverviewModel(ctx context.Context, cli mihomo.Client, onStatus StatusCmdFunc, onModeSync ModeSyncCmdFunc) *OverviewModel {
+func NewOverviewModel(ctx context.Context, cli mihomo.Client) *OverviewModel {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	return &OverviewModel{
 		ctx:         ctx,
 		client:      cli,
-		onStatus:    onStatus,
-		onModeSync:  onModeSync,
 		trafficChan: make(chan mihomo.Traffic, 50),
 	}
-}
-
-// SetMode updates the locally displayed outbound mode when switched globally.
-func (m *OverviewModel) SetMode(mode string) {
-	m.config.Mode = mode
 }
 
 // Title returns the tab header title for the Overview page.
@@ -90,7 +82,7 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 
 	case overviewLoadedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("API Connection Error: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("API Connection Error: %v", msg.err), true)
 		}
 		if msg.version != nil {
 			m.version = *msg.version
@@ -101,13 +93,18 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.memory != nil {
 			m.memory = *msg.memory
 		}
-		cmds := []tea.Cmd{emitModeSync(m.onModeSync, m.config.Mode)}
+		cmds := []tea.Cmd{events.ModeSyncedCmd(m.config.Mode)}
 		if msg.notifyStatus {
-			cmds = append(cmds, emitStatus(m.onStatus, "Connected to Mihomo", false))
+			cmds = append(cmds, events.StatusCmd("Connected to Mihomo", false))
 		}
 		return tea.Batch(cmds...)
 
-	case profileAppliedEventMsg:
+	case events.ModeUpdatedMsg:
+		if msg.Err == nil {
+			m.config.Mode = msg.NewMode
+		}
+
+	case events.ProfileAppliedMsg:
 		return m.fetchOverviewCmd(false)
 	}
 

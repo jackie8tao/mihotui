@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jackie8tao/mihotui/internal/app/events"
 	"github.com/jackie8tao/mihotui/internal/app/keys"
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
@@ -44,7 +45,6 @@ type (
 // ProxiesModel encapsulates state, interactions, and rendering for the Proxies tab.
 type ProxiesModel struct {
 	client           mihomo.Client
-	onStatus         StatusCmdFunc
 	focusPane        views.FocusPane
 	selectedGroupIdx int
 	selectedNodeIdx  int
@@ -53,10 +53,9 @@ type ProxiesModel struct {
 }
 
 // NewProxiesModel initializes a self-contained ProxiesModel.
-func NewProxiesModel(cli mihomo.Client, onStatus StatusCmdFunc) *ProxiesModel {
+func NewProxiesModel(cli mihomo.Client) *ProxiesModel {
 	return &ProxiesModel{
 		client:    cli,
-		onStatus:  onStatus,
 		focusPane: views.PaneGroups,
 		proxies:   make(map[string]mihomo.ProxyItem),
 	}
@@ -88,7 +87,7 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 	case proxiesLoadedMsg:
 		if msg.err != nil {
 			m.clearTestingFlags()
-			return emitStatus(m.onStatus, fmt.Sprintf("Load proxies failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Load proxies failed: %v", msg.err), true)
 		}
 		m.applyLoadedProxies(msg.proxies)
 		return nil
@@ -101,7 +100,7 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 		item.TestingDelay = false
 		if msg.err != nil {
 			m.proxies[msg.proxyName] = item
-			return emitStatus(m.onStatus, fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Latency test failed for %s: %v", msg.proxyName, msg.err), true)
 		}
 
 		item.History = append(item.History, mihomo.DelayHistory{
@@ -109,24 +108,24 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 			Delay: msg.delay,
 		})
 		m.proxies[msg.proxyName] = item
-		return emitStatus(m.onStatus, fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay)), false)
+		return events.StatusCmd(fmt.Sprintf("Latency for %s: %s", msg.proxyName, mihomo.FormatDelay(msg.delay)), false)
 
 	case testAllDoneMsg:
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Finished testing %d nodes in [%s]", msg.count, msg.groupName), false),
+			events.StatusCmd(fmt.Sprintf("Finished testing %d nodes in [%s]", msg.count, msg.groupName), false),
 			m.fetchProxiesCmd(),
 		)
 
 	case proxySelectedMsg:
 		if msg.err != nil {
-			return emitStatus(m.onStatus, fmt.Sprintf("Select proxy failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Select proxy failed: %v", msg.err), true)
 		}
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName), false),
+			events.StatusCmd(fmt.Sprintf("[%s] => Switched to: %s", msg.groupName, msg.proxyName), false),
 			m.fetchProxiesCmd(),
 		)
 
-	case profileAppliedEventMsg:
+	case events.ProfileAppliedMsg:
 		return m.fetchProxiesCmd()
 
 	case tea.KeyMsg:
@@ -266,7 +265,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.proxies[node] = item
 		}
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Testing latency for %s...", node), false),
+			events.StatusCmd(fmt.Sprintf("Testing latency for %s...", node), false),
 			m.testDelayCmd(node),
 		)
 
@@ -283,7 +282,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		}
 		nodesToTest := append([]string(nil), grp.All...)
 		return tea.Batch(
-			emitStatus(m.onStatus, fmt.Sprintf("Testing all %d nodes in [%s]...", len(nodesToTest), grp.Name), false),
+			events.StatusCmd(fmt.Sprintf("Testing all %d nodes in [%s]...", len(nodesToTest), grp.Name), false),
 			m.testAllCmd(grp.Name, nodesToTest),
 		)
 	}
