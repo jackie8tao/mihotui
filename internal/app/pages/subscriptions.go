@@ -51,7 +51,7 @@ func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
 	}
 
 	nameInput := textinput.New()
-	nameInput.Placeholder = "e.g. My-Airport"
+	nameInput.Placeholder = "e.g. My-Airport (a-z, A-Z, 0-9, -, _)"
 	nameInput.Focus()
 	nameInput.Width = 46
 
