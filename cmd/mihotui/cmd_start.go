@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -47,18 +46,9 @@ func runTUI(cfgPath string) error {
 	}
 
 	mihomoCfgDir := filepath.Join(appPaths.EtcDir, "mihomo")
-	profileMgr, err := profile.NewManager(
-		mihomoCfgDir,
-		profile.WithActiveProfile(cfg.ActiveSubscriptionName),
-		profile.WithSubscriptions(cfg.Subscriptions),
-		profile.WithSaveFunc(func(activeSubscription string, subscriptions []config.Subscription) error {
-			cfg.ActiveSubscriptionName = activeSubscription
-			cfg.Subscriptions = subscriptions
-			return config.SaveConfig(cfg)
-		}),
-	)
+	profileMgr, err := profile.NewManager(mihomoCfgDir, cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to initialize profile manager: %v\n", err)
+		return err
 	}
 
 	mihoCli, err := mihomo.New(cfg.ApiURL,

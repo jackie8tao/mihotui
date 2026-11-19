@@ -13,43 +13,17 @@ import (
 	"github.com/jackie8tao/mihotui/internal/config"
 )
 
-// SaveFunc is invoked whenever the active profile or subscriptions list changes.
-type SaveFunc func(activeProfile string, subs []config.Subscription) error
-
-// ManagerOption configures a Manager instance.
-type ManagerOption func(*Manager)
-
-// WithActiveProfile sets the initial active profile name.
-func WithActiveProfile(name string) ManagerOption {
-	return func(m *Manager) {
-		m.activeProfile = name
-	}
-}
-
-// WithSubscriptions sets the initial subscriptions list.
-func WithSubscriptions(subs []config.Subscription) ManagerOption {
-	return func(m *Manager) {
-		m.subscriptions = append([]config.Subscription(nil), subs...)
-	}
-}
-
-// WithSaveFunc configures the persistence callback.
-func WithSaveFunc(fn SaveFunc) ManagerOption {
-	return func(m *Manager) {
-		m.saveFn = fn
-	}
-}
-
 // Manager orchestrates local profiles and remote subscriptions.
 type Manager struct {
-	configDir     string
-	activeProfile string
-	subscriptions []config.Subscription
-	saveFn        SaveFunc
+	configDir string
+	appCfg    *config.AppConfig
 }
 
-// NewManager initializes a new Manager for the given Mihomo configuration directory.
-func NewManager(configDir string, opts ...ManagerOption) (*Manager, error) {
+// NewManager initializes a new Manager for the given Mihomo configuration directory and app config.
+func NewManager(configDir string, appCfg *config.AppConfig) (*Manager, error) {
+	if appCfg == nil {
+		panic("profile: nil app config")
+	}
 	configDir = strings.TrimSpace(configDir)
 	if configDir == "" {
 		return nil, errors.New("profile: config directory cannot be empty")
@@ -59,15 +33,10 @@ func NewManager(configDir string, opts ...ManagerOption) (*Manager, error) {
 		return nil, fmt.Errorf("profile: invalid config directory %q: %w", configDir, err)
 	}
 
-	m := &Manager{
+	return &Manager{
 		configDir: configDir,
-	}
-
-	for _, opt := range opts {
-		opt(m)
-	}
-
-	return m, nil
+		appCfg:    appCfg,
+	}, nil
 }
 
 func (m *Manager) ConfigDir() string {
@@ -75,23 +44,16 @@ func (m *Manager) ConfigDir() string {
 }
 
 func (m *Manager) ActiveProfile() string {
-	return m.activeProfile
+	return m.appCfg.ActiveSubscriptionName
 }
 
 func (m *Manager) SetActiveProfile(name string) error {
-	m.activeProfile = name
-	return m.save()
-}
-
-func (m *Manager) save() error {
-	if m.saveFn != nil {
-		return m.saveFn(m.activeProfile, m.subscriptions)
-	}
-	return nil
+	m.appCfg.ActiveSubscriptionName = name
+	return config.SaveConfig(m.appCfg)
 }
 
 func (m *Manager) ListSubscriptions() []config.Subscription {
-	return m.subscriptions
+	return m.appCfg.Subscriptions
 }
 
 // ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
@@ -102,8 +64,8 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 	}
 
 	subMap := make(map[string]*config.Subscription)
-	for i := range m.subscriptions {
-		subMap[m.subscriptions[i].Name+".yaml"] = &m.subscriptions[i]
+	for i := range m.appCfg.Subscriptions {
+		subMap[m.appCfg.Subscriptions[i].Name+".yaml"] = &m.appCfg.Subscriptions[i]
 	}
 
 	var profiles []Profile
@@ -132,6 +94,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 		}
 
 		fullPath, _ := filepath.Abs(filepath.Join(m.configDir, name))
+		active := m.appCfg.ActiveSubscriptionName
 
 		profiles = append(profiles, Profile{
 			Name:         displayName,
@@ -139,7 +102,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 			FullPath:     fullPath,
 			Size:         info.Size(),
 			ModTime:      info.ModTime(),
-			IsActive:     name == m.activeProfile || displayName == m.activeProfile || fullPath == m.activeProfile,
+			IsActive:     name == active || displayName == active || fullPath == active,
 			Subscription: sub,
 		})
 	}
@@ -162,7 +125,7 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 	}
 
 	fileName := name + ".yaml"
-	for _, existing := range m.subscriptions {
+	for _, existing := range m.appCfg.Subscriptions {
 		if existing.Name == name {
 			return nil, fmt.Errorf("profile: subscription %q already exists", name)
 		}
@@ -187,8 +150,8 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 	}
 	sub.UserInfo = userInfo
 
-	m.subscriptions = append(m.subscriptions, sub)
-	if err := m.save(); err != nil {
+	m.appCfg.Subscriptions = append(m.appCfg.Subscriptions, sub)
+	if err := config.SaveConfig(m.appCfg); err != nil {
 		return &sub, fmt.Errorf("profile: save config: %w", err)
 	}
 
@@ -198,9 +161,9 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 // UpdateSubscription re-downloads an existing subscription.
 func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.Subscription, error) {
 	var targetSub *config.Subscription
-	for i := range m.subscriptions {
-		if m.subscriptions[i].Name == name {
-			targetSub = &m.subscriptions[i]
+	for i := range m.appCfg.Subscriptions {
+		if m.appCfg.Subscriptions[i].Name == name {
+			targetSub = &m.appCfg.Subscriptions[i]
 			break
 		}
 	}
@@ -219,7 +182,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 		targetSub.UserInfo = userInfo
 	}
 
-	if err := m.save(); err != nil {
+	if err := config.SaveConfig(m.appCfg); err != nil {
 		return targetSub, fmt.Errorf("profile: save config: %w", err)
 	}
 
@@ -232,7 +195,7 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	found := false
 	var newSubs []config.Subscription
 
-	for _, sub := range m.subscriptions {
+	for _, sub := range m.appCfg.Subscriptions {
 		if sub.Name == name {
 			found = true
 			fileName = sub.Name + ".yaml"
@@ -245,8 +208,8 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 		return fmt.Errorf("subscription %q not found", name)
 	}
 
-	m.subscriptions = newSubs
-	if err := m.save(); err != nil {
+	m.appCfg.Subscriptions = newSubs
+	if err := config.SaveConfig(m.appCfg); err != nil {
 		return fmt.Errorf("subscription deleted but failed to save config: %w", err)
 	}
 
