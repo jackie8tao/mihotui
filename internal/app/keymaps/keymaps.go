@@ -7,7 +7,7 @@ var (
 	Tab        = key.NewBinding(key.WithKeys("tab"))
 	SwitchMode = key.NewBinding(key.WithKeys("m"))
 	Refresh    = key.NewBinding(key.WithKeys("r"))
-	Quit       = key.NewBinding(key.WithKeys("q", "ctrl+c"))
+	Quit       = key.NewBinding(key.WithKeys("q"))
 	Up         = key.NewBinding(key.WithKeys("up"))
 	Down       = key.NewBinding(key.WithKeys("down"))
 	Left       = key.NewBinding(key.WithKeys("left"))

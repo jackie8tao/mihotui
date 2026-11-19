@@ -75,7 +75,7 @@ func (m *SubscriptionsModel) Title() string {
 
 // Help returns the keybinding hints displayed in the footer for the Subscriptions page.
 func (m *SubscriptionsModel) Help() string {
-	return "[↑/↓] Move | [Enter/u] Update | [U] Update All | [a] Add Sub | [d] Delete"
+	return "[↑/↓] Move | [u] Update | [U] Update All | [a] Add Sub | [d] Delete"
 }
 
 // CapturingInput reports whether the add-subscription modal is currently active and capturing keyboard input.
@@ -224,7 +224,7 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		if m.selectedIdx < len(m.subscriptions)-1 {
 			m.selectedIdx++
 		}
-	case key.Matches(msg, keymaps.UpdateSub, keymaps.Enter):
+	case key.Matches(msg, keymaps.UpdateSub):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(

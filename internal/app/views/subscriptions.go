@@ -142,10 +142,10 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 		// Actions helper
 		lines = append(lines, "")
 		lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
-		lines = append(lines, "• [u] / [Enter] Update & re-download this subscription")
-		lines = append(lines, "• [U]           Batch update all subscriptions")
-		lines = append(lines, "• [a]           Add new subscription (modal)")
-		lines = append(lines, "• [d]           Delete this subscription and its local file")
+		lines = append(lines, "• [u]     Update & re-download this subscription")
+		lines = append(lines, "• [U]     Batch update all subscriptions")
+		lines = append(lines, "• [a]     Add new subscription (modal)")
+		lines = append(lines, "• [d]     Delete this subscription and its local file")
 
 		rightContent = strings.Join(lines, "\n")
 	}

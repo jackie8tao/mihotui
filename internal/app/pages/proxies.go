@@ -243,16 +243,12 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		}
 
 	case key.Matches(msg, keymaps.Enter):
-		if m.focusPane != views.PaneNodes {
-			if len(m.groups) > 0 {
-				m.focusPane = views.PaneNodes
+		if m.focusPane == views.PaneNodes {
+			grp := m.currentGroup()
+			node := m.currentSelectedNode()
+			if grp != nil && node != "" {
+				return m.selectProxyCmd(grp.Name, node)
 			}
-			return nil
-		}
-		grp := m.currentGroup()
-		node := m.currentSelectedNode()
-		if grp != nil && node != "" {
-			return m.selectProxyCmd(grp.Name, node)
 		}
 
 	case key.Matches(msg, keymaps.TestDelay):
