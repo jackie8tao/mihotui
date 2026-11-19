@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"net/http"
 	"os"
@@ -113,7 +112,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 
 	subMap := make(map[string]*config.Subscription)
 	for i := range m.subscriptions {
-		subMap[sanitizeFileName(m.subscriptions[i].Name)] = &m.subscriptions[i]
+		subMap[m.subscriptions[i].Name+".yaml"] = &m.subscriptions[i]
 	}
 
 	var profiles []Profile
@@ -189,39 +188,30 @@ func ParseUserinfo(raw string) *config.SubUserInfo {
 	return info
 }
 
-var safeFileNameRe = regexp.MustCompile(`[^a-zA-Z0-9_\-]+`)
-
-// sanitizeFileName deterministically converts a subscription name to a safe alphanumeric file name.
-func sanitizeFileName(name string) string {
-	clean := safeFileNameRe.ReplaceAllString(name, "_")
-	clean = strings.Trim(clean, "_")
-	if clean == "" {
-		h := fnv.New32a()
-		_, _ = h.Write([]byte(name))
-		clean = fmt.Sprintf("sub_%08x", h.Sum32())
-	}
-	return clean + ".yaml"
-}
+var validSubNameRe = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
 
 // AddSubscription registers a new subscription, downloads it, and saves metadata.
 func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*config.Subscription, error) {
 	if name == "" {
-		return nil, errors.New("subscription name cannot be empty")
+		return nil, errors.New("profile: subscription name cannot be empty")
+	}
+	if !validSubNameRe.MatchString(name) {
+		return nil, fmt.Errorf("profile: invalid subscription name %q (only letters, digits, '-' and '_' are allowed)", name)
 	}
 	if rawURL == "" {
-		return nil, errors.New("subscription URL cannot be empty")
+		return nil, errors.New("profile: subscription URL cannot be empty")
 	}
 
-	fileName := sanitizeFileName(name)
+	fileName := name + ".yaml"
 	for _, existing := range m.subscriptions {
-		if existing.Name == name || sanitizeFileName(existing.Name) == fileName {
-			return nil, fmt.Errorf("subscription %q already exists (conflicts with %q)", name, existing.Name)
+		if existing.Name == name {
+			return nil, fmt.Errorf("profile: subscription %q already exists", name)
 		}
 	}
 
 	targetPath := filepath.Join(m.configDir, fileName)
 	if _, err := os.Stat(targetPath); err == nil {
-		return nil, fmt.Errorf("profile file %q already exists", fileName)
+		return nil, fmt.Errorf("profile: profile file %q already exists", fileName)
 	}
 
 	sub := config.Subscription{
@@ -234,13 +224,13 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 	userInfo, err := m.downloadAndValidate(ctx, rawURL, targetPath)
 	if err != nil {
 		_ = os.Remove(targetPath)
-		return nil, fmt.Errorf("initial subscription download failed: %w", err)
+		return nil, fmt.Errorf("profile: download subscription %q: %w", name, err)
 	}
 	sub.UserInfo = userInfo
 
 	m.subscriptions = append(m.subscriptions, sub)
 	if err := m.save(); err != nil {
-		return &sub, fmt.Errorf("subscription downloaded but failed to save config: %w", err)
+		return &sub, fmt.Errorf("profile: save config: %w", err)
 	}
 
 	return &sub, nil
@@ -259,13 +249,13 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	}
 
 	if targetSub == nil {
-		return nil, fmt.Errorf("subscription %q not found", name)
+		return nil, fmt.Errorf("profile: subscription %q not found", name)
 	}
 
-	targetPath := filepath.Join(m.configDir, sanitizeFileName(targetSub.Name))
+	targetPath := filepath.Join(m.configDir, targetSub.Name+".yaml")
 	userInfo, err := m.downloadAndValidate(ctx, targetSub.URL, targetPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update subscription %q: %w", targetSub.Name, err)
+		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
 	}
 
 	m.subscriptions[subIndex].UpdatedAt = time.Now()
@@ -274,7 +264,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	}
 
 	if err := m.save(); err != nil {
-		return &m.subscriptions[subIndex], fmt.Errorf("subscription updated but failed to save config: %w", err)
+		return &m.subscriptions[subIndex], fmt.Errorf("profile: save config: %w", err)
 	}
 
 	return &m.subscriptions[subIndex], nil
@@ -289,7 +279,7 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	for _, sub := range m.subscriptions {
 		if sub.Name == name {
 			found = true
-			fileName = sanitizeFileName(sub.Name)
+			fileName = sub.Name + ".yaml"
 			continue
 		}
 		newSubs = append(newSubs, sub)
