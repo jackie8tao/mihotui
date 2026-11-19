@@ -198,11 +198,9 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 // UpdateSubscription re-downloads an existing subscription.
 func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.Subscription, error) {
 	var targetSub *config.Subscription
-	var subIndex int
 	for i := range m.subscriptions {
 		if m.subscriptions[i].Name == name {
 			targetSub = &m.subscriptions[i]
-			subIndex = i
 			break
 		}
 	}
@@ -216,16 +214,16 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
 	}
 
-	m.subscriptions[subIndex].UpdatedAt = time.Now()
+	targetSub.UpdatedAt = time.Now()
 	if userInfo != nil {
-		m.subscriptions[subIndex].UserInfo = userInfo
+		targetSub.UserInfo = userInfo
 	}
 
 	if err := m.save(); err != nil {
-		return &m.subscriptions[subIndex], fmt.Errorf("profile: save config: %w", err)
+		return targetSub, fmt.Errorf("profile: save config: %w", err)
 	}
 
-	return &m.subscriptions[subIndex], nil
+	return targetSub, nil
 }
 
 // DeleteSubscription removes subscription record and optionally deletes local file.
