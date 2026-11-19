@@ -171,12 +171,12 @@ func (m *SubscriptionsModel) currentSubscription() *config.Subscription {
 }
 
 func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
-	switch msg.String() {
-	case "esc":
+	switch {
+	case key.Matches(msg, keymaps.Esc):
 		m.modalActive = views.ModalNone
 		return nil
 
-	case "tab", "down":
+	case key.Matches(msg, keymaps.Tab, keymaps.Down):
 		if m.inputFocus == 0 {
 			m.inputFocus = 1
 			m.nameInput.Blur()
@@ -188,7 +188,7 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 
-	case "up":
+	case key.Matches(msg, keymaps.Up):
 		if m.inputFocus == 1 {
 			m.inputFocus = 0
 			m.urlInput.Blur()
@@ -196,7 +196,7 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 
-	case "enter":
+	case key.Matches(msg, keymaps.Enter):
 		name := strings.TrimSpace(m.nameInput.Value())
 		subURL := strings.TrimSpace(m.urlInput.Value())
 		if name == "" || subURL == "" {
@@ -228,7 +228,7 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		if m.selectedIdx < len(m.subscriptions)-1 {
 			m.selectedIdx++
 		}
-	case key.Matches(msg, keymaps.UpdateSub), key.Matches(msg, keymaps.Enter):
+	case key.Matches(msg, keymaps.UpdateSub, keymaps.Enter):
 		sub := m.currentSubscription()
 		if sub != nil {
 			return tea.Batch(
