@@ -156,8 +156,8 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 	return profiles, nil
 }
 
-// ParseUserinfo parses the Subscription-Userinfo header.
-func ParseUserinfo(raw string) *config.SubUserInfo {
+// parseUserinfo parses the Subscription-Userinfo header.
+func parseUserinfo(raw string) *config.SubUserInfo {
 	if raw == "" {
 		return nil
 	}
@@ -247,7 +247,6 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 			break
 		}
 	}
-
 	if targetSub == nil {
 		return nil, fmt.Errorf("profile: subscription %q not found", name)
 	}
@@ -323,7 +322,7 @@ func (m *Manager) downloadAndValidate(ctx context.Context, rawURL, targetPath st
 	// Parse Userinfo if header present
 	var userInfo *config.SubUserInfo
 	if rawUI := resp.Header.Get("subscription-userinfo"); rawUI != "" {
-		userInfo = ParseUserinfo(rawUI)
+		userInfo = parseUserinfo(rawUI)
 	}
 
 	content, err := io.ReadAll(resp.Body)
