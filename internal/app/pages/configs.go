@@ -36,6 +36,12 @@ type ConfigsModel struct {
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
 func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
+	if cli == nil {
+		panic("pages: nil mihomo client")
+	}
+	if mgr == nil {
+		panic("pages: nil profile manager")
+	}
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
@@ -99,14 +105,10 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 
 // View renders the Configs page within the given terminal dimensions.
 func (m *ConfigsModel) View(width, height int) string {
-	configDir := ""
-	if m.profileMgr != nil {
-		configDir = m.profileMgr.ConfigDir()
-	}
 	return views.RenderConfigs(views.ConfigsProps{
 		Width:       width,
 		Height:      height,
-		ConfigDir:   configDir,
+		ConfigDir:   m.profileMgr.ConfigDir(),
 		Profiles:    m.profiles,
 		SelectedIdx: m.selectedIdx,
 	})
@@ -145,9 +147,6 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 
 func (m *ConfigsModel) fetchProfilesCmd() tea.Cmd {
 	return func() tea.Msg {
-		if m.profileMgr == nil {
-			return nil
-		}
 		profiles, err := m.profileMgr.ListProfiles()
 		return profilesLoadedMsg{profiles: profiles, err: err}
 	}
@@ -158,7 +157,7 @@ func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		err := m.client.ReloadConfig(ctx, p.FullPath, true)
-		if err == nil && m.profileMgr != nil {
+		if err == nil {
 			_ = m.profileMgr.SetActiveProfile(p.FileName)
 		}
 		return profileAppliedMsg{profileName: p.Name, err: err}
