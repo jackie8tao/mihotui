@@ -51,10 +51,6 @@ func (m *Manager) SetActiveProfile(name string) error {
 	return config.SaveConfig(m.appCfg)
 }
 
-func (m *Manager) ListSubscriptions() []config.Subscription {
-	return m.appCfg.Subscriptions
-}
-
 // ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
 func (m *Manager) ListProfiles() ([]Profile, error) {
 	entries, err := os.ReadDir(m.subsDir)
@@ -107,6 +103,12 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 	}
 
 	return profiles, nil
+}
+
+// ListSubscriptions returns the configured remote subscriptions from appCfg.
+// Note: it returns the backing slice directly; callers must treat it as read-only.
+func (m *Manager) ListSubscriptions() []config.Subscription {
+	return m.appCfg.Subscriptions
 }
 
 var validSubNameRe = regexp.MustCompile(`^[a-zA-Z0-9_\-]+$`)
