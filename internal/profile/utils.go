@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,28 @@ import (
 
 var httpClient = &http.Client{
 	Timeout: 30 * time.Second,
+}
+
+// genSubFilePath generate subscription filepath from subscription name
+func genSubFilePath(subName string) string {
+	subName = strings.TrimSpace(subName)
+	return fmt.Sprintf("%s.yaml", subName)
+}
+
+func replaceSymlink(target, linkPath string) error {
+	tmpLink := linkPath + ".tmp"
+	if err := os.Remove(tmpLink); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove stale temp symlink: %w", err)
+	}
+
+	if err := os.Symlink(target, tmpLink); err != nil {
+		return fmt.Errorf("create temp symlink: %w", err)
+	}
+	if err := os.Rename(tmpLink, linkPath); err != nil {
+		_ = os.Remove(tmpLink)
+		return fmt.Errorf("replace symlink: %w", err)
+	}
+	return nil
 }
 
 // parseUserinfo parses the Subscription-Userinfo header.

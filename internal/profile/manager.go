@@ -15,12 +15,13 @@ import (
 
 // Manager orchestrates local profiles and remote subscriptions.
 type Manager struct {
-	subsDir string
-	appCfg  *config.AppConfig
+	subsDir   string
+	mihomoDir string
+	appCfg    *config.AppConfig
 }
 
 // NewManager initializes a new Manager for the given Mihomo configuration directory and app config.
-func NewManager(subsDir string, appCfg *config.AppConfig) (*Manager, error) {
+func NewManager(subsDir string, mihomoDir string, appCfg *config.AppConfig) (*Manager, error) {
 	if appCfg == nil {
 		panic("profile: nil app config")
 	}
@@ -32,23 +33,56 @@ func NewManager(subsDir string, appCfg *config.AppConfig) (*Manager, error) {
 		return nil, fmt.Errorf("profile: invalid config directory %q: %w", subsDir, err)
 	}
 
+	mihomoDir = strings.TrimSpace(mihomoDir)
+	if mihomoDir == "" {
+		return nil, errors.New("profile: mihomo directory cannot be empty")
+	}
+	if err := os.MkdirAll(mihomoDir, 0755); err != nil {
+		return nil, fmt.Errorf("profile: invalid mihomo directory %q: %w", mihomoDir, err)
+	}
+
 	return &Manager{
-		subsDir: subsDir,
-		appCfg:  appCfg,
+		subsDir:   subsDir,
+		appCfg:    appCfg,
+		mihomoDir: mihomoDir,
 	}, nil
 }
 
-func (m *Manager) ConfigDir() string {
+// SubsDir returns the subscriptions directory.
+func (m *Manager) SubsDir() string {
 	return m.subsDir
 }
 
+// ActiveProfile returns the active profile name.
 func (m *Manager) ActiveProfile() string {
 	return m.appCfg.ActiveSubName
 }
 
-func (m *Manager) SetActiveProfile(name string) error {
-	m.appCfg.ActiveSubName = name
-	return config.SaveConfig(m.appCfg)
+// SetActiveProfile updates the mihomo config.yaml symlink to point to subName and persists the configuration.
+func (m *Manager) SetActiveProfile(subName string) error {
+	subFilePath, err := filepath.Abs(filepath.Join(m.subsDir, genSubFilePath(subName)))
+	if err != nil {
+		return fmt.Errorf("resolve subscription path: %w", err)
+	}
+	if _, err := os.Stat(subFilePath); err != nil {
+		return fmt.Errorf("subscription file %q not accessible: %w", subFilePath, err)
+	}
+
+	mihomoFilePath, err := filepath.Abs(filepath.Join(m.mihomoDir, "config.yaml"))
+	if err != nil {
+		return fmt.Errorf("resolve mihomo config path: %w", err)
+	}
+	if err := replaceSymlink(subFilePath, mihomoFilePath); err != nil {
+		return err
+	}
+
+	prevActive := m.appCfg.ActiveSubName
+	m.appCfg.ActiveSubName = subName
+	if err := config.SaveConfig(m.appCfg); err != nil {
+		m.appCfg.ActiveSubName = prevActive
+		return err
+	}
+	return nil
 }
 
 // ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
@@ -57,7 +91,6 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	subMap := make(map[string]*config.Subscription)
 	for i := range m.appCfg.Subscriptions {
 		subMap[m.appCfg.Subscriptions[i].Name+".yaml"] = &m.appCfg.Subscriptions[i]
@@ -68,36 +101,35 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 		if entry.IsDir() {
 			continue
 		}
-		name := entry.Name()
-		ext := strings.ToLower(filepath.Ext(name))
+		filename := entry.Name()
+		ext := strings.ToLower(filepath.Ext(filename))
 		if ext != ".yaml" && ext != ".yml" {
 			continue
 		}
-		if strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(filename, ".") {
 			continue
 		}
-
-		info, err := entry.Info()
+		fileInfo, err := entry.Info()
 		if err != nil {
 			continue
 		}
 
-		displayName := strings.TrimSuffix(name, ext)
-		sub := subMap[name]
+		subName := strings.TrimSuffix(filename, ext)
+		sub := subMap[filename]
 		if sub != nil {
-			displayName = sub.Name
+			subName = sub.Name
 		}
 
-		fullPath, _ := filepath.Abs(filepath.Join(m.subsDir, name))
-		active := m.appCfg.ActiveSubName
+		fullPath, _ := filepath.Abs(filepath.Join(m.subsDir, filename))
+		isActive := m.appCfg.ActiveSubName == subName
 
 		profiles = append(profiles, Profile{
-			Name:         displayName,
-			FileName:     name,
+			SubName:      subName,
+			FileName:     filename,
 			FullPath:     fullPath,
-			Size:         info.Size(),
-			ModTime:      info.ModTime(),
-			IsActive:     name == active || displayName == active || fullPath == active,
+			Size:         fileInfo.Size(),
+			ModTime:      fileInfo.ModTime(),
+			IsActive:     isActive,
 			Subscription: sub,
 		})
 	}

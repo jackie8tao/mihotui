@@ -108,7 +108,7 @@ func (m *ConfigsModel) View(width, height int) string {
 	return views.RenderConfigs(views.ConfigsProps{
 		Width:       width,
 		Height:      height,
-		ConfigDir:   m.profileMgr.ConfigDir(),
+		ConfigDir:   m.profileMgr.SubsDir(),
 		Profiles:    m.profiles,
 		SelectedIdx: m.selectedIdx,
 	})
@@ -137,7 +137,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Applying profile [%s] to Mihomo...", p.Name), false),
+			events.StatusCmd(fmt.Sprintf("Applying profile [%s] to Mihomo...", p.SubName), false),
 			m.applyProfileCmd(p),
 		)
 	}
@@ -154,12 +154,26 @@ func (m *ConfigsModel) fetchProfilesCmd() tea.Cmd {
 
 func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 	return func() tea.Msg {
+		prevActive := m.profileMgr.ActiveProfile()
+		if err := m.profileMgr.SetActiveProfile(p.SubName); err != nil {
+			return profileAppliedMsg{profileName: p.SubName, err: err}
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
-		err := m.client.ReloadConfig(ctx, p.FullPath, true)
-		if err == nil {
-			_ = m.profileMgr.SetActiveProfile(p.FileName)
+
+		if err := m.client.ReloadConfig(ctx, p.FullPath, true); err != nil {
+			if prevActive != "" && prevActive != p.SubName {
+				if rbErr := m.profileMgr.SetActiveProfile(prevActive); rbErr != nil {
+					return profileAppliedMsg{
+						profileName: p.SubName,
+						err:         fmt.Errorf("%w (rollback to %q failed: %v)", err, prevActive, rbErr),
+					}
+				}
+			}
+			return profileAppliedMsg{profileName: p.SubName, err: err}
 		}
-		return profileAppliedMsg{profileName: p.Name, err: err}
+
+		return profileAppliedMsg{profileName: p.SubName}
 	}
 }
