@@ -87,9 +87,11 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			return events.StatusCmd(fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
 		}
+		for i := range m.profiles {
+			m.profiles[i].IsActive = m.profiles[i].SubName == msg.profileName
+		}
 		return tea.Batch(
 			events.StatusCmd(fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
-			m.fetchProfilesCmd(),
 			events.ProfileAppliedCmd(),
 		)
 
@@ -101,6 +103,13 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *ConfigsModel) fetchProfilesCmd() tea.Cmd {
+	return func() tea.Msg {
+		profiles, err := m.profileMgr.ListProfiles()
+		return profilesLoadedMsg{profiles: profiles, err: err}
+	}
 }
 
 // View renders the Configs page within the given terminal dimensions.
@@ -143,13 +152,6 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	return nil
-}
-
-func (m *ConfigsModel) fetchProfilesCmd() tea.Cmd {
-	return func() tea.Msg {
-		profiles, err := m.profileMgr.ListProfiles()
-		return profilesLoadedMsg{profiles: profiles, err: err}
-	}
 }
 
 func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
