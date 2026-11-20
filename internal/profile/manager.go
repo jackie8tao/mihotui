@@ -15,32 +15,31 @@ import (
 
 // Manager orchestrates local profiles and remote subscriptions.
 type Manager struct {
-	cfgDir string
-	appCfg *config.AppConfig
+	subsDir string
+	appCfg  *config.AppConfig
 }
 
 // NewManager initializes a new Manager for the given Mihomo configuration directory and app config.
-func NewManager(cfgDir string, appCfg *config.AppConfig) (*Manager, error) {
+func NewManager(subsDir string, appCfg *config.AppConfig) (*Manager, error) {
 	if appCfg == nil {
 		panic("profile: nil app config")
 	}
-	cfgDir = strings.TrimSpace(cfgDir)
-	if cfgDir == "" {
+	subsDir = strings.TrimSpace(subsDir)
+	if subsDir == "" {
 		return nil, errors.New("profile: config directory cannot be empty")
 	}
-
-	if err := os.MkdirAll(cfgDir, 0755); err != nil {
-		return nil, fmt.Errorf("profile: invalid config directory %q: %w", cfgDir, err)
+	if err := os.MkdirAll(subsDir, 0755); err != nil {
+		return nil, fmt.Errorf("profile: invalid config directory %q: %w", subsDir, err)
 	}
 
 	return &Manager{
-		cfgDir: cfgDir,
-		appCfg: appCfg,
+		subsDir: subsDir,
+		appCfg:  appCfg,
 	}, nil
 }
 
 func (m *Manager) ConfigDir() string {
-	return m.cfgDir
+	return m.subsDir
 }
 
 func (m *Manager) ActiveProfile() string {
@@ -58,7 +57,7 @@ func (m *Manager) ListSubscriptions() []config.Subscription {
 
 // ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
 func (m *Manager) ListProfiles() ([]Profile, error) {
-	entries, err := os.ReadDir(m.cfgDir)
+	entries, err := os.ReadDir(m.subsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func (m *Manager) ListProfiles() ([]Profile, error) {
 			displayName = sub.Name
 		}
 
-		fullPath, _ := filepath.Abs(filepath.Join(m.cfgDir, name))
+		fullPath, _ := filepath.Abs(filepath.Join(m.subsDir, name))
 		active := m.appCfg.ActiveSubName
 
 		profiles = append(profiles, Profile{
@@ -131,31 +130,29 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 		}
 	}
 
-	targetPath := filepath.Join(m.cfgDir, fileName)
+	targetPath := filepath.Join(m.subsDir, fileName)
 	if _, err := os.Stat(targetPath); err == nil {
 		return nil, fmt.Errorf("profile: profile file %q already exists", fileName)
 	}
 
-	sub := config.Subscription{
-		Name:      name,
-		URL:       rawURL,
-		UpdatedAt: time.Now(),
-	}
-
-	// Perform initial download
 	userInfo, err := downloadAndValidate(ctx, rawURL, targetPath)
 	if err != nil {
 		_ = os.Remove(targetPath)
 		return nil, fmt.Errorf("profile: download subscription %q: %w", name, err)
 	}
-	sub.UserInfo = userInfo
-
-	m.appCfg.Subscriptions = append(m.appCfg.Subscriptions, sub)
-	if err := config.SaveConfig(m.appCfg); err != nil {
-		return &sub, fmt.Errorf("profile: save config: %w", err)
+	subscription := config.Subscription{
+		Name:      name,
+		URL:       rawURL,
+		UpdatedAt: time.Now(),
+		UserInfo:  userInfo,
 	}
 
-	return &sub, nil
+	m.appCfg.Subscriptions = append(m.appCfg.Subscriptions, subscription)
+	if err := config.SaveConfig(m.appCfg); err != nil {
+		return &subscription, fmt.Errorf("profile: save config: %w", err)
+	}
+
+	return &subscription, nil
 }
 
 // UpdateSubscription re-downloads an existing subscription.
@@ -171,7 +168,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 		return nil, fmt.Errorf("profile: subscription %q not found", name)
 	}
 
-	targetPath := filepath.Join(m.cfgDir, targetSub.Name+".yaml")
+	targetPath := filepath.Join(m.subsDir, targetSub.Name+".yaml")
 	userInfo, err := downloadAndValidate(ctx, targetSub.URL, targetPath)
 	if err != nil {
 		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
@@ -214,7 +211,7 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	}
 
 	if deleteFile && fileName != "" {
-		_ = os.Remove(filepath.Join(m.cfgDir, fileName))
+		_ = os.Remove(filepath.Join(m.subsDir, fileName))
 	}
 	return nil
 }

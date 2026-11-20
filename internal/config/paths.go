@@ -22,6 +22,14 @@ func (a AppPaths) MihomoEtcDir() string {
 	return filepath.Join(a.EtcDir, "mihomo")
 }
 
+func (a AppPaths) AppEtcDir() string {
+	return filepath.Join(a.EtcDir, "mihotui")
+}
+
+func (a AppPaths) AppBinPath() string {
+	return filepath.Join(a.BinDir, "mihotui")
+}
+
 // NewAppPaths constructs standard AppPaths for any given suite root directory.
 func NewAppPaths(appRoot string) *AppPaths {
 	binDir := filepath.Join(appRoot, "bin")

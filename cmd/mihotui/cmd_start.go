@@ -38,15 +38,15 @@ func runTUI(cfgPath string) error {
 	}
 
 	if cfgPath == "" {
-		cfgPath = filepath.Join(appPaths.EtcDir, "mihotui", "config.yaml")
+		cfgPath = filepath.Join(appPaths.AppEtcDir(), "config.yaml")
 	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	mihomoCfgDir := filepath.Join(appPaths.EtcDir, "mihomo")
-	profileMgr, err := profile.NewManager(mihomoCfgDir, cfg)
+	subsDir := filepath.Join(appPaths.AppEtcDir(), "subscriptions")
+	profileMgr, err := profile.NewManager(subsDir, cfg)
 	if err != nil {
 		return err
 	}
