@@ -89,24 +89,6 @@ func (m *SubscriptionsModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *SubscriptionsModel) reload() {
-	m.modalActive = views.ModalNone
-	m.inputFocus = 0
-	m.nameInput.SetValue("")
-	m.nameInput.Focus()
-	m.urlInput.SetValue("")
-	m.urlInput.Blur()
-
-	m.subscriptions = m.profileMgr.ListSubscriptions()
-	if len(m.subscriptions) == 0 {
-		m.selectedIdx = 0
-		return
-	}
-	if m.selectedIdx >= len(m.subscriptions) {
-		m.selectedIdx = len(m.subscriptions) - 1
-	}
-}
-
 // Update handles asynchronous subscription results and keyboard interactions for the Subscriptions page.
 func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
@@ -148,6 +130,27 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 	}
 
 	return nil
+}
+
+// reload closes and clears the add-subscription modal, resets input focus to the name field,
+// refreshes m.subscriptions from profileMgr, and resets the list cursor to the first item.
+func (m *SubscriptionsModel) reload() {
+	m.modalActive = views.ModalNone
+	m.inputFocus = 0
+	m.nameInput.SetValue("")
+	m.nameInput.Focus()
+	m.urlInput.SetValue("")
+	m.urlInput.Blur()
+
+	m.selectedIdx = 0 // select first subscription
+	m.subscriptions = m.profileMgr.ListSubscriptions()
+	if len(m.subscriptions) == 0 {
+		m.selectedIdx = 0
+		return
+	}
+	if m.selectedIdx >= len(m.subscriptions) {
+		m.selectedIdx = len(m.subscriptions) - 1
+	}
 }
 
 // View renders the Subscriptions page within the given terminal dimensions.
