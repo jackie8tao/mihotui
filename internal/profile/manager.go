@@ -173,7 +173,6 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	if err != nil {
 		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
 	}
-
 	targetSub.UpdatedAt = time.Now()
 	if userInfo != nil {
 		targetSub.UserInfo = userInfo
@@ -182,7 +181,6 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	if err := config.SaveConfig(m.appCfg); err != nil {
 		return targetSub, fmt.Errorf("profile: save config: %w", err)
 	}
-
 	return targetSub, nil
 }
 
