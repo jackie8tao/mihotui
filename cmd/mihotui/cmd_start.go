@@ -46,7 +46,7 @@ func runTUI(cfgPath string) error {
 	}
 
 	subsDir := filepath.Join(appPaths.AppEtcDir(), "subscriptions")
-	profileMgr, err := profile.NewManager(subsDir, cfg)
+	profileMgr, err := profile.NewManager(subsDir, appPaths.MihomoEtcDir(), cfg)
 	if err != nil {
 		return err
 	}

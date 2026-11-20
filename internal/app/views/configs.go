@@ -49,7 +49,7 @@ func RenderConfigs(p ConfigsProps) string {
 
 		for i := startIdx; i < endIdx; i++ {
 			prof := p.Profiles[i]
-			name := prof.Name
+			name := prof.SubName
 			maxNameLen := leftWidth - 10
 			if len(name) > maxNameLen {
 				name = name[:maxNameLen-3] + "..."
@@ -101,7 +101,7 @@ func RenderConfigs(p ConfigsProps) string {
 			maxValWidth = 15
 		}
 
-		nameDisplay := truncateStr(curr.Name, maxValWidth-10)
+		nameDisplay := truncateStr(curr.SubName, maxValWidth-10)
 		fileDisplay := truncateStr(curr.FileName, maxValWidth)
 		pathDisplay := truncateStr(curr.FullPath, maxValWidth)
 

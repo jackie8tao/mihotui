@@ -8,7 +8,7 @@ import (
 
 // Profile represents a local configuration file (.yaml).
 type Profile struct {
-	Name         string               `json:"name"`
+	SubName      string               `json:"sub_name"`
 	FileName     string               `json:"file_name"`
 	FullPath     string               `json:"full_path"`
 	Size         int64                `json:"size"`
@@ -16,4 +16,3 @@ type Profile struct {
 	IsActive     bool                 `json:"is_active"`
 	Subscription *config.Subscription `json:"subscription,omitempty"`
 }
-
