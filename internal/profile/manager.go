@@ -189,9 +189,9 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 // DeleteSubscription removes subscription record and optionally deletes local file.
 func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	var fileName string
-	found := false
 	var newSubs []config.Subscription
 
+	found := false
 	for _, sub := range m.appCfg.Subscriptions {
 		if sub.Name == name {
 			found = true
@@ -200,7 +200,6 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 		}
 		newSubs = append(newSubs, sub)
 	}
-
 	if !found {
 		return fmt.Errorf("subscription %q not found", name)
 	}
@@ -209,9 +208,8 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 	if err := config.SaveConfig(m.appCfg); err != nil {
 		return fmt.Errorf("subscription deleted but failed to save config: %w", err)
 	}
-
 	if deleteFile && fileName != "" {
-		_ = os.Remove(filepath.Join(m.subsDir, fileName))
+		return os.Remove(filepath.Join(m.subsDir, fileName))
 	}
 	return nil
 }
