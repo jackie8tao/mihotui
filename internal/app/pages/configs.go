@@ -162,18 +162,14 @@ func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 
-		if err := m.client.ReloadConfig(ctx, p.FullPath, true); err != nil {
-			if prevActive != "" && prevActive != p.SubName {
-				if rbErr := m.profileMgr.SetActiveProfile(prevActive); rbErr != nil {
-					return profileAppliedMsg{
-						profileName: p.SubName,
-						err:         fmt.Errorf("%w (rollback to %q failed: %v)", err, prevActive, rbErr),
-					}
-				}
-			}
+		err := m.client.ReloadConfig(ctx, p.FullPath, true)
+		if err == nil || prevActive == "" || prevActive == p.SubName {
 			return profileAppliedMsg{profileName: p.SubName, err: err}
 		}
 
-		return profileAppliedMsg{profileName: p.SubName}
+		if rbErr := m.profileMgr.SetActiveProfile(prevActive); rbErr != nil {
+			err = fmt.Errorf("%w (rollback to %q failed: %v)", err, prevActive, rbErr)
+		}
+		return profileAppliedMsg{profileName: p.SubName, err: err}
 	}
 }
