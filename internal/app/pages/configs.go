@@ -123,13 +123,6 @@ func (m *ConfigsModel) View(width, height int) string {
 	})
 }
 
-func (m *ConfigsModel) currentProfile() *profile.Profile {
-	if len(m.profiles) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.profiles) {
-		return nil
-	}
-	return &m.profiles[m.selectedIdx]
-}
-
 func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Up):
@@ -152,6 +145,13 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *ConfigsModel) currentProfile() *profile.Profile {
+	if len(m.profiles) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.profiles) {
+		return nil
+	}
+	return &m.profiles[m.selectedIdx]
 }
 
 func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
