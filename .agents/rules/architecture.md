@@ -14,23 +14,23 @@
 ## 3. Configuration Discovery Standards (Self-Contained Suite)
 
 - All suite runtime configuration and core profiles live inside the self-contained bundle root (`<appRoot>/etc/`):
-  1. Explicit flag (`-c`): Strict read. Fail fast with an error if missing or invalid.
-  2. Suite config: `<appRoot>/etc/mihotui/config.yaml` (via `AppPaths.MihotuiConfig`).
-  3. Built-in defaults: `config.DefaultConfig()` (bound to `AppPaths.MihotuiConfig` for persistence if not yet created).
+  1. Explicit flag (`-c`): Strict read from the specified path. Fail fast with an error if missing or invalid.
+  2. Default suite config: `<appRoot>/etc/mihotui/config.yaml` (via `filepath.Join(appPaths.AppEtcDir(), "config.yaml")`). Strict read; fail fast if missing or invalid.
 - **Anti-Pattern Warning**: Never search current working directory (`./config.yaml`) or split state across user XDG directories (`~/.config/mihotui`) and system bundle directories (`<appRoot>/etc/mihomo`).
 
-## 4. Managed Core Directory (`mihomo_dir`)
+## 4. Managed Core & Suite Directories (`AppPaths`)
 
-- `mihomo-tui` operates as a central manager, not a passive probe.
+- `mihotui` operates as a self-contained suite manager, not a passive host-path probe.
 - Do NOT heuristic-guess host paths (`/etc/mihomo`, `~/.config/mihomo`, `./`).
-- Use self-documenting names: `resolveMihomoConfigDir` and `mihomo_dir`.
+- Resolve runtime layout deterministically from executable location via `config.ResolveAppPaths()` (`<appRoot>/bin`, `<appRoot>/etc/mihotui`, `<appRoot>/etc/mihotui/subscriptions`, `<appRoot>/etc/mihomo`).
+- Active Mihomo configuration is managed via atomic symlink replacement (`<appRoot>/etc/mihomo/config.yaml` -> `<appRoot>/etc/mihotui/subscriptions/<subName>.yaml`).
 
 ## 5. Code Hygiene & Comments
 
 - **Document Implicit Assumptions (CRITICAL)**:
   Whenever code relies on implicit assumptions (such as pre-assumed directory hierarchies, filesystem layouts, runtime environments, external tool conventions, or protocol contracts), **clear and detailed explanatory comments MUST be documented directly alongside the relevant code**. Always document the exact assumed structure, mental model, or ASCII diagram so the rationale behind the logic is immediately transparent.
 - **English Only**: All code comments, docstrings, git commit messages, and YAML configuration comments must be in standard English.
-- **Domain Entity Ownership**: No generic `model` or `utils` packages. Entities belong to domain packages (`Profile` and `Subscription` live in `internal/profile`).
+- **Domain Entity Ownership**: No generic `model` or `utils` packages. Persistent configuration schemas (`AppConfig`, `Subscription`, `SubUserInfo`) live in `internal/config`; local profile entities (`Profile`) and lifecycle management live in `internal/profile`.
 - **Conventional Commits**: Format commit messages as `<type>(<scope>): <description>`.
 
 ## 6. Control Flow & Early Returns

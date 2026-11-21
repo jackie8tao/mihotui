@@ -8,7 +8,7 @@ description: >-
 
 # MihomoTui Architecture & Development Guidelines
 
-This skill encapsulates the core design principles, architecture standards, and development workflows established for the `mihomo-tui` project.
+This skill encapsulates the core design principles, architecture standards, and development workflows established for the `mihotui` project.
 
 ---
 
@@ -17,66 +17,90 @@ This skill encapsulates the core design principles, architecture standards, and 
 The project strictly follows a layered, unidirectional architecture:
 
 ```text
-cmd/mihotui/            # CLI Entrypoint (flag parsing, App bootstrap, tea.Program)
-configs/                 # Default & sample configurations (English comments only)
+cmd/mihotui/             # CLI Entrypoint (Cobra root, start, and install subcommands)
+configs/                 # Default suite configuration template (English comments only)
 internal/
-├── app/                 # TUI Application State Machine & Coordination
-│   ├── app.go          # Root Bubble Tea Model (Init, Update, View, event loops)
-│   ├── keys.go         # Keybindings and Help mappings (KeyMap)
-│   ├── theme/          # Design system & styles
-│   │   └── theme.go    # Lipgloss colors (Color*) and styles (*Style) - zero internal deps
-│   └── views/          # Pure presentation layer (Stateless rendering)
-│       ├── types.go    # Props definitions (OverviewProps, ProxiesProps, ConfigsProps)
-│       ├── overview.go # Dashboard view (RenderOverview)
-│       ├── proxies.go  # Proxy groups & nodes view (RenderProxies)
-│       ├── configs.go  # Profiles view (RenderConfigs)
-│       ├── subscriptions.go # Subscriptions view (RenderSubscriptions)
-│       └── views_test.go # Fast, pure presentation unit tests
-├── config/              # Application configuration loading & environment overrides
+├── app/                 # TUI Application Container & Page Routing
+│   ├── app.go           # Root Bubble Tea Model (Page interface, tab routing, global keys)
+│   ├── events/          # Cross-component & inter-page Bubble Tea event messages
+│   │   └── events.go
+│   ├── keymaps/         # Read-only global and page keybindings
+│   │   └── keymaps.go
+│   ├── pages/           # Stateful page sub-models (Overview, Proxies, Configs, Subscriptions)
+│   │   ├── overview.go
+│   │   ├── proxies.go
+│   │   ├── configs.go
+│   │   └── subscriptions.go
+│   ├── theme/           # Design system & styles
+│   │   └── theme.go     # Lipgloss colors (Color*) and styles (*Style) - zero internal deps
+│   └── views/           # Pure presentation layer (Stateless rendering)
+│       ├── types.go     # Props definitions (OverviewProps, ProxiesProps, ConfigsProps, SubscriptionsProps)
+│       ├── overview.go  # Dashboard view (RenderOverview)
+│       ├── proxies.go   # Proxy groups & nodes view (RenderProxies)
+│       ├── configs.go   # Profiles view (RenderConfigs)
+│       └── subscriptions.go # Subscriptions view (RenderSubscriptions)
+├── config/              # Self-contained suite path resolution & AppConfig persistence
+│   ├── config.go        # AppConfig, Subscription, SubUserInfo schemas & atomic YAML I/O
+│   └── paths.go         # AppPaths & ResolveAppPaths via executable symlink evaluation
+├── installer/           # Mihomo core binary & systemd service installer
+│   ├── installer.go     # Directory initialization, remote/local .gz extraction
+│   └── systemd.go       # Linux systemd unit serialization & D-Bus daemon-reload
 └── profile/             # Profile & subscription lifecycle management
-    ├── manager.go      # Profile & sub file I/O, hot-reloading orchestration
-    └── types.go        # Domain entities (Profile, Subscription, SubUserInfo)
+    ├── manager.go       # Profile listing, active profile symlink switching, subscription CRUD
+    ├── types.go         # Local Profile domain entity
+    └── utils.go         # Atomic subscription download, YAML validation, symlink replacement
 pkg/
 └── mihomo/              # Public, standalone Go SDK for Mihomo External Controller
 ```
 
 ---
 
-## 2. Presentation Layer Separation (`internal/app/views`)
+## 2. Page & Presentation Layer Separation (`internal/app/pages` & `internal/app/views`)
 
 ### Rules
 
-1. **Stateless Functions**: Views must NEVER receive `*AppModel` directly to prevent circular dependencies and state leakage.
-2. **Props Pattern**: Every view must accept a read-only `Props` struct (e.g. `views.RenderOverview(p OverviewProps) string`).
-3. **Pure Functions for Testability**: Presentation logic must be testable without mocking HTTP clients, WebSockets, or TEA message loops.
-4. **Theme Isolation**: Both `internal/app` and `internal/app/views` import `internal/app/theme`. `theme` never imports other internal packages.
+1. **Independent Page Sub-Models**: Each tab implements the `app.Page` interface in `internal/app/pages` and communicates across pages strictly via `internal/app/events`.
+2. **Stateless Views**: Views in `internal/app/views` must NEVER receive `*AppModel` or page sub-models directly.
+3. **Props Pattern**: Every view accepts a read-only `Props` struct (e.g. `views.RenderOverview(p OverviewProps) string`).
+4. **Theme Isolation**: `internal/app`, `internal/app/pages`, and `internal/app/views` may import `internal/app/theme`. `theme` never imports other internal packages.
 
 ---
 
-## 3. Configuration Discovery & Packaging Standards
+## 3. Self-Contained Suite Layout & Configuration Discovery
 
-Follow XDG Base Directory Specification and Linux FHS conventions:
+`mihotui` operates as a self-contained suite derived from the executable's real filesystem path (`filepath.EvalSymlinks` on `os.Executable()`):
+
+```text
+<appRoot>/                       # e.g. /usr/local/mihotui
+├── bin/
+│   ├── mihotui                  # Symlinked from /usr/local/bin/mihotui
+│   └── mihomo                   # Installed by `mihotui install`
+└── etc/
+    ├── mihotui/
+    │   ├── config.yaml          # Persistent AppConfig & subscriptions metadata
+    │   └── subscriptions/       # Downloaded & local profile .yaml files
+    └── mihomo/
+        └── config.yaml          # Symlink -> ../mihotui/subscriptions/<active>.yaml
+```
 
 | Precedence | Scope | Path Resolution |
 | :--- | :--- | :--- |
-| **1 (Highest)** | Explicit Flag (`-c`) | Strict read. Fail fast with clear error if not found or invalid YAML. |
-| **2** | User-level Config | `$XDG_CONFIG_HOME/mihotui/config.yaml` (fallback `~/.config/mihotui/config.yaml` via `os.UserConfigDir()`). |
-| **3** | System-wide Config | Linux: `/etc/mihotui/config.yaml` + `$XDG_CONFIG_DIRS`. Windows: `%ProgramData%\mihotui\config.yaml`. macOS: `/Library/Application Support/mihotui/config.yaml`. |
-| **4 (Lowest)** | Built-in Defaults | `config.DefaultConfig()` |
+| **1 (Highest)** | Explicit Flag (`-c`) | Strict read from specified path. Fail fast with clear error if not found or invalid YAML. |
+| **2** | Default Suite Config | `<appRoot>/etc/mihotui/config.yaml` (`filepath.Join(appPaths.AppEtcDir(), "config.yaml")`). Strict read; fail fast if missing or invalid. |
 
-> **Anti-Pattern Warning**: Never search the current working directory (`./config.yaml`) by default. Users run CLI tools from arbitrary terminal locations.
+> **Anti-Pattern Warning**: Never search the current working directory (`./config.yaml`) or split state across user XDG directories (`~/.config/mihotui`) and host paths (`/etc/mihomo`).
 
 ---
 
-## 4. Managed Mihomo Core Directory (`mihomo_dir`)
+## 4. Managed Mihomo Core & Profile Activation
 
-1. **Managed Mode vs. Heuristic Guessing**:
-   - `mihomo-tui` operates as a central manager. It does NOT probe random host paths (`/etc/mihomo`, `~/.config/mihomo`, `./`).
-   - If `mihomo_dir` is specified in config/flags, use it directly and ensure directory existence (`os.MkdirAll(..., 0755)`).
-   - If empty, default deterministically to the isolated application data directory (e.g. `$XDG_CONFIG_HOME/mihotui/mihomo`).
-2. **Naming Convention**:
-   - Use explicit, self-documenting naming: `resolveMihomoConfigDir` (not generic `resolveConfigDir`).
-   - Config field: `mihomo_dir` (not ambiguous `config_dir`).
+1. **Deterministic Suite Paths**:
+   - All runtime paths derive from `config.ResolveAppPaths()` (or `config.NewAppPaths(targetDir)` during `mihotui install -d`).
+   - Do NOT probe random host paths (`/etc/mihomo`, `~/.config/mihomo`, `./`).
+2. **Symlink-Driven Profile Switching**:
+   - Subscription YAML files live in `<appRoot>/etc/mihotui/subscriptions/<subName>.yaml`.
+   - `Manager.SetActiveProfile(subName)` atomically points `<appRoot>/etc/mihomo/config.yaml` to the target subscription YAML file and persists `active_subscription_name` in `<appRoot>/etc/mihotui/config.yaml`.
+   - In `ConfigsModel`, hot-reloading via Mihomo API rolls back the active symlink if the reload fails.
 
 ---
 
@@ -84,7 +108,7 @@ Follow XDG Base Directory Specification and Linux FHS conventions:
 
 1. **Eliminate Generic Packages**:
    - Do NOT create generic `model`, `utils`, or `common` packages.
-   - Types belong to their domain owners (e.g., `Profile` and `Subscription` live in `internal/profile`).
+   - Persistent config schemas (`AppConfig`, `Subscription`, `SubUserInfo`) live in `internal/config`; local `Profile` lives in `internal/profile`.
    - Mihomo protocol models and byte/speed formatting helpers live directly in `pkg/mihomo`.
 2. **Language & Comments**:
    - **Document Implicit Assumptions**: Whenever code relies on implicit assumptions (e.g. directory layouts, runtime environments, external conventions), clear explanatory comments and diagrams MUST be added directly in the code.
@@ -100,8 +124,9 @@ Follow XDG Base Directory Specification and Linux FHS conventions:
 1. **No Silent Error Swallowing**:
    - When an operation fails (system call, executable path resolution, file I/O, network request, parsing), **NEVER** swallow the error or return a hardcoded default fallback.
    - Any failure must be explicitly surfaced with `fmt.Errorf("...: %w", err)`.
-2. **Never Compromise Signatures for `init()`**:
+2. **Concise & Uniform Error Formatting**:
+   - Apply a single package-boundary prefix (`config: ...`, `profile: ...`, `installer: ...`) only at exported package entrypoints, never inside unexported helpers.
+   - Use short verb-first context (`<action> [<target>]: %w`) and avoid verbose filler (`failed to ...`).
+3. **Never Compromise Signatures for `init()`**:
    - Do NOT omit `error` from a function return just to call it in `init()`.
-   - If an operation involves runtime inspection or I/O, execute it dynamically during command execution (`RunE`), not during package initialization.
-3. **Fail Immediately on Ambiguity**:
-   - If environment or runtime layout cannot be resolved with certainty, fail immediately and inform the user rather than guessing or defaulting to `/usr/local/...`.
+   - Execute runtime inspection or I/O dynamically during command execution (`RunE`), not during package initialization.

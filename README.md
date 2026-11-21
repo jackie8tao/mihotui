@@ -36,15 +36,15 @@
 | `Tab` | 循环切换 **Overview** / **Proxies** / **Configs** / **Subscriptions** 视图 |
 | `m` | 快速切换出站模式（`RULE` ➔ `GLOBAL` ➔ `DIRECT`） |
 | `r` | 手动刷新全部 API 与配置文件数据 |
-| `q` / `Ctrl+C` | 退出程序 |
+| `q` | 退出程序 |
 
 ### 节点管理视图 (Proxies)
 
 | 按键 | 功能 |
 | :--- | :--- |
-| `← / h` | 将焦点移动到左侧 **策略组** 列表 |
-| `→ / l` | 将焦点移动到右侧 **节点** 列表 |
-| `↑ / k`, `↓ / j` | 上下移动光标 |
+| `←` | 将焦点移动到左侧 **策略组** 列表 |
+| `→` | 将焦点移动到右侧 **节点** 列表 |
+| `↑`, `↓` | 上下移动光标 |
 | `Enter` | 将当前光标所在的节点设为活动节点 |
 | `t` | 对当前选中的单个节点测试延迟（Ping） |
 | `T` | 对当前策略组内的所有节点进行**并发批量延迟测速** |
@@ -53,15 +53,15 @@
 
 | 按键 | 功能 |
 | :--- | :--- |
-| `↑ / k`, `↓ / j` | 上下移动选择本地配置文件 |
-| `Enter` | **应用并热重载**当前选中的配置文件到 Mihomo 核心 |
+| `↑`, `↓` | 上下移动选择本地配置文件 |
+| `Enter` | **激活软链接并热重载**当前选中的配置文件到 Mihomo 核心 |
 
 ### 订阅管理视图 (Subscriptions)
 
 | 按键 | 功能 |
 | :--- | :--- |
-| `↑ / k`, `↓ / j` | 上下移动选择订阅项 |
-| `Enter` / `u` | 重新拉取并更新当前选中的订阅（自动更新流量配额） |
+| `↑`, `↓` | 上下移动选择订阅项（在弹窗中用于切换输入焦点） |
+| `u` | 重新拉取并更新当前选中的订阅（自动更新流量配额） |
 | `U` | 批量重新拉取并更新所有已添加的订阅 |
 | `a` | 弹出表单新增订阅（输入订阅名称与 URL） |
 | `d` | 删除当前选中的订阅及其本地文件 |
@@ -73,7 +73,7 @@
 
 ### 方式 1：Linux 在线一键安装 (推荐)
 
-在 Linux 服务器终端直接运行一键安装脚本（自动检测当前系统 CPU 架构，拉取对应构建包并注册至 `/usr/local/bin`）：
+在 Linux 服务器终端直接运行一键安装脚本（自动检测当前系统 CPU 架构，拉取对应构建包部署至 `/usr/local/mihotui` 自包含套件目录，并软链接至 `/usr/local/bin/mihotui`）：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jackie8tao/mihotui/master/scripts/install.sh | bash
@@ -107,8 +107,6 @@ go run ./tools/packager
 go run ./tools/packager -arch amd64 -v v0.1.0
 ```
 
-> **VS Code 快捷键**：直接按 `Ctrl+Shift+B` 即可一键触发 `Build Linux (amd64) Package` 任务完成构建与打包。
-
 构建完成后，产物将存放在 `./dist/` 目录下：
 
 - `mihotui-v0.1.0-linux-amd64.tar.gz` (x86_64 服务器 / VPS)
@@ -117,13 +115,12 @@ go run ./tools/packager -arch amd64 -v v0.1.0
 - `mihotui-v0.1.0-linux-386.tar.gz` (32位 x86 系统)
 - `sha256sums.txt` (全量哈希校验和)
 
-每个发布包内已内置：
+每个发布包采用自包含套件目录结构，内置：
 
-1. 编译优化后的二进制文件（自动剔除调试符号，体积仅约 3MB）
-2. Linux 一键安装脚本 `install.sh`（自动设置 0755 可执行权限）
-3. 统一配置文件模板 `configs/config.example.yaml`（含 API 连接、配置目录与订阅持久化项）
-4. Systemd 服务单元模板 `mihomo.service`
-5. 说明文档 `README.md`
+1. 编译优化后的二进制文件 `bin/mihotui`（自动剔除调试符号）
+2. 默认套件配置文件模板 `etc/mihotui/config.yaml`（含 API 连接、当前激活订阅与订阅列表持久化项）
+3. Linux 一键部署脚本 `install.sh`（自动初始化 `/usr/local/mihotui` 套件目录并注册 `/usr/local/bin/mihotui` 软链接）
+4. 说明文档 `README.md`
 
 ### 2. Linux 服务器上一键安装
 
@@ -134,11 +131,20 @@ tar -zxvf mihotui-v0.1.0-linux-amd64.tar.gz
 sudo ./install.sh
 ```
 
-脚本将自动：
+脚本将自动初始化自包含套件目录 `/usr/local/mihotui`：
 
-- 将二进制安装到 `/usr/local/bin/mihotui`
-- 赋予可执行权限
-- 自动创建 `/etc/mihomo` 与默认用户配置目录
+```text
+/usr/local/mihotui/
+├── bin/
+│   ├── mihotui          (软链接至 /usr/local/bin/mihotui)
+│   └── mihomo           (通过 mihotui install 自动安装)
+└── etc/
+    ├── mihotui/
+    │   ├── config.yaml
+    │   └── subscriptions/
+    └── mihomo/
+        └── config.yaml  (软链接至当前激活的订阅文件)
+```
 
 ### 3. 运行与子命令
 
@@ -146,12 +152,15 @@ sudo ./install.sh
 # 查看帮助说明
 mihotui --help
 
-# 启动交互式 TUI 界面
+# 下载并安装 Mihomo 核心二进制、初始化套件目录并生成/重载 systemd 服务 (mihomo.service)
+sudo mihotui install
+
+# 使用本地离线 Mihomo .gz 压缩包安装核心
+sudo mihotui install -a ./mihomo-linux-amd64-v1.19.33.gz
+
+# 启动交互式 TUI 界面（默认读取 <appRoot>/etc/mihotui/config.yaml）
 mihotui start
 
 # 指定自定义配置文件路径启动
-mihotui start -c ~/.config/mihotui/config.yaml
-
-# 安装 Mihomo 内核包到自包含套件目录
-mihotui install
+mihotui start -c /usr/local/mihotui/etc/mihotui/config.yaml
 ```
