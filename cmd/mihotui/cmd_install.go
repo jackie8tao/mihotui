@@ -18,10 +18,10 @@ var (
 
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install Mihomo core binary and initialize bundle directory",
+	Short: "Install Mihomo core binary, suite directories, and systemd service unit",
 	Long: `Download and install the Mihomo (Clash.Meta) core binary into the self-contained
 bundle directory, or extract directly from a local gzip archive (.gz),
-and initialize its configuration directory.`,
+initialize its configuration directory, and install the systemd unit file on Linux.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		opts := installer.Options{
 			ArchivePath: installArchivePath,

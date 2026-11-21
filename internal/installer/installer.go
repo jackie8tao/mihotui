@@ -47,7 +47,19 @@ func Install(ctx context.Context, opts Options) error {
 		}
 	}
 
-	// 2. Check if already installed
+	// 2. Install core binary from local archive or remote release
+	if err := installMihomoBinary(ctx, opts); err != nil {
+		return fmt.Errorf("installer: %w", err)
+	}
+
+	// 3. Generate and install systemd service unit on Linux
+	if err := installSystemdUnit(ctx, opts); err != nil {
+		return fmt.Errorf("installer: %w", err)
+	}
+	return nil
+}
+
+func installMihomoBinary(ctx context.Context, opts Options) error {
 	mihomoBinPath := opts.AppPaths.MihomoBinPath()
 	if !opts.Force {
 		if fi, err := os.Stat(mihomoBinPath); err == nil && !fi.IsDir() {
@@ -56,20 +68,22 @@ func Install(ctx context.Context, opts Options) error {
 		}
 	}
 
-	// 3. Install core binary from local archive or remote release
 	if archivePath := strings.TrimSpace(opts.ArchivePath); archivePath != "" {
 		if err := installLocalArchive(archivePath, mihomoBinPath); err != nil {
-			return fmt.Errorf("installer: %w", err)
+			return err
 		}
-	} else {
-		if err := installRemoteArchive(ctx, mihomoBinPath); err != nil {
-			return fmt.Errorf("installer: %w", err)
-		}
+		return chmodExecutable(mihomoBinPath)
 	}
 
-	// 4. Ensure Executable Permissions
-	if err := os.Chmod(mihomoBinPath, 0755); err != nil {
-		return fmt.Errorf("installer: chmod %q: %w", mihomoBinPath, err)
+	if err := installRemoteArchive(ctx, mihomoBinPath); err != nil {
+		return err
+	}
+	return chmodExecutable(mihomoBinPath)
+}
+
+func chmodExecutable(path string) error {
+	if err := os.Chmod(path, 0755); err != nil {
+		return fmt.Errorf("chmod %q: %w", path, err)
 	}
 	return nil
 }
