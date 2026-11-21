@@ -157,17 +157,15 @@ func main() {
 
 func getReleaseEntries(binPath string) []TarEntry {
 	return []TarEntry{
-		// 1. Core binary (required)
-		{Src: binPath, Dst: "mihotui", Mode: 0755, Optional: false},
+		// 1. Suite binary (required)
+		{Src: binPath, Dst: "bin/mihotui", Mode: 0755, Optional: false},
 
-		// 2. Configuration examples
-		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "configs/config.example.yaml", Mode: 0644, Optional: true},
-		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "config.example.yaml", Mode: 0644, Optional: true},
+		// 2. Suite default configuration template
+		{Src: filepath.Join("configs", "config.example.yaml"), Dst: "etc/mihotui/config.yaml", Mode: 0644, Optional: true},
 
-		// 3. Documentation & deployment scripts
+		// 3. Documentation & deployment script
 		{Src: "README.md", Dst: "README.md", Mode: 0644, Optional: true},
 		{Src: filepath.Join("scripts", "install.sh"), Dst: "install.sh", Mode: 0755, Optional: true},
-		{Src: filepath.Join("scripts", "systemd", "mihomo.service"), Dst: "mihomo.service", Mode: 0644, Optional: true},
 	}
 }
 

@@ -1,5 +1,5 @@
 # Mihomo TUI sample configuration file
-# Default paths: $XDG_CONFIG_HOME/mihotui/config.yaml or ~/.config/mihotui/config.yaml
+# Default path: <appRoot>/etc/mihotui/config.yaml
 
 # Mihomo External Controller API URL
 api_url: "http://127.0.0.1:9090"
@@ -7,15 +7,13 @@ api_url: "http://127.0.0.1:9090"
 # Mihomo API secret token (matches 'secret' in Mihomo config.yaml)
 secret: ""
 
-# Currently active profile filename (e.g. default.yaml)
-active_profile: ""
+# Currently active subscription/profile name (without .yaml extension)
+active_subscription_name: ""
 
 # Subscriptions list managed by mihotui
 subscriptions:
-  - id: "sub_example_1"
-    name: "My Airport"
+  - name: "My-Airport"
     url: "https://sub.example.com/api/v1/client/subscribe?token=xxx"
-    file_name: "my_airport.yaml"
     updated_at: 2026-11-01T12:00:00Z
     user_info:
       upload: 1073741824

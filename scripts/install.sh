@@ -47,12 +47,13 @@ esac
 
 echo -e "${BLUE}==>${NC} Detected architecture: ${GREEN}${TARGET_ARCH}${NC}"
 
-INSTALL_DIR="/usr/local/bin"
+SUITE_DIR="${SUITE_DIR:-/usr/local/mihotui}"
+BIN_LINK_DIR="/usr/local/bin"
 BIN_NAME="mihotui"
 
 # Find binary to install
 SRC_BIN=""
-for candidate in "$BIN_NAME" "${BIN_NAME}-${TARGET_ARCH}"; do
+for candidate in "bin/$BIN_NAME" "$BIN_NAME" "${BIN_NAME}-${TARGET_ARCH}"; do
     if [ -f "./$candidate" ]; then
         SRC_BIN="./$candidate"
         break
@@ -61,6 +62,14 @@ for candidate in "$BIN_NAME" "${BIN_NAME}-${TARGET_ARCH}"; do
         break
     elif [ -f "./build/$candidate" ]; then
         SRC_BIN="./build/$candidate"
+        break
+    fi
+done
+
+CFG_EXAMPLE=""
+for cfg_candidate in "./etc/mihotui/config.yaml" "./configs/config.example.yaml"; do
+    if [ -f "$cfg_candidate" ]; then
+        CFG_EXAMPLE="$cfg_candidate"
         break
     fi
 done
@@ -89,8 +98,13 @@ if [ -z "$SRC_BIN" ]; then
 
     if [ -f "${TMP_DIR}/${TAR_NAME}" ]; then
         tar -zxf "${TMP_DIR}/${TAR_NAME}" -C "$TMP_DIR"
-        if [ -f "${TMP_DIR}/${BIN_NAME}" ]; then
+        if [ -f "${TMP_DIR}/bin/${BIN_NAME}" ]; then
+            SRC_BIN="${TMP_DIR}/bin/${BIN_NAME}"
+        elif [ -f "${TMP_DIR}/${BIN_NAME}" ]; then
             SRC_BIN="${TMP_DIR}/${BIN_NAME}"
+        fi
+        if [ -z "$CFG_EXAMPLE" ] && [ -f "${TMP_DIR}/etc/mihotui/config.yaml" ]; then
+            CFG_EXAMPLE="${TMP_DIR}/etc/mihotui/config.yaml"
         fi
     fi
 
@@ -100,35 +114,30 @@ if [ -z "$SRC_BIN" ]; then
     fi
 fi
 
-echo -e "${BLUE}==>${NC} Installing binary to ${INSTALL_DIR}/${BIN_NAME}..."
-$SUDO cp "$SRC_BIN" "${INSTALL_DIR}/${BIN_NAME}"
-$SUDO chmod +x "${INSTALL_DIR}/${BIN_NAME}"
+echo -e "${BLUE}==>${NC} Initializing self-contained suite directory at ${SUITE_DIR}..."
+$SUDO mkdir -p "${SUITE_DIR}/bin"
+$SUDO mkdir -p "${SUITE_DIR}/etc/mihotui/subscriptions"
+$SUDO mkdir -p "${SUITE_DIR}/etc/mihomo"
 
-# Ensure default directories exist
-CONFIG_DIR="/etc/mihomo"
-if [ ! -d "$CONFIG_DIR" ]; then
-    echo -e "${BLUE}==>${NC} Creating Mihomo default config directory ${CONFIG_DIR}..."
-    $SUDO mkdir -p "$CONFIG_DIR"
-    $SUDO chmod 755 "$CONFIG_DIR"
-fi
+echo -e "${BLUE}==>${NC} Installing binary to ${SUITE_DIR}/bin/${BIN_NAME}..."
+$SUDO cp "$SRC_BIN" "${SUITE_DIR}/bin/${BIN_NAME}"
+$SUDO chmod 755 "${SUITE_DIR}/bin/${BIN_NAME}"
 
-USER_CONFIG_DIR="${HOME}/.config/mihotui"
-mkdir -p "$USER_CONFIG_DIR"
+echo -e "${BLUE}==>${NC} Linking ${BIN_LINK_DIR}/${BIN_NAME} -> ${SUITE_DIR}/bin/${BIN_NAME}..."
+$SUDO mkdir -p "$BIN_LINK_DIR"
+$SUDO ln -sf "${SUITE_DIR}/bin/${BIN_NAME}" "${BIN_LINK_DIR}/${BIN_NAME}"
 
-CFG_EXAMPLE=""
-if [ -f "./configs/config.example.yaml" ]; then
-    CFG_EXAMPLE="./configs/config.example.yaml"
-elif [ -f "./config.example.yaml" ]; then
-    CFG_EXAMPLE="./config.example.yaml"
-fi
-
-if [ -n "$CFG_EXAMPLE" ] && [ ! -f "${USER_CONFIG_DIR}/config.yaml" ]; then
-    echo -e "${BLUE}==>${NC} Setting up initial config in ${USER_CONFIG_DIR}/config.yaml..."
-    cp "$CFG_EXAMPLE" "${USER_CONFIG_DIR}/config.yaml"
+SUITE_CFG="${SUITE_DIR}/etc/mihotui/config.yaml"
+if [ -n "$CFG_EXAMPLE" ] && [ ! -f "$SUITE_CFG" ]; then
+    echo -e "${BLUE}==>${NC} Writing initial suite config to ${SUITE_CFG}..."
+    $SUDO cp "$CFG_EXAMPLE" "$SUITE_CFG"
+    $SUDO chmod 644 "$SUITE_CFG"
 fi
 
 echo -e "${GREEN}==> Installation completed successfully!${NC}"
-echo -e "You can now run ${GREEN}mihotui${NC} anywhere in your terminal."
+echo -e "Suite Root : ${GREEN}${SUITE_DIR}${NC}"
+echo -e "Symlink    : ${GREEN}${BIN_LINK_DIR}/${BIN_NAME}${NC}"
 echo -e "Usage examples:"
-echo -e "  mihotui start                            # Connect to 127.0.0.1:9090"
-echo -e "  mihotui start -c ~/.config/mihotui/config.yaml"
+echo -e "  sudo mihotui install                     # Install Mihomo core & systemd service"
+echo -e "  mihotui start                            # Launch interactive TUI"
+echo -e "  mihotui start -c ${SUITE_CFG}"
