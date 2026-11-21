@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/installer"
@@ -32,7 +31,7 @@ initialize its configuration directory, and install the systemd unit file on Lin
 		} else {
 			paths, err := config.ResolveAppPaths()
 			if err != nil {
-				return fmt.Errorf("resolve app paths: %w", err)
+				return err
 			}
 			opts.AppPaths = paths
 		}

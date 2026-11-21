@@ -78,7 +78,7 @@ func parseUserinfo(raw string) *config.SubUserInfo {
 func downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*config.SubUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build request: %w", err)
 	}
 
 	// Use Clash.Meta / mihomo UA so subscription providers return standard mihomo YAML
@@ -86,12 +86,12 @@ func downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*confi
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch subscription: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download failed with HTTP status %d", resp.StatusCode)
+		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
 	}
 
 	// Parse Userinfo if header present
@@ -102,24 +102,24 @@ func downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*confi
 
 	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read response body: %w", err)
 	}
 
 	// Validate basic YAML structure to prevent saving 404 HTML pages
 	var testMap map[string]any
 	if err := yaml.Unmarshal(content, &testMap); err != nil {
-		return nil, fmt.Errorf("downloaded content is not valid YAML: %w", err)
+		return nil, fmt.Errorf("parse YAML: %w", err)
 	}
 
 	// Write atomically via temporary file
 	tmpPath := targetPath + ".tmp"
 	if err := os.WriteFile(tmpPath, content, 0644); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("write temp file %q: %w", tmpPath, err)
 	}
 
 	if err := os.Rename(tmpPath, targetPath); err != nil {
 		_ = os.Remove(tmpPath)
-		return nil, err
+		return nil, fmt.Errorf("replace file %q: %w", targetPath, err)
 	}
 
 	return userInfo, nil

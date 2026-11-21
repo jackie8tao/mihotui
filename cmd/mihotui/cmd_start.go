@@ -34,7 +34,7 @@ func init() {
 func runTUI(cfgPath string) error {
 	appPaths, err := config.ResolveAppPaths()
 	if err != nil {
-		return fmt.Errorf("failed to resolve app paths: %w", err)
+		return err
 	}
 
 	if cfgPath == "" {
@@ -42,7 +42,7 @@ func runTUI(cfgPath string) error {
 	}
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	subsDir := filepath.Join(appPaths.AppEtcDir(), "subscriptions")
@@ -55,7 +55,7 @@ func runTUI(cfgPath string) error {
 		mihomo.WithSecret(cfg.Secret),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create Mihomo API client: %w", err)
+		return err
 	}
 
 	appModel := app.New(mihoCli, profileMgr)
@@ -64,7 +64,7 @@ func runTUI(cfgPath string) error {
 		tea.WithAltScreen(),
 	)
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("error running TUI application: %w", err)
+		return fmt.Errorf("run TUI: %w", err)
 	}
 
 	return nil

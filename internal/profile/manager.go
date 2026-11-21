@@ -20,17 +20,17 @@ type Manager struct {
 	appCfg    *config.AppConfig
 }
 
-// NewManager initializes a new Manager for the given Mihomo configuration directory and app config.
+// NewManager initializes a new Manager for the given subscriptions directory, Mihomo config directory, and app config.
 func NewManager(subsDir string, mihomoDir string, appCfg *config.AppConfig) (*Manager, error) {
 	if appCfg == nil {
 		panic("profile: nil app config")
 	}
 	subsDir = strings.TrimSpace(subsDir)
 	if subsDir == "" {
-		return nil, errors.New("profile: config directory cannot be empty")
+		return nil, errors.New("profile: subscriptions directory cannot be empty")
 	}
 	if err := os.MkdirAll(subsDir, 0755); err != nil {
-		return nil, fmt.Errorf("profile: invalid config directory %q: %w", subsDir, err)
+		return nil, fmt.Errorf("profile: create subscriptions dir %q: %w", subsDir, err)
 	}
 
 	mihomoDir = strings.TrimSpace(mihomoDir)
@@ -38,7 +38,7 @@ func NewManager(subsDir string, mihomoDir string, appCfg *config.AppConfig) (*Ma
 		return nil, errors.New("profile: mihomo directory cannot be empty")
 	}
 	if err := os.MkdirAll(mihomoDir, 0755); err != nil {
-		return nil, fmt.Errorf("profile: invalid mihomo directory %q: %w", mihomoDir, err)
+		return nil, fmt.Errorf("profile: create mihomo dir %q: %w", mihomoDir, err)
 	}
 
 	return &Manager{
@@ -62,34 +62,34 @@ func (m *Manager) ActiveProfile() string {
 func (m *Manager) SetActiveProfile(subName string) error {
 	subFilePath, err := filepath.Abs(filepath.Join(m.subsDir, genSubFilePath(subName)))
 	if err != nil {
-		return fmt.Errorf("resolve subscription path: %w", err)
+		return fmt.Errorf("profile: resolve subscription path: %w", err)
 	}
 	if _, err := os.Stat(subFilePath); err != nil {
-		return fmt.Errorf("subscription file %q not accessible: %w", subFilePath, err)
+		return fmt.Errorf("profile: stat subscription %q: %w", subFilePath, err)
 	}
 
 	mihomoFilePath, err := filepath.Abs(filepath.Join(m.mihomoDir, "config.yaml"))
 	if err != nil {
-		return fmt.Errorf("resolve mihomo config path: %w", err)
+		return fmt.Errorf("profile: resolve mihomo config path: %w", err)
 	}
 	if err := replaceSymlink(subFilePath, mihomoFilePath); err != nil {
-		return err
+		return fmt.Errorf("profile: %w", err)
 	}
 
 	prevActive := m.appCfg.ActiveSubName
 	m.appCfg.ActiveSubName = subName
 	if err := config.SaveConfig(m.appCfg); err != nil {
 		m.appCfg.ActiveSubName = prevActive
-		return err
+		return fmt.Errorf("profile: %w", err)
 	}
 	return nil
 }
 
-// ListProfiles scans all .yaml/.yml in ConfigDir and correlates with subscriptions.
+// ListProfiles scans all .yaml/.yml in subsDir and correlates with subscriptions.
 func (m *Manager) ListProfiles() ([]Profile, error) {
 	entries, err := os.ReadDir(m.subsDir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("profile: read subscriptions dir %q: %w", m.subsDir, err)
 	}
 	subMap := make(map[string]*config.Subscription)
 	for i := range m.appCfg.Subscriptions {
@@ -183,7 +183,7 @@ func (m *Manager) AddSubscription(ctx context.Context, name, rawURL string) (*co
 
 	m.appCfg.Subscriptions = append(m.appCfg.Subscriptions, subscription)
 	if err := config.SaveConfig(m.appCfg); err != nil {
-		return &subscription, fmt.Errorf("profile: save config: %w", err)
+		return &subscription, fmt.Errorf("profile: %w", err)
 	}
 
 	return &subscription, nil
@@ -213,7 +213,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, name string) (*config.
 	}
 
 	if err := config.SaveConfig(m.appCfg); err != nil {
-		return targetSub, fmt.Errorf("profile: save config: %w", err)
+		return targetSub, fmt.Errorf("profile: %w", err)
 	}
 	return targetSub, nil
 }
@@ -233,15 +233,18 @@ func (m *Manager) DeleteSubscription(name string, deleteFile bool) error {
 		newSubs = append(newSubs, sub)
 	}
 	if !found {
-		return fmt.Errorf("subscription %q not found", name)
+		return fmt.Errorf("profile: subscription %q not found", name)
 	}
 
 	m.appCfg.Subscriptions = newSubs
 	if err := config.SaveConfig(m.appCfg); err != nil {
-		return fmt.Errorf("subscription deleted but failed to save config: %w", err)
+		return fmt.Errorf("profile: %w", err)
 	}
 	if deleteFile && fileName != "" {
-		return os.Remove(filepath.Join(m.subsDir, fileName))
+		targetPath := filepath.Join(m.subsDir, fileName)
+		if err := os.Remove(targetPath); err != nil {
+			return fmt.Errorf("profile: remove file %q: %w", targetPath, err)
+		}
 	}
 	return nil
 }

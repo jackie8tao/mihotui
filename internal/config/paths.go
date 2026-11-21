@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // AppPaths holds resolved runtime paths for the self-contained suite layout.
@@ -32,17 +31,10 @@ func (a AppPaths) AppBinPath() string {
 
 // NewAppPaths constructs standard AppPaths for any given suite root directory.
 func NewAppPaths(appRoot string) *AppPaths {
-	binDir := filepath.Join(appRoot, "bin")
-	etcDir := filepath.Join(appRoot, "etc")
-	mihomoBin := filepath.Join(binDir, "mihomo")
-	if runtime.GOOS == "windows" {
-		mihomoBin += ".exe"
-	}
-
 	return &AppPaths{
 		AppRoot: appRoot,
-		BinDir:  binDir,
-		EtcDir:  etcDir,
+		BinDir:  filepath.Join(appRoot, "bin"),
+		EtcDir:  filepath.Join(appRoot, "etc"),
 	}
 }
 
@@ -55,20 +47,23 @@ func NewAppPaths(appRoot string) *AppPaths {
 //	│   └── mihomo
 //	└── etc/
 //	    ├── mihotui/
+//	    │   ├── config.yaml
+//	    │   └── subscriptions/
 //	    └── mihomo/
+//	        └── config.yaml
 //
 // If the executable is in a "bin" folder, appRoot is its parent folder.
 // Otherwise, appRoot is the executable's directory.
 func ResolveAppPaths() (*AppPaths, error) {
 	execPath, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("failed to determine executable path: %w", err)
+		return nil, fmt.Errorf("config: resolve executable path: %w", err)
 	}
 
 	// Resolve symlinks (e.g. /usr/local/bin/mihotui -> /usr/local/mihotui/bin/mihotui)
 	realExecPath, err := filepath.EvalSymlinks(execPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve symlink for executable %q: %w", execPath, err)
+		return nil, fmt.Errorf("config: eval executable symlink %q: %w", execPath, err)
 	}
 
 	dir := filepath.Dir(realExecPath)

@@ -62,12 +62,12 @@ func LoadConfig(cfgPath string) (*AppConfig, error) {
 
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read config %q: %w", cfgPath, err)
+		return nil, fmt.Errorf("config: read %q: %w", cfgPath, err)
 	}
 
 	cfg := &AppConfig{}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, fmt.Errorf("failed to parse config %q: %w", cfgPath, err)
+		return nil, fmt.Errorf("config: parse %q: %w", cfgPath, err)
 	}
 
 	SetConfigPath(cfgPath)
@@ -81,22 +81,22 @@ func SaveConfig(cfg *AppConfig) error {
 		return errors.New("config: target config path cannot be empty")
 	}
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return fmt.Errorf("config: create dir %q: %w", filepath.Dir(targetPath), err)
 	}
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
+		return fmt.Errorf("config: marshal: %w", err)
 	}
 
 	tmpPath := targetPath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write temp config file: %w", err)
+		return fmt.Errorf("config: write temp file %q: %w", tmpPath, err)
 	}
 
 	if err := os.Rename(tmpPath, targetPath); err != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to replace config file: %w", err)
+		return fmt.Errorf("config: replace %q: %w", targetPath, err)
 	}
 	return nil
 }
