@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	DefaultMihomoVersion = "v1.19.33"
-	DefaultMihomoRepo    = "MetaCubeX/mihomo"
+	defaultMihomoVersion = "v1.19.33"
+	defaultMihomoRepo    = "MetaCubeX/mihomo"
 )
 
 // Options represents parameters for installing Mihomo core.
@@ -98,7 +98,7 @@ var assetTargets = map[string]string{
 func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 	// Resolve the latest release tag via GitHub's /releases/latest HTTP redirect.
 	// GitHub responds with 302 Found and a Location header ending in /releases/tag/<version>.
-	latestURL := fmt.Sprintf("https://github.com/%s/releases/latest", DefaultMihomoRepo)
+	latestURL := fmt.Sprintf("https://github.com/%s/releases/latest", defaultMihomoRepo)
 	latestReq, err := http.NewRequestWithContext(ctx, http.MethodHead, latestURL, nil)
 	if err != nil {
 		return fmt.Errorf("build latest request: %w", err)
@@ -134,7 +134,7 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 		return fmt.Errorf("unsupported platform %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	assetName := fmt.Sprintf("mihomo-%s-%s.gz", target, version)
-	downloadURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", DefaultMihomoRepo, version, assetName)
+	downloadURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", defaultMihomoRepo, version, assetName)
 
 	downloadReq, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
