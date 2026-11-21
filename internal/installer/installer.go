@@ -35,13 +35,13 @@ func Install(ctx context.Context, opts Options) error {
 	}
 
 	// 1. Ensure suite directories exist
-	needCreatedDirs := []string{
+	createdDirs := []string{
 		opts.AppPaths.BinDir,
 		opts.AppPaths.EtcDir,
 		filepath.Join(opts.AppPaths.EtcDir, "mihomo"),
 		filepath.Join(opts.AppPaths.EtcDir, "mihotui"),
 	}
-	for _, dir := range needCreatedDirs {
+	for _, dir := range createdDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("installer: create dir %q: %w", dir, err)
 		}
@@ -67,16 +67,14 @@ func installMihomoBinary(ctx context.Context, opts Options) error {
 			return nil
 		}
 	}
-
 	if archivePath := strings.TrimSpace(opts.ArchivePath); archivePath != "" {
 		if err := installLocalArchive(archivePath, mihomoBinPath); err != nil {
 			return err
 		}
-		return chmodExecutable(mihomoBinPath)
-	}
-
-	if err := installRemoteArchive(ctx, mihomoBinPath); err != nil {
-		return err
+	} else {
+		if err := installRemoteArchive(ctx, mihomoBinPath); err != nil {
+			return err
+		}
 	}
 	return chmodExecutable(mihomoBinPath)
 }
