@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	installTargetDir   string
 	installArchivePath string
 	installForce       bool
 )
@@ -26,23 +25,17 @@ initialize its configuration directory, and install the systemd unit file on Lin
 			ArchivePath: installArchivePath,
 			Force:       installForce,
 		}
-		if installTargetDir != "" {
-			opts.AppPaths = config.NewAppPaths(installTargetDir)
-		} else {
-			paths, err := config.ResolveAppPaths()
-			if err != nil {
-				return err
-			}
-			opts.AppPaths = paths
+		paths, err := config.ResolveAppPaths()
+		if err != nil {
+			return err
 		}
+		opts.AppPaths = paths
 		return installer.Install(context.Background(), opts)
 	},
 }
 
 func init() {
-	installCmd.Flags().StringVarP(&installTargetDir, "directory", "d", "", "Target bundle root directory (defaults to current suite root)")
-	installCmd.Flags().StringVarP(&installArchivePath, "archive", "a", "", "Local Mihomo gzip archive (.gz) for offline installation")
+	installCmd.Flags().StringVarP(&installArchivePath, "archive", "a", "", "Local Mihomo gzip archive for offline installation")
 	installCmd.Flags().BoolVarP(&installForce, "force", "f", false, "Force overwrite existing binary")
-
 	rootCmd.AddCommand(installCmd)
 }
