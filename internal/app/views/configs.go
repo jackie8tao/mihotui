@@ -52,8 +52,9 @@ func RenderConfigs(p ConfigsProps) string {
 	if p.FocusPane == ConfigPaneSections {
 		leftBoxStyle = theme.CardBoxActiveStyle
 	}
+	leftHeader := lipgloss.NewStyle().Bold(true).Render("Sections")
 	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
-		"⚙️ Sections\n\n" + strings.Join(secLines, "\n"),
+		leftHeader + "\n\n" + strings.Join(secLines, "\n"),
 	)
 
 	// 2. Render Right Column: Fields List, Selected Field Info, and Live YAML Preview
@@ -107,7 +108,7 @@ func RenderConfigs(p ConfigsProps) string {
 	if p.FocusPane == ConfigPaneFields {
 		rightBoxStyle = theme.CardBoxActiveStyle
 	}
-	rightHeader := fmt.Sprintf("🔧 %s", p.ActiveSecTitle)
+	rightHeader := lipgloss.NewStyle().Bold(true).Render(p.ActiveSecTitle)
 	if p.Dirty {
 		rightHeader += " " + lipgloss.NewStyle().Foreground(theme.ColorWarning).Bold(true).Render("[Modified]")
 	}
@@ -132,7 +133,7 @@ func renderConfigEditModal(p ConfigsProps) string {
 		Width(modalWidth)
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render(
-		fmt.Sprintf("✏️ Edit %s (%s)", p.EditLabel, p.EditYAMLPath),
+		fmt.Sprintf("Edit %s (%s)", p.EditLabel, p.EditYAMLPath),
 	)
 	desc := lipgloss.NewStyle().Width(modalWidth - 6).Foreground(theme.ColorMuted).Render(p.EditDescription)
 	inputField := fmt.Sprintf("Value:\n%s", p.EditInputView)
