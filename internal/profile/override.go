@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"gopkg.in/yaml.v3"
 )
 
 // ValidTunStacks lists the supported Mihomo TUN network stack modes.
@@ -160,57 +158,4 @@ func (m *Manager) BuildMihomoConfig(subName string) (string, error) {
 		return "", fmt.Errorf("profile: write mihomo config: %w", err)
 	}
 	return mihomoCfgPath, nil
-}
-
-func readYAMLMap(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read file %q: %w", path, err)
-	}
-
-	out := make(map[string]any)
-	if err := yaml.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("parse YAML %q: %w", path, err)
-	}
-	return out, nil
-}
-
-func writeYAMLAtomically(targetPath string, data map[string]any) error {
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
-		return fmt.Errorf("create dir %q: %w", filepath.Dir(targetPath), err)
-	}
-
-	raw, err := yaml.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("marshal YAML: %w", err)
-	}
-
-	tmpPath := targetPath + ".tmp"
-	if err := os.WriteFile(tmpPath, raw, 0644); err != nil {
-		return fmt.Errorf("write temp file %q: %w", tmpPath, err)
-	}
-	if err := os.Rename(tmpPath, targetPath); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("replace file %q: %w", targetPath, err)
-	}
-	return nil
-}
-
-// deepMergeMaps recursively merges src into dst. Nested maps are merged key-by-key;
-// scalar values and slices in src overwrite those in dst.
-func deepMergeMaps(dst, src map[string]any) {
-	for k, srcVal := range src {
-		srcMap, srcIsMap := srcVal.(map[string]any)
-		if srcIsMap {
-			if dstMap, dstIsMap := dst[k].(map[string]any); dstIsMap && dstMap != nil {
-				deepMergeMaps(dstMap, srcMap)
-				continue
-			}
-			copied := make(map[string]any, len(srcMap))
-			deepMergeMaps(copied, srcMap)
-			dst[k] = copied
-			continue
-		}
-		dst[k] = srcVal
-	}
 }
