@@ -19,34 +19,6 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
-type (
-	overrideLoadedMsg struct {
-		doc *profile.OverrideDoc
-		err error
-	}
-	overrideAppliedMsg struct {
-		reloaded  bool
-		activeSub string
-		err       error
-	}
-)
-
-// ConfigsModel is a schema-driven editor for user system overrides stored in override.yaml.
-type ConfigsModel struct {
-	client     mihomo.Client
-	profileMgr *profile.Manager
-	sections   []SectionSpec
-	doc        *profile.OverrideDoc
-
-	focusPane  views.ConfigFocusPane
-	sectionIdx int
-	fieldIdx   int
-	dirty      bool
-
-	editing   bool
-	editInput textinput.Model
-}
-
 // FieldKind defines the input and serialization behavior of an override.yaml field.
 type FieldKind int
 
@@ -237,6 +209,34 @@ func defaultConfigSections() []SectionSpec {
 			},
 		},
 	}
+}
+
+type (
+	overrideLoadedMsg struct {
+		doc *profile.OverrideDoc
+		err error
+	}
+	overrideAppliedMsg struct {
+		reloaded  bool
+		activeSub string
+		err       error
+	}
+)
+
+// ConfigsModel is a schema-driven editor for user system overrides stored in override.yaml.
+type ConfigsModel struct {
+	client     mihomo.Client
+	profileMgr *profile.Manager
+	sections   []SectionSpec
+	doc        *profile.OverrideDoc
+
+	focusPane  views.ConfigFocusPane
+	sectionIdx int
+	fieldIdx   int
+	dirty      bool
+
+	editing   bool
+	editInput textinput.Model
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
