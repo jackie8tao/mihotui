@@ -160,55 +160,51 @@ func toStringSlice(val any) []string {
 	}
 }
 
-// defaultConfigSections defines the registered override.yaml configuration sections.
-// Adding new modules (e.g. DNS, General, Sniffer) only requires appending a SectionSpec here.
-func defaultConfigSections() []SectionSpec {
-	return []SectionSpec{
-		{
-			Title: "TUN Mode",
-			Fields: []FieldSpec{
-				{
-					Path:        []string{"tun", "enable"},
-					Label:       "TUN Enable",
-					Description: "Enable virtual TUN interface.",
-					Kind:        KindBool,
-				},
-				{
-					Path:        []string{"tun", "stack"},
-					Label:       "Network Stack",
-					Description: "TUN TCP/IP stack: mixed, system, or gvisor.",
-					Kind:        KindSelect,
-					Options:     []string{"mixed", "system", "gvisor"},
-				},
-				{
-					Path:        []string{"tun", "device"},
-					Label:       "Device Name",
-					Description: "Virtual interface name.",
-					Kind:        KindString,
-					Placeholder: "e.g. mihomo",
-				},
-				{
-					Path:        []string{"tun", "auto-route"},
-					Label:       "Auto Route",
-					Description: "Auto-configure system routing table.",
-					Kind:        KindBool,
-				},
-				{
-					Path:        []string{"tun", "auto-detect-interface"},
-					Label:       "Auto Detect Iface",
-					Description: "Auto-bind default outbound interface.",
-					Kind:        KindBool,
-				},
-				{
-					Path:        []string{"tun", "dns-hijack"},
-					Label:       "DNS Hijack",
-					Description: "Hijack DNS queries (comma-separated).",
-					Kind:        KindStringList,
-					Placeholder: "any:53, tcp://any:53",
-				},
+var mihomoCfgSections = []SectionSpec{
+	{
+		Title: "TUN Mode",
+		Fields: []FieldSpec{
+			{
+				Path:        []string{"tun", "enable"},
+				Label:       "TUN Enable",
+				Description: "Enable virtual TUN interface.",
+				Kind:        KindBool,
+			},
+			{
+				Path:        []string{"tun", "stack"},
+				Label:       "Network Stack",
+				Description: "TUN TCP/IP stack: mixed, system, or gvisor.",
+				Kind:        KindSelect,
+				Options:     []string{"mixed", "system", "gvisor"},
+			},
+			{
+				Path:        []string{"tun", "device"},
+				Label:       "Device Name",
+				Description: "Virtual interface name.",
+				Kind:        KindString,
+				Placeholder: "e.g. mihomo",
+			},
+			{
+				Path:        []string{"tun", "auto-route"},
+				Label:       "Auto Route",
+				Description: "Auto-configure system routing table.",
+				Kind:        KindBool,
+			},
+			{
+				Path:        []string{"tun", "auto-detect-interface"},
+				Label:       "Auto Detect Iface",
+				Description: "Auto-bind default outbound interface.",
+				Kind:        KindBool,
+			},
+			{
+				Path:        []string{"tun", "dns-hijack"},
+				Label:       "DNS Hijack",
+				Description: "Hijack DNS queries (comma-separated).",
+				Kind:        KindStringList,
+				Placeholder: "any:53, tcp://any:53",
 			},
 		},
-	}
+	},
 }
 
 type (
@@ -227,7 +223,6 @@ type (
 type ConfigsModel struct {
 	client     mihomo.Client
 	profileMgr *profile.Manager
-	sections   []SectionSpec
 	doc        *profile.OverrideDoc
 
 	focusPane  views.ConfigFocusPane
@@ -254,7 +249,6 @@ func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
-		sections:   defaultConfigSections(),
 		doc:        profile.NewOverrideDoc(),
 		focusPane:  views.ConfigPaneFields,
 		editInput:  input,
@@ -321,8 +315,8 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 
 // View renders the Configs page within the given terminal dimensions.
 func (m *ConfigsModel) View(width, height int) string {
-	secViews := make([]views.ConfigSectionView, len(m.sections))
-	for i, sec := range m.sections {
+	secViews := make([]views.ConfigSectionView, len(mihomoCfgSections))
+	for i, sec := range mihomoCfgSections {
 		count := 0
 		for _, f := range sec.Fields {
 			if _, ok := m.doc.Get(f.Path...); ok {
@@ -388,10 +382,10 @@ func (m *ConfigsModel) View(width, height int) string {
 }
 
 func (m *ConfigsModel) currentSection() *SectionSpec {
-	if len(m.sections) == 0 || m.sectionIdx < 0 || m.sectionIdx >= len(m.sections) {
+	if len(mihomoCfgSections) == 0 || m.sectionIdx < 0 || m.sectionIdx >= len(mihomoCfgSections) {
 		return nil
 	}
-	return &m.sections[m.sectionIdx]
+	return &mihomoCfgSections[m.sectionIdx]
 }
 
 func (m *ConfigsModel) currentField() *FieldSpec {
@@ -408,7 +402,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		m.focusPane = views.ConfigPaneSections
 
 	case key.Matches(msg, keymaps.Right):
-		if len(m.sections) > 0 {
+		if len(mihomoCfgSections) > 0 {
 			m.focusPane = views.ConfigPaneFields
 		}
 
@@ -424,7 +418,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 
 	case key.Matches(msg, keymaps.Down):
 		if m.focusPane == views.ConfigPaneSections {
-			if m.sectionIdx < len(m.sections)-1 {
+			if m.sectionIdx < len(mihomoCfgSections)-1 {
 				m.sectionIdx++
 				m.fieldIdx = 0
 			}
