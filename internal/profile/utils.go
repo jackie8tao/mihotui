@@ -99,6 +99,7 @@ func downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*confi
 	return userInfo, nil
 }
 
+// readYAMLMap reads a YAML file from path and unmarshals it into a top-level map.
 func readYAMLMap(path string) (map[string]any, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -112,6 +113,7 @@ func readYAMLMap(path string) (map[string]any, error) {
 	return out, nil
 }
 
+// writeYAMLAtomically marshals data to YAML and atomically writes it to targetPath via a temporary file.
 func writeYAMLAtomically(targetPath string, data map[string]any) error {
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
 		return fmt.Errorf("create dir %q: %w", filepath.Dir(targetPath), err)
