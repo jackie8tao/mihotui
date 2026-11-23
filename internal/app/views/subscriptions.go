@@ -50,11 +50,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 
 		for i := startIdx; i < endIdx; i++ {
 			sub := p.Subscriptions[i]
-			name := sub.Name
-			maxNameLen := leftWidth - 12
-			if len(name) > maxNameLen {
-				name = name[:maxNameLen-3] + "..."
-			}
+			name := truncateStr(sub.Name, leftWidth-12)
 
 			activeMark := "  "
 			if sub.Name == p.ActiveSubName {

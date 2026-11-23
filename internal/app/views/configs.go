@@ -144,14 +144,3 @@ func renderConfigEditModal(p ConfigsProps) string {
 
 	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
 }
-
-func truncateStr(s string, maxLen int) string {
-	if maxLen <= 3 {
-		return s
-	}
-	runes := []rune(s)
-	if len(runes) > maxLen {
-		return string(runes[:maxLen-3]) + "..."
-	}
-	return s
-}

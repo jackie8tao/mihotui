@@ -33,10 +33,7 @@ func RenderProxies(p ProxiesProps) string {
 		groupLines = append(groupLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No proxy groups found"))
 	} else {
 		for i, g := range p.Groups {
-			name := g.Name
-			if len(name) > leftWidth-8 {
-				name = name[:leftWidth-11] + "..."
-			}
+			name := truncateStr(g.Name, leftWidth-10)
 
 			line := fmt.Sprintf("[%d] %s", len(g.All), name)
 			if i == p.SelectedGroupIdx {
@@ -95,52 +92,50 @@ func RenderProxies(p ProxiesProps) string {
 				activeMark = theme.ActiveIndicatorStyle.Render("✔ ")
 			}
 
-			// Delay text and styling
-			delayStr := "      -"
+			// Delay text and styling (fixed 10-column visual width)
+			delayStr := fmt.Sprintf("%10s", "-")
 			if exists {
 				if nodeItem.TestingDelay {
-					delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("Testing...")
+					delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(fmt.Sprintf("%10s", "Testing..."))
 				} else if len(nodeItem.History) > 0 {
 					lastDelay := nodeItem.History[len(nodeItem.History)-1].Delay
-					delayFormatted := mihomo.FormatDelay(lastDelay)
+					delayFormatted := fmt.Sprintf("%10s", mihomo.FormatDelay(lastDelay))
 					switch {
 					case lastDelay <= 0:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(delayFormatted)
 					case lastDelay < 120:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorSecondary).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorSecondary).Render(delayFormatted)
 					case lastDelay < 300:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(delayFormatted)
 					default:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(fmt.Sprintf("%7s", delayFormatted))
+						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(delayFormatted)
 					}
 				}
 			}
 
-			// Type text
+			// Type text (pad before styling so ANSI escapes do not break column width)
 			nodeType := ""
 			if exists && nodeItem.Type != "" {
 				nodeType = fmt.Sprintf("[%s]", nodeItem.Type)
 			}
+			styledType := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(padRightVisual(nodeType, 14))
 
-			// Node name truncation
-			availNameWidth := rightWidth - 28
+			// Node name visual-width truncation & padding (handles CJK & Emoji accurately)
+			availNameWidth := rightWidth - 32
 			if availNameWidth < 12 {
 				availNameWidth = 12
 			}
-			displayName := nodeName
-			if len(displayName) > availNameWidth {
-				displayName = displayName[:availNameWidth-3] + "..."
+			paddedName := padRightVisual(nodeName, availNameWidth)
+
+			cursor := "  "
+			isSelected := i == p.SelectedNodeIdx && p.FocusPane == PaneNodes
+			if isSelected {
+				cursor = "▶ "
 			}
 
-			row := fmt.Sprintf("%s%-*s %-10s %s",
-				activeMark,
-				availNameWidth, displayName,
-				lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(nodeType),
-				delayStr,
-			)
-
-			if i == p.SelectedNodeIdx && p.FocusPane == PaneNodes {
-				row = theme.SelectedRowStyle.Render("▶ " + row[2:])
+			row := fmt.Sprintf("%s%s%s %s %s", cursor, activeMark, paddedName, styledType, delayStr)
+			if isSelected {
+				row = theme.SelectedRowStyle.Render(row)
 			}
 
 			rightLines = append(rightLines, row)
