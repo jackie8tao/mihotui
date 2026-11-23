@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -45,6 +46,7 @@ type (
 // ProxiesModel encapsulates state, interactions, and rendering for the Proxies tab.
 type ProxiesModel struct {
 	client           mihomo.Client
+	mode             string
 	focusPane        views.FocusPane
 	selectedGroupIdx int
 	selectedNodeIdx  int
@@ -125,6 +127,20 @@ func (m *ProxiesModel) Update(msg tea.Msg) tea.Cmd {
 			m.fetchProxiesCmd(),
 		)
 
+	case events.ModeSyncedMsg:
+		if !strings.EqualFold(m.mode, msg.Mode) {
+			m.mode = msg.Mode
+			m.rebuildGroups(strings.EqualFold(msg.Mode, "global"))
+		}
+		return nil
+
+	case events.ModeUpdatedMsg:
+		if msg.Err == nil && !strings.EqualFold(m.mode, msg.NewMode) {
+			m.mode = msg.NewMode
+			m.rebuildGroups(strings.EqualFold(msg.NewMode, "global"))
+		}
+		return nil
+
 	case events.ProfileAppliedMsg:
 		return m.fetchProxiesCmd()
 
@@ -150,13 +166,32 @@ func (m *ProxiesModel) View(width, height int) string {
 
 func (m *ProxiesModel) applyLoadedProxies(proxies map[string]mihomo.ProxyItem) {
 	m.proxies = proxies
+	m.rebuildGroups(false)
+}
 
+func (m *ProxiesModel) rebuildGroups(focusGlobal bool) {
+	prevGroupName := ""
+	if grp := m.currentGroup(); grp != nil {
+		prevGroupName = grp.Name
+	}
+
+	// Hide GLOBAL in non-global modes (e.g. rule/direct) and strip nested proxy groups
+	// (Selector/URLTest/etc.) from GLOBAL so only concrete outbound nodes are shown.
+	isGlobalMode := strings.EqualFold(m.mode, "global")
 	var groups []mihomo.ProxyItem
 	for _, item := range m.proxies {
-		if len(item.All) > 0 {
-			groups = append(groups, item)
+		if len(item.All) == 0 {
+			continue
 		}
+		if item.Name == "GLOBAL" {
+			if !isGlobalMode {
+				continue
+			}
+			item.All = m.filterConcreteNodes(item.All)
+		}
+		groups = append(groups, item)
 	}
+
 	sort.Slice(groups, func(i, j int) bool {
 		if groups[i].Name == "GLOBAL" {
 			return true
@@ -173,6 +208,21 @@ func (m *ProxiesModel) applyLoadedProxies(proxies map[string]mihomo.ProxyItem) {
 		m.selectedNodeIdx = 0
 		return
 	}
+
+	if focusGlobal {
+		m.selectedGroupIdx = 0
+		m.selectedNodeIdx = 0
+		return
+	}
+
+	if prevGroupName != "" {
+		for i, g := range m.groups {
+			if g.Name == prevGroupName {
+				m.selectedGroupIdx = i
+				break
+			}
+		}
+	}
 	if m.selectedGroupIdx >= len(m.groups) {
 		m.selectedGroupIdx = len(m.groups) - 1
 	}
@@ -180,9 +230,22 @@ func (m *ProxiesModel) applyLoadedProxies(proxies map[string]mihomo.ProxyItem) {
 	nodes := m.groups[m.selectedGroupIdx].All
 	if len(nodes) == 0 {
 		m.selectedNodeIdx = 0
-	} else if m.selectedNodeIdx >= len(nodes) {
+		return
+	}
+	if m.selectedNodeIdx >= len(nodes) {
 		m.selectedNodeIdx = len(nodes) - 1
 	}
+}
+
+func (m *ProxiesModel) filterConcreteNodes(names []string) []string {
+	filtered := make([]string, 0, len(names))
+	for _, name := range names {
+		if child, ok := m.proxies[name]; ok && len(child.All) > 0 {
+			continue
+		}
+		filtered = append(filtered, name)
+	}
+	return filtered
 }
 
 func (m *ProxiesModel) clearTestingFlags() {

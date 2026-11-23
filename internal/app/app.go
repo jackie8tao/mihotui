@@ -149,7 +149,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case events.ModeSyncedMsg:
 		m.mode = msg.Mode
-		return m, nil
+		return m, m.broadcast(msg)
 
 	case events.ModeUpdatedMsg:
 		if msg.Err != nil {
