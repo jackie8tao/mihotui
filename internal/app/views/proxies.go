@@ -27,15 +27,33 @@ func RenderProxies(p ProxiesProps) string {
 		rightWidth = 25
 	}
 
-	// 1. Render Left Column: Groups List
+	visibleRows := height - 2
+	if visibleRows < 3 {
+		visibleRows = 3
+	}
+
+	// 1. Render Left Column: Groups List (with visible window scrolling)
 	var groupLines []string
 	if len(p.Groups) == 0 {
 		groupLines = append(groupLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No proxy groups found"))
 	} else {
-		for i, g := range p.Groups {
-			name := truncateStr(g.Name, leftWidth-10)
+		startGroup := 0
+		if p.SelectedGroupIdx >= visibleRows {
+			startGroup = p.SelectedGroupIdx - visibleRows + 1
+		}
+		endGroup := startGroup + visibleRows
+		if endGroup > len(p.Groups) {
+			endGroup = len(p.Groups)
+		}
 
-			line := fmt.Sprintf("[%d] %s", len(g.All), name)
+		for i := startGroup; i < endGroup; i++ {
+			g := p.Groups[i]
+			prefix := fmt.Sprintf("[%d] ", len(g.All))
+			nameMax := leftWidth - 4 - len(prefix)
+			if nameMax < 4 {
+				nameMax = 4
+			}
+			line := prefix + truncateStr(g.Name, nameMax)
 			if i == p.SelectedGroupIdx {
 				if p.FocusPane == PaneGroups {
 					line = theme.SelectedRowStyle.Render("▶ " + line)
@@ -53,8 +71,9 @@ func RenderProxies(p ProxiesProps) string {
 	if p.FocusPane == PaneGroups {
 		leftBoxStyle = theme.CardBoxActiveStyle
 	}
+	leftHeader := lipgloss.NewStyle().Bold(true).Render(TruncateVisual("Proxy Groups", leftWidth-2))
 	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
-		"📂 Proxy Groups\n\n" + strings.Join(groupLines, "\n"),
+		leftHeader + "\n\n" + strings.Join(groupLines, "\n"),
 	)
 
 	// 2. Render Right Column: Nodes in selected Group
@@ -67,12 +86,6 @@ func RenderProxies(p ProxiesProps) string {
 	if currGroup == nil || len(currGroup.All) == 0 {
 		rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No nodes in this group"))
 	} else {
-		// Calculate visible window for scrolling (2 lines reserved for header + blank line)
-		visibleRows := height - 2
-		if visibleRows < 3 {
-			visibleRows = 3
-		}
-
 		startIdx := 0
 		if p.SelectedNodeIdx >= visibleRows {
 			startIdx = p.SelectedNodeIdx - visibleRows + 1
@@ -147,10 +160,11 @@ func RenderProxies(p ProxiesProps) string {
 		rightBoxStyle = theme.CardBoxActiveStyle
 	}
 
-	headerTitle := "📡 Nodes"
+	headerText := "Nodes"
 	if currGroup != nil {
-		headerTitle = fmt.Sprintf("📡 Nodes in [%s] (Selected: %s)", currGroup.Name, currGroup.Now)
+		headerText = fmt.Sprintf("Nodes in [%s] (Selected: %s)", currGroup.Name, currGroup.Now)
 	}
+	headerTitle := lipgloss.NewStyle().Bold(true).Render(TruncateVisual(headerText, rightWidth-2))
 
 	rightPanel := rightBoxStyle.Width(rightWidth).Height(height).Render(
 		headerTitle + "\n\n" + strings.Join(rightLines, "\n"),
