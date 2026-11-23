@@ -175,13 +175,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 }
 
 func renderAddSubModal(p SubscriptionsProps, baseView string) string {
-	modalWidth := 56
-	modalStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(theme.ColorPrimary).
-		Background(theme.ColorDark).
-		Padding(1, 2).
-		Width(modalWidth)
+	modalWidth := clampModalWidth(56, p.Width)
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render("➕ Add New Subscription")
 
@@ -191,8 +185,5 @@ func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[↑/↓] Switch Field | [Enter] Confirm & Download | [Esc] Cancel")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", field1, "\n", field2, "\n", help)
-	modal := modalStyle.Render(content)
-
-	// Center overlay
-	return lipgloss.Place(p.Width, p.Height, lipgloss.Center, lipgloss.Center, modal)
+	return renderModalOverlay(baseView, p.Width, p.Height, modalWidth, content)
 }

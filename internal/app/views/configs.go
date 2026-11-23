@@ -118,29 +118,25 @@ func RenderConfigs(p ConfigsProps) string {
 
 	baseView := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
 	if p.Editing {
-		return renderConfigEditModal(p)
+		return renderConfigEditModal(p, baseView)
 	}
 	return baseView
 }
 
-func renderConfigEditModal(p ConfigsProps) string {
-	modalWidth := 58
-	modalStyle := lipgloss.NewStyle().
-		Border(lipgloss.DoubleBorder()).
-		BorderForeground(theme.ColorPrimary).
-		Background(theme.ColorDark).
-		Padding(1, 2).
-		Width(modalWidth)
+func renderConfigEditModal(p ConfigsProps, baseView string) string {
+	modalWidth := clampModalWidth(58, p.Width)
+	descWidth := modalWidth - 6
+	if descWidth < 16 {
+		descWidth = 16
+	}
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render(
 		fmt.Sprintf("Edit %s (%s)", p.EditLabel, p.EditYAMLPath),
 	)
-	desc := lipgloss.NewStyle().Width(modalWidth - 6).Foreground(theme.ColorMuted).Render(p.EditDescription)
+	desc := lipgloss.NewStyle().Width(descWidth).Foreground(theme.ColorMuted).Render(p.EditDescription)
 	inputField := fmt.Sprintf("Value:\n%s", p.EditInputView)
 	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Enter] Confirm | [Esc] Cancel")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", desc, "\n", inputField, "\n", help)
-	modal := modalStyle.Render(content)
-
-	return lipgloss.Place(p.Width, p.Height, lipgloss.Center, lipgloss.Center, modal)
+	return renderModalOverlay(baseView, p.Width, p.Height, modalWidth, content)
 }
