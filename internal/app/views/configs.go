@@ -9,147 +9,147 @@ import (
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 )
 
-type configItemMeta struct {
-	label string
-	key   string
-	desc  string
-}
-
-var tunItemsMeta = []configItemMeta{
-	{
-		label: "TUN Mode",
-		key:   "tun.enable",
-		desc:  "Enable or disable Mihomo virtual TUN interface to capture system-wide traffic.",
-	},
-	{
-		label: "Network Stack",
-		key:   "tun.stack",
-		desc:  "TCP/IP stack implementation: mixed (recommended), system (native OS), or gvisor (userspace).",
-	},
-	{
-		label: "Auto Route",
-		key:   "tun.auto-route",
-		desc:  "Automatically configure system routing table to direct traffic into the TUN interface.",
-	},
-	{
-		label: "Auto Detect Iface",
-		key:   "tun.auto-detect-interface",
-		desc:  "Automatically bind outbound traffic to the default physical network interface.",
-	},
-	{
-		label: "DNS Hijack",
-		key:   "tun.dns-hijack",
-		desc:  "Intercept outbound DNS queries (any:53) through Mihomo DNS to prevent DNS leaks.",
-	},
-}
-
-// RenderConfigs renders the override.yaml system configuration view.
+// RenderConfigs renders the schema-driven override.yaml system configuration view.
 func RenderConfigs(p ConfigsProps) string {
 	width := p.Width - 4
-	if width < 50 {
-		width = 50
+	if width < 56 {
+		width = 56
 	}
 	height := p.Height - 8
-	if height < 10 {
-		height = 10
+	if height < 12 {
+		height = 12
 	}
 
-	leftWidth := 36
+	leftWidth := 26
 	rightWidth := width - leftWidth - 5
-	if rightWidth < 28 {
-		rightWidth = 28
+	if rightWidth < 30 {
+		rightWidth = 30
 	}
 
-	// 1. Render Left Column: TUN Override Options
-	values := []string{
-		renderBoolBadge(p.Tun.Enable),
-		lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render(fmt.Sprintf("< %s >", p.Tun.Stack)),
-		renderBoolBadge(p.Tun.AutoRoute),
-		renderBoolBadge(p.Tun.AutoDetectInterface),
-		renderBoolBadge(p.Tun.DNSHijack),
+	// 1. Render Left Column: Configuration Sections
+	var secLines []string
+	for i, sec := range p.Sections {
+		badge := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(fmt.Sprintf("(%d)", sec.OverrideCount))
+		if sec.OverrideCount > 0 {
+			badge = theme.ActiveIndicatorStyle.Render(fmt.Sprintf("(%d)", sec.OverrideCount))
+		}
+		label := fmt.Sprintf("%-14s %s", truncateStr(sec.Title, 14), badge)
+
+		var line string
+		if i == p.SelectedSecIdx {
+			if p.FocusPane == ConfigPaneSections {
+				line = theme.SelectedRowStyle.Render("▶ " + label)
+			} else {
+				line = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("● " + label)
+			}
+		} else {
+			line = "  " + label
+		}
+		secLines = append(secLines, line)
 	}
 
-	var listLines []string
-	listLines = append(listLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── TUN Settings ───"))
-	listLines = append(listLines, "")
+	leftBoxStyle := theme.CardBoxStyle
+	if p.FocusPane == ConfigPaneSections {
+		leftBoxStyle = theme.CardBoxActiveStyle
+	}
+	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
+		"⚙️ Sections\n\n" + strings.Join(secLines, "\n"),
+	)
 
-	for i, item := range tunItemsMeta {
-		row := fmt.Sprintf("%-18s %s", item.label, values[i])
-		if i == p.SelectedIdx {
+	// 2. Render Right Column: Fields List, Selected Field Info, and Live YAML Preview
+	var rightLines []string
+	maxValWidth := rightWidth - 26
+	if maxValWidth < 12 {
+		maxValWidth = 12
+	}
+
+	for i, f := range p.Fields {
+		valText := truncateStr(f.DisplayValue, maxValWidth)
+		var styledVal string
+		if !f.IsOverridden {
+			styledVal = lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(valText)
+		} else if valText == "[ON]" {
+			styledVal = theme.ActiveIndicatorStyle.Render(valText)
+		} else {
+			styledVal = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render(valText)
+		}
+
+		row := fmt.Sprintf("%-20s %s", truncateStr(f.Label, 20), styledVal)
+		if i == p.SelectedFieldIdx && p.FocusPane == ConfigPaneFields {
 			row = theme.SelectedRowStyle.Render("▶ " + row)
 		} else {
 			row = "  " + row
 		}
-		listLines = append(listLines, row)
+		rightLines = append(rightLines, row)
 	}
 
-	leftHeader := "⚙️ System Override"
-	if p.Dirty {
-		leftHeader += " " + lipgloss.NewStyle().Foreground(theme.ColorWarning).Bold(true).Render("[Modified]")
-	}
-	leftPanel := theme.CardBoxActiveStyle.Width(leftWidth).Height(height).Render(
-		leftHeader + "\n\n" + strings.Join(listLines, "\n"),
-	)
-
-	// 2. Render Right Column: Paths, Selected Description, and Live YAML Preview
-	maxValWidth := rightWidth - 16
-	if maxValWidth < 15 {
-		maxValWidth = 15
-	}
-
-	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
-	if p.ActiveSubName != "" {
-		activeSubDisplay = theme.ActiveIndicatorStyle.Render(truncateStr(p.ActiveSubName, maxValWidth))
-	}
-
-	var rightLines []string
-	rightLines = append(rightLines, fmt.Sprintf("Override File : %s", truncateStr(p.OverridePath, maxValWidth)))
-	rightLines = append(rightLines, fmt.Sprintf("Active Sub    : %s", activeSubDisplay))
-	rightLines = append(rightLines, fmt.Sprintf("Merged Output : %s", truncateStr(p.MihomoConfigPath, maxValWidth)))
-
-	if p.SelectedIdx >= 0 && p.SelectedIdx < len(tunItemsMeta) {
-		meta := tunItemsMeta[p.SelectedIdx]
+	if p.SelectedFieldIdx >= 0 && p.SelectedFieldIdx < len(p.Fields) {
+		curr := p.Fields[p.SelectedFieldIdx]
 		rightLines = append(rightLines, "")
-		rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Selected Option ───"))
-		rightLines = append(rightLines, fmt.Sprintf("Key  : %s", lipgloss.NewStyle().Bold(true).Render(meta.key)))
-		rightLines = append(rightLines, lipgloss.NewStyle().Width(rightWidth-4).Foreground(theme.ColorLight).Render(meta.desc))
+		rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Field Info ───"))
+		rightLines = append(rightLines, fmt.Sprintf("Key  : %s  %s",
+			lipgloss.NewStyle().Bold(true).Render(curr.YAMLPath),
+			lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("["+curr.KindHint+"]"),
+		))
+		rightLines = append(rightLines, lipgloss.NewStyle().Width(rightWidth-4).Foreground(theme.ColorLight).Render(curr.Description))
 	}
 
 	rightLines = append(rightLines, "")
 	rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── override.yaml Preview ───"))
-	rightLines = append(rightLines, renderTunYAMLPreview(p))
+	preview := strings.TrimRight(p.YAMLPreview, "\n")
+	if preview == "" {
+		preview = "(no overrides in this section — inheriting all values from active subscription)"
+	}
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(preview))
 
+	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
+	if p.ActiveSubName != "" {
+		activeSubDisplay = theme.ActiveIndicatorStyle.Render(truncateStr(p.ActiveSubName, rightWidth-24))
+	}
 	rightLines = append(rightLines, "")
-	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
-	rightLines = append(rightLines, "• [←/→]   Toggle or cycle selected option")
-	rightLines = append(rightLines, "• [Enter] Save override.yaml, merge with active sub & reload Mihomo")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(
+		fmt.Sprintf("Active Sub: %s | Override: %s", activeSubDisplay, truncateStr(p.OverridePath, rightWidth-36)),
+	))
 
-	rightPanel := theme.CardBoxStyle.Width(rightWidth).Height(height).Render(
-		"📄 Override Details\n\n" + strings.Join(rightLines, "\n"),
+	rightBoxStyle := theme.CardBoxStyle
+	if p.FocusPane == ConfigPaneFields {
+		rightBoxStyle = theme.CardBoxActiveStyle
+	}
+	rightHeader := fmt.Sprintf("🔧 %s", p.ActiveSecTitle)
+	if p.Dirty {
+		rightHeader += " " + lipgloss.NewStyle().Foreground(theme.ColorWarning).Bold(true).Render("[Modified]")
+	}
+	rightPanel := rightBoxStyle.Width(rightWidth).Height(height).Render(
+		rightHeader + "\n\n" + strings.Join(rightLines, "\n"),
 	)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
+	baseView := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
+	if p.Editing {
+		return renderConfigEditModal(p)
+	}
+	return baseView
 }
 
-func renderBoolBadge(v bool) string {
-	if v {
-		return theme.ActiveIndicatorStyle.Render("[ON]")
-	}
-	return lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[OFF]")
-}
+func renderConfigEditModal(p ConfigsProps) string {
+	modalWidth := 58
+	modalStyle := lipgloss.NewStyle().
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(theme.ColorPrimary).
+		Background(theme.ColorDark).
+		Padding(1, 2).
+		Width(modalWidth)
 
-func renderTunYAMLPreview(p ConfigsProps) string {
-	var lines []string
-	lines = append(lines, "tun:")
-	lines = append(lines, fmt.Sprintf("  enable: %v", p.Tun.Enable))
-	lines = append(lines, fmt.Sprintf("  stack: %s", p.Tun.Stack))
-	lines = append(lines, fmt.Sprintf("  auto-route: %v", p.Tun.AutoRoute))
-	lines = append(lines, fmt.Sprintf("  auto-detect-interface: %v", p.Tun.AutoDetectInterface))
-	if p.Tun.DNSHijack {
-		lines = append(lines, "  dns-hijack:")
-		lines = append(lines, "    - any:53")
-	}
-	return lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(strings.Join(lines, "\n"))
+	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render(
+		fmt.Sprintf("✏️ Edit %s (%s)", p.EditLabel, p.EditYAMLPath),
+	)
+	desc := lipgloss.NewStyle().Width(modalWidth - 6).Foreground(theme.ColorMuted).Render(p.EditDescription)
+	inputField := fmt.Sprintf("Value:\n%s", p.EditInputView)
+	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Enter] Confirm | [Esc] Cancel")
+
+	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", desc, "\n", inputField, "\n", help)
+	modal := modalStyle.Render(content)
+
+	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
 }
 
 func truncateStr(s string, maxLen int) string {

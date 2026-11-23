@@ -21,4 +21,6 @@ var (
 	UpdateAll  = key.NewBinding(key.WithKeys("U"))
 	DeleteSub  = key.NewBinding(key.WithKeys("d"))
 	ApplySub   = key.NewBinding(key.WithKeys("enter"))
+	ResetField = key.NewBinding(key.WithKeys("x"))
+	SaveConfig = key.NewBinding(key.WithKeys("s"))
 )

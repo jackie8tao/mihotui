@@ -5,28 +5,162 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
-// ValidTunStacks lists the supported Mihomo TUN network stack modes.
-var ValidTunStacks = []string{"mixed", "system", "gvisor"}
-
-// TunOverride represents user-customized TUN settings stored in override.yaml.
-type TunOverride struct {
-	Enable              bool
-	Stack               string
-	AutoRoute           bool
-	AutoDetectInterface bool
-	DNSHijack           bool
+// OverrideDoc wraps the parsed override.yaml document tree and provides path-based
+// reads and mutations while preserving any hand-edited user keys untouched.
+type OverrideDoc struct {
+	data map[string]any
 }
 
-// DefaultTunOverride returns sensible default TUN settings when override.yaml does not specify them.
-func DefaultTunOverride() TunOverride {
-	return TunOverride{
-		Enable:              false,
-		Stack:               "mixed",
-		AutoRoute:           true,
-		AutoDetectInterface: true,
-		DNSHijack:           true,
+// NewOverrideDoc initializes an empty OverrideDoc.
+func NewOverrideDoc() *OverrideDoc {
+	return &OverrideDoc{
+		data: make(map[string]any),
+	}
+}
+
+// Get retrieves the value at the given nested YAML path.
+// It returns (nil, false) when the path is not set (inherited from subscription).
+func (d *OverrideDoc) Get(path ...string) (any, bool) {
+	if d == nil || d.data == nil || len(path) == 0 {
+		return nil, false
+	}
+
+	cur := d.data
+	for i := 0; i < len(path)-1; i++ {
+		next, ok := cur[path[i]].(map[string]any)
+		if !ok || next == nil {
+			return nil, false
+		}
+		cur = next
+	}
+
+	val, exists := cur[path[len(path)-1]]
+	return val, exists
+}
+
+// Set writes val at the given nested YAML path, creating intermediate maps as needed.
+func (d *OverrideDoc) Set(val any, path ...string) {
+	if d == nil || len(path) == 0 {
+		return
+	}
+	if d.data == nil {
+		d.data = make(map[string]any)
+	}
+
+	cur := d.data
+	for i := 0; i < len(path)-1; i++ {
+		next, ok := cur[path[i]].(map[string]any)
+		if !ok || next == nil {
+			next = make(map[string]any)
+			cur[path[i]] = next
+		}
+		cur = next
+	}
+	cur[path[len(path)-1]] = val
+}
+
+// Delete removes the key at the given nested YAML path and prunes any parent maps
+// that become empty, returning true if a key was removed.
+func (d *OverrideDoc) Delete(path ...string) bool {
+	if d == nil || d.data == nil || len(path) == 0 {
+		return false
+	}
+	return deleteNestedKey(d.data, path)
+}
+
+func deleteNestedKey(cur map[string]any, path []string) bool {
+	key := path[0]
+	if len(path) == 1 {
+		if _, exists := cur[key]; !exists {
+			return false
+		}
+		delete(cur, key)
+		return true
+	}
+
+	child, ok := cur[key].(map[string]any)
+	if !ok || child == nil {
+		return false
+	}
+	deleted := deleteNestedKey(child, path[1:])
+	if deleted && len(child) == 0 {
+		delete(cur, key)
+	}
+	return deleted
+}
+
+// Clone returns a deep copy of the document safe for concurrent serialization.
+func (d *OverrideDoc) Clone() *OverrideDoc {
+	if d == nil || d.data == nil {
+		return NewOverrideDoc()
+	}
+	return &OverrideDoc{
+		data: deepCopyMap(d.data),
+	}
+}
+
+// MarshalSection renders the YAML snippet for a specific section key.
+// If sectionKey is non-empty (e.g. "tun", "dns"), only that top-level block is rendered.
+// If sectionKey is empty, all top-level non-map keys are rendered.
+func (d *OverrideDoc) MarshalSection(sectionKey string) string {
+	if d == nil || len(d.data) == 0 {
+		return ""
+	}
+
+	var subset map[string]any
+	if sectionKey != "" {
+		val, exists := d.data[sectionKey]
+		if !exists {
+			return ""
+		}
+		subset = map[string]any{sectionKey: val}
+	} else {
+		subset = make(map[string]any)
+		for k, v := range d.data {
+			if _, isMap := v.(map[string]any); !isMap {
+				subset[k] = v
+			}
+		}
+		if len(subset) == 0 {
+			return ""
+		}
+	}
+
+	raw, err := yaml.Marshal(subset)
+	if err != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+func deepCopyMap(src map[string]any) map[string]any {
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		dst[k] = deepCopyValue(v)
+	}
+	return dst
+}
+
+func deepCopyValue(v any) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return deepCopyMap(val)
+	case []any:
+		cp := make([]any, len(val))
+		for i, item := range val {
+			cp[i] = deepCopyValue(item)
+		}
+		return cp
+	case []string:
+		cp := make([]string, len(val))
+		copy(cp, val)
+		return cp
+	default:
+		return v
 	}
 }
 
@@ -40,86 +174,25 @@ func (m *Manager) MihomoConfigPath() string {
 	return filepath.Join(m.appPaths.MihomoEtcDir(), "config.yaml")
 }
 
-// LoadTunOverride reads TUN settings from override.yaml, returning defaults if the file does not exist yet.
-func (m *Manager) LoadTunOverride() (TunOverride, error) {
-	tun := DefaultTunOverride()
-
+// LoadOverride reads override.yaml into an OverrideDoc, returning an empty document if the file does not exist yet.
+func (m *Manager) LoadOverride() (*OverrideDoc, error) {
 	root, err := readYAMLMap(m.OverridePath())
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return tun, nil
+			return NewOverrideDoc(), nil
 		}
-		return tun, fmt.Errorf("profile: %w", err)
+		return nil, fmt.Errorf("profile: %w", err)
 	}
-
-	rawTun, ok := root["tun"]
-	if !ok {
-		return tun, nil
-	}
-	tunMap, ok := rawTun.(map[string]any)
-	if !ok {
-		return tun, fmt.Errorf("profile: invalid tun section in %q", m.OverridePath())
-	}
-
-	if v, ok := tunMap["enable"].(bool); ok {
-		tun.Enable = v
-	}
-	if v, ok := tunMap["stack"].(string); ok && v != "" {
-		tun.Stack = v
-	}
-	if v, ok := tunMap["auto-route"].(bool); ok {
-		tun.AutoRoute = v
-	}
-	if v, ok := tunMap["auto-detect-interface"].(bool); ok {
-		tun.AutoDetectInterface = v
-	}
-	if v, exists := tunMap["dns-hijack"]; exists {
-		switch list := v.(type) {
-		case []any:
-			tun.DNSHijack = len(list) > 0
-		case []string:
-			tun.DNSHijack = len(list) > 0
-		default:
-			tun.DNSHijack = false
-		}
-	}
-
-	return tun, nil
+	return &OverrideDoc{data: root}, nil
 }
 
-// SaveTunOverride updates the tun section in override.yaml while preserving all other user-defined fields.
-func (m *Manager) SaveTunOverride(tun TunOverride) error {
-	overridePath := m.OverridePath()
-
-	root, err := readYAMLMap(overridePath)
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("profile: %w", err)
-		}
-		root = make(map[string]any)
+// SaveOverride atomically writes the OverrideDoc to override.yaml.
+func (m *Manager) SaveOverride(doc *OverrideDoc) error {
+	data := make(map[string]any)
+	if doc != nil && doc.data != nil {
+		data = doc.data
 	}
-
-	tunMap, ok := root["tun"].(map[string]any)
-	if !ok || tunMap == nil {
-		tunMap = make(map[string]any)
-	}
-
-	tunMap["enable"] = tun.Enable
-	tunMap["stack"] = tun.Stack
-	tunMap["auto-route"] = tun.AutoRoute
-	tunMap["auto-detect-interface"] = tun.AutoDetectInterface
-
-	if tun.DNSHijack {
-		if _, exists := tunMap["dns-hijack"]; !exists {
-			tunMap["dns-hijack"] = []string{"any:53"}
-		}
-	} else {
-		delete(tunMap, "dns-hijack")
-	}
-
-	root["tun"] = tunMap
-
-	if err := writeYAMLAtomically(overridePath, root); err != nil {
+	if err := writeYAMLAtomically(m.OverridePath(), data); err != nil {
 		return fmt.Errorf("profile: %w", err)
 	}
 	return nil
