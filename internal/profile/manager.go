@@ -127,7 +127,7 @@ func (m *Manager) UpdateSubscription(ctx context.Context, subName string) (*conf
 		return nil, fmt.Errorf("profile: subscription %q not found", subName)
 	}
 
-	targetFilepath := filepath.Join(m.SubsDir(), targetSub.Name)
+	targetFilepath := filepath.Join(m.SubsDir(), m.genSubFilename(targetSub.Name))
 	userInfo, err := downloadAndValidate(ctx, targetSub.URL, targetFilepath)
 	if err != nil {
 		return nil, fmt.Errorf("profile: update subscription %q: %w", targetSub.Name, err)
@@ -168,10 +168,8 @@ func (m *Manager) DeleteSubscription(subName string) error {
 		return fmt.Errorf("profile: %w", err)
 	}
 
-	targetFilename := m.genSubFilename(targetSub.Name)
-	targetFilepath := filepath.Join(m.SubsDir(), targetFilename)
+	targetFilepath := filepath.Join(m.SubsDir(), m.genSubFilename(targetSub.Name))
 	if err := os.Remove(targetFilepath); err != nil {
-		m.appCfg.Subscriptions = prevSubs
 		return fmt.Errorf("profile: remove file %q: %w", targetFilepath, err)
 	}
 	return nil
