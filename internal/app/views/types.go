@@ -77,7 +77,6 @@ type ConfigsProps struct {
 	ActiveSecTitle   string
 	Fields           []ConfigFieldView
 	SelectedFieldIdx int
-	YAMLPreview      string
 	OverridePath     string
 	MihomoConfigPath string
 	ActiveSubName    string

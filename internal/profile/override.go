@@ -25,7 +25,7 @@ func NewOverrideDoc() *OverrideDoc {
 // Get retrieves the value at the given nested YAML path.
 // It returns (nil, false) when the path is not set (inherited from subscription).
 func (d *OverrideDoc) Get(path ...string) (any, bool) {
-	if d == nil || d.data == nil || len(path) == 0 {
+	if d.data == nil || len(path) == 0 {
 		return nil, false
 	}
 
@@ -44,7 +44,7 @@ func (d *OverrideDoc) Get(path ...string) (any, bool) {
 
 // Set writes val at the given nested YAML path, creating intermediate maps as needed.
 func (d *OverrideDoc) Set(val any, path ...string) {
-	if d == nil || len(path) == 0 {
+	if len(path) == 0 {
 		return
 	}
 	if d.data == nil {
@@ -66,7 +66,7 @@ func (d *OverrideDoc) Set(val any, path ...string) {
 // Delete removes the key at the given nested YAML path and prunes any parent maps
 // that become empty, returning true if a key was removed.
 func (d *OverrideDoc) Delete(path ...string) bool {
-	if d == nil || d.data == nil || len(path) == 0 {
+	if d.data == nil || len(path) == 0 {
 		return false
 	}
 	return deleteNestedKey(d.data, path)
@@ -101,40 +101,6 @@ func (d *OverrideDoc) Clone() *OverrideDoc {
 	return &OverrideDoc{
 		data: deepCopyMap(d.data),
 	}
-}
-
-// MarshalSection renders the YAML snippet for a specific section key.
-// If sectionKey is non-empty (e.g. "tun", "dns"), only that top-level block is rendered.
-// If sectionKey is empty, all top-level non-map keys are rendered.
-func (d *OverrideDoc) MarshalSection(sectionKey string) string {
-	if d == nil || len(d.data) == 0 {
-		return ""
-	}
-
-	var subset map[string]any
-	if sectionKey != "" {
-		val, exists := d.data[sectionKey]
-		if !exists {
-			return ""
-		}
-		subset = map[string]any{sectionKey: val}
-	} else {
-		subset = make(map[string]any)
-		for k, v := range d.data {
-			if _, isMap := v.(map[string]any); !isMap {
-				subset[k] = v
-			}
-		}
-		if len(subset) == 0 {
-			return ""
-		}
-	}
-
-	raw, err := yaml.Marshal(subset)
-	if err != nil {
-		return ""
-	}
-	return string(raw)
 }
 
 func deepCopyMap(src map[string]any) map[string]any {
@@ -231,4 +197,59 @@ func (m *Manager) BuildMihomoConfig(subName string) (string, error) {
 		return "", fmt.Errorf("profile: write mihomo config: %w", err)
 	}
 	return mihomoCfgPath, nil
+}
+
+// readYAMLMap reads a YAML file from path and unmarshals it into a top-level map.
+func readYAMLMap(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read file %q: %w", path, err)
+	}
+
+	out := make(map[string]any)
+	if err := yaml.Unmarshal(data, &out); err != nil {
+		return nil, fmt.Errorf("parse YAML %q: %w", path, err)
+	}
+	return out, nil
+}
+
+// writeYAMLAtomically marshals data to YAML and atomically writes it to targetPath via a temporary file.
+func writeYAMLAtomically(targetPath string, data map[string]any) error {
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+		return fmt.Errorf("create dir %q: %w", filepath.Dir(targetPath), err)
+	}
+
+	raw, err := yaml.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal YAML: %w", err)
+	}
+
+	tmpPath := targetPath + ".tmp"
+	if err := os.WriteFile(tmpPath, raw, 0644); err != nil {
+		return fmt.Errorf("write temp file %q: %w", tmpPath, err)
+	}
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("replace file %q: %w", targetPath, err)
+	}
+	return nil
+}
+
+// deepMergeMaps recursively merges src into dst. Nested maps are merged key-by-key;
+// scalar values and slices in src overwrite those in dst.
+func deepMergeMaps(dst, src map[string]any) {
+	for k, srcVal := range src {
+		srcMap, srcIsMap := srcVal.(map[string]any)
+		if srcIsMap {
+			if dstMap, dstIsMap := dst[k].(map[string]any); dstIsMap && dstMap != nil {
+				deepMergeMaps(dstMap, srcMap)
+				continue
+			}
+			copied := make(map[string]any, len(srcMap))
+			deepMergeMaps(copied, srcMap)
+			dst[k] = copied
+			continue
+		}
+		dst[k] = srcVal
+	}
 }

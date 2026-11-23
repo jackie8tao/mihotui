@@ -142,10 +142,8 @@ func (m *ConfigsModel) View(width, height int) string {
 
 	var activeSecTitle string
 	var fieldViews []views.ConfigFieldView
-	var yamlPreview string
 	if sec := m.currentSection(); sec != nil {
 		activeSecTitle = sec.Title
-		yamlPreview = m.doc.MarshalSection(sec.Key)
 		fieldViews = make([]views.ConfigFieldView, len(sec.Fields))
 		for i, f := range sec.Fields {
 			val, ok := m.doc.Get(f.Path...)
@@ -182,7 +180,6 @@ func (m *ConfigsModel) View(width, height int) string {
 		ActiveSecTitle:   activeSecTitle,
 		Fields:           fieldViews,
 		SelectedFieldIdx: m.fieldIdx,
-		YAMLPreview:      yamlPreview,
 		OverridePath:     m.profileMgr.OverridePath(),
 		MihomoConfigPath: m.profileMgr.MihomoConfigPath(),
 		ActiveSubName:    m.profileMgr.ActiveProfile(),

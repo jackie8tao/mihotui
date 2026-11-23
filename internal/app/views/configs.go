@@ -94,14 +94,6 @@ func RenderConfigs(p ConfigsProps) string {
 		rightLines = append(rightLines, lipgloss.NewStyle().Width(rightWidth-4).Foreground(theme.ColorLight).Render(curr.Description))
 	}
 
-	rightLines = append(rightLines, "")
-	rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── override.yaml Preview ───"))
-	preview := strings.TrimRight(p.YAMLPreview, "\n")
-	if preview == "" {
-		preview = "(no overrides in this section — inheriting all values from active subscription)"
-	}
-	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(preview))
-
 	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
 	if p.ActiveSubName != "" {
 		activeSubDisplay = theme.ActiveIndicatorStyle.Render(truncateStr(p.ActiveSubName, rightWidth-24))

@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackie8tao/mihotui/internal/config"
+	"gopkg.in/yaml.v3"
 )
 
 // Manager orchestrates local profiles and remote subscriptions.
@@ -177,4 +181,87 @@ func (m *Manager) DeleteSubscription(subName string) error {
 		return fmt.Errorf("profile: remove file %q: %w", targetFilepath, err)
 	}
 	return nil
+}
+
+// parseUserinfo parses the Subscription-Userinfo header.
+func parseUserinfo(raw string) *config.SubUserInfo {
+	if raw == "" {
+		return nil
+	}
+
+	info := &config.SubUserInfo{}
+	parts := strings.Split(raw, ";")
+	for _, part := range parts {
+		kv := strings.SplitN(strings.TrimSpace(part), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		k := strings.ToLower(strings.TrimSpace(kv[0]))
+		val, _ := strconv.ParseInt(strings.TrimSpace(kv[1]), 10, 64)
+
+		switch k {
+		case "upload":
+			info.Upload = val
+		case "download":
+			info.Download = val
+		case "total":
+			info.Total = val
+		case "expire":
+			if val > 0 {
+				info.Expire = time.Unix(val, 0)
+			}
+		}
+	}
+
+	return info
+}
+
+// downloadAndValidate downloads config from URL, verifies YAML, and writes atomically.
+func downloadAndValidate(ctx context.Context, rawURL, targetPath string) (*config.SubUserInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+
+	req.Header.Set("User-Agent", "Clash.Meta; mihomo/1.18.0; mihotui")
+
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch subscription: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
+	}
+
+	var userInfo *config.SubUserInfo
+	if rawUI := resp.Header.Get("subscription-userinfo"); rawUI != "" {
+		userInfo = parseUserinfo(rawUI)
+	}
+
+	content, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	var testMap map[string]any
+	if err := yaml.Unmarshal(content, &testMap); err != nil {
+		return nil, fmt.Errorf("parse YAML: %w", err)
+	}
+
+	tmpPath := targetPath + ".tmp"
+	if err := os.WriteFile(tmpPath, content, 0644); err != nil {
+		return nil, fmt.Errorf("write temp file %q: %w", tmpPath, err)
+	}
+
+	if err := os.Rename(tmpPath, targetPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return nil, fmt.Errorf("replace file %q: %w", targetPath, err)
+	}
+
+	return userInfo, nil
 }

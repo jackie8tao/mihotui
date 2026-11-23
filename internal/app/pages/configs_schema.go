@@ -36,7 +36,6 @@ type FieldSpec struct {
 
 // SectionSpec groups related overrideable fields under a top-level configuration category.
 type SectionSpec struct {
-	Key    string // Top-level YAML key (e.g. "tun", "dns"), or "" for root-level scalar keys.
 	Title  string
 	Fields []FieldSpec
 }
@@ -154,7 +153,6 @@ func toStringSlice(val any) []string {
 func defaultConfigSections() []SectionSpec {
 	return []SectionSpec{
 		{
-			Key:   "tun",
 			Title: "TUN Mode",
 			Fields: []FieldSpec{
 				{
