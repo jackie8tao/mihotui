@@ -13,19 +13,19 @@ import (
 // RenderOverview renders the overview dashboard view.
 func RenderOverview(p OverviewProps) string {
 	width := p.Width - 4
-	if width < 40 {
-		width = 40
+	if width < 44 {
+		width = 44
 	}
 
-	halfWidth := (width - 4) / 2
-	if halfWidth < 20 {
-		halfWidth = 20
-	}
+	leftWidth := (width - 4) / 2
+	rightWidth := width - 4 - leftWidth
+	topBoxHeight := 7
 
 	// 1. Traffic & Speed Box
 	upSpeedStr := mihomo.FormatSpeed(p.Traffic.Up)
 	downSpeedStr := mihomo.FormatSpeed(p.Traffic.Down)
 
+	trafficHeader := lipgloss.NewStyle().Bold(true).Render("Real-time Bandwidth")
 	trafficContent := fmt.Sprintf(
 		"▲ Upload   : %s\n▼ Download : %s\n\nTotal Up   : %s\nTotal Down : %s",
 		theme.SpeedUpStyle.Render(upSpeedStr),
@@ -33,7 +33,7 @@ func RenderOverview(p OverviewProps) string {
 		mihomo.FormatBytes(p.TotalUp),
 		mihomo.FormatBytes(p.TotalDown),
 	)
-	trafficBox := theme.CardBoxStyle.Width(halfWidth).Render("🌐 Real-time Bandwidth\n\n" + trafficContent)
+	trafficBox := theme.CardBoxStyle.Width(leftWidth).Height(topBoxHeight).Render(trafficHeader + "\n\n" + trafficContent)
 
 	// 2. Mode Box
 	modeList := []string{"rule", "global", "direct"}
@@ -46,8 +46,11 @@ func RenderOverview(p OverviewProps) string {
 			modeStrs = append(modeStrs, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(fmt.Sprintf("○  %s", strings.ToUpper(mode))))
 		}
 	}
-	modeHelp := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("\n(Press 'm' to cycle mode)")
-	modeBox := theme.CardBoxStyle.Width(halfWidth).Render("⚙️ Outbound Mode\n\n" + strings.Join(modeStrs, "\n") + modeHelp)
+	modeHeader := lipgloss.NewStyle().Bold(true).Render("Outbound Mode")
+	modeHelp := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(Press 'm' to cycle mode)")
+	modeBox := theme.CardBoxStyle.Width(rightWidth).Height(topBoxHeight).Render(
+		modeHeader + "\n\n" + strings.Join(modeStrs, "\n") + "\n\n" + modeHelp,
+	)
 
 	topRow := lipgloss.JoinHorizontal(lipgloss.Top, trafficBox, "  ", modeBox)
 
@@ -85,8 +88,9 @@ func RenderOverview(p OverviewProps) string {
 		p.Config.LogLevel,
 		memStr,
 	)
-	sysBox := theme.CardBoxStyle.Width(width).Render("📋 Runtime Information\n\n" + sysContent)
+	sysHeader := lipgloss.NewStyle().Bold(true).Render("Runtime Information")
+	sysBox := theme.CardBoxStyle.Width(width).Render(sysHeader + "\n\n" + sysContent)
 
-	return lipgloss.JoinVertical(lipgloss.Left, topRow, "\n", sysBox)
+	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", sysBox)
 }
 
