@@ -30,6 +30,10 @@ type (
 		name string
 		err  error
 	}
+	subAppliedMsg struct {
+		name string
+		err  error
+	}
 )
 
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
@@ -120,6 +124,14 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 		return tea.Batch(
 			events.StatusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
 			events.SubChangedCmd(),
+		)
+	case subAppliedMsg:
+		if msg.err != nil {
+			return events.StatusCmd(fmt.Sprintf("Apply subscription failed: %v", msg.err), true)
+		}
+		m.reload()
+		return tea.Batch(
+			events.StatusCmd(fmt.Sprintf("Subscription [%s] applied successfully!", msg.name), false),
 		)
 
 	case tea.KeyMsg:
@@ -227,32 +239,43 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		if m.selectedIdx < len(m.subscriptions)-1 {
 			m.selectedIdx++
 		}
-	case key.Matches(msg, keymaps.UpdateSub):
-		sub := m.currentSubscription()
-		if sub != nil {
-			return tea.Batch(
-				events.StatusCmd(fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
-				m.updateSubCmd(sub.Name),
-			)
-		}
-	case key.Matches(msg, keymaps.UpdateAll):
-		return tea.Batch(
-			events.StatusCmd("Updating all subscriptions...", false),
-			m.updateAllSubsCmd(),
-		)
 	case key.Matches(msg, keymaps.AddSub):
 		m.modalActive = views.ModalAddSub
 		m.inputFocus = 0
 		m.nameInput.Focus()
 		m.urlInput.Blur()
+	case key.Matches(msg, keymaps.UpdateSub):
+		sub := m.currentSubscription()
+		if sub == nil {
+			return nil
+		}
+		return tea.Batch(
+			events.StatusCmd(fmt.Sprintf("Updating subscription [%s]...", sub.Name), false),
+			m.updateSubCmd(sub.Name),
+		)
+	case key.Matches(msg, keymaps.UpdateAll):
+		return tea.Batch(
+			events.StatusCmd("Updating all subscriptions...", false),
+			m.updateAllSubsCmd(),
+		)
 	case key.Matches(msg, keymaps.DeleteSub):
 		sub := m.currentSubscription()
-		if sub != nil {
-			return tea.Batch(
-				events.StatusCmd(fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
-				m.deleteSubCmd(sub.Name),
-			)
+		if sub == nil {
+			return nil
 		}
+		return tea.Batch(
+			events.StatusCmd(fmt.Sprintf("Deleting subscription [%s]...", sub.Name), false),
+			m.deleteSubCmd(sub.Name),
+		)
+	case key.Matches(msg, keymaps.ApplySub):
+		sub := m.currentSubscription()
+		if sub == nil {
+			return nil
+		}
+		return tea.Batch(
+			events.StatusCmd(fmt.Sprintf("Applying subscription [%s]...", sub.Name), false),
+			m.applySubCmd(sub.Name),
+		)
 	}
 
 	return nil
@@ -263,7 +286,10 @@ func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 		defer cancel()
 		_, err := m.profileMgr.UpdateSubscription(ctx, name)
-		return subUpdatedMsg{name: name, err: err}
+		return subUpdatedMsg{
+			name: name,
+			err:  err,
+		}
 	}
 }
 
@@ -271,17 +297,18 @@ func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
-		subs := m.profileMgr.ListSubscriptions()
-		var errs []string
-		for _, s := range subs {
-			if _, err := m.profileMgr.UpdateSubscription(ctx, s.Name); err != nil {
-				errs = append(errs, fmt.Sprintf("%s: %v", s.Name, err))
+
+		var err error
+		for _, s := range m.profileMgr.ListSubscriptions() {
+			_, err = m.profileMgr.UpdateSubscription(ctx, s.Name)
+			if err != nil {
+				break
 			}
 		}
-		if len(errs) > 0 {
-			return subUpdatedMsg{name: "All", err: fmt.Errorf("%s", strings.Join(errs, "; "))}
+		return subUpdatedMsg{
+			name: "All",
+			err:  err,
 		}
-		return subUpdatedMsg{name: "All", err: nil}
 	}
 }
 
@@ -290,13 +317,27 @@ func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 		defer cancel()
 		_, err := m.profileMgr.AddSubscription(ctx, name, url)
-		return subAddedMsg{name: name, err: err}
+		return subAddedMsg{
+			name: name,
+			err:  err,
+		}
 	}
 }
 
 func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.profileMgr.DeleteSubscription(name)
-		return subDeletedMsg{name: name, err: err}
+		return subDeletedMsg{
+			name: name,
+			err:  m.profileMgr.DeleteSubscription(name),
+		}
+	}
+}
+
+func (m *SubscriptionsModel) applySubCmd(name string) tea.Cmd {
+	return func() tea.Msg {
+		return subAppliedMsg{
+			name: name,
+			err:  m.profileMgr.SetActiveProfile(name),
+		}
 	}
 }

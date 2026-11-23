@@ -146,6 +146,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 		lines = append(lines, "• [U]     Batch update all subscriptions")
 		lines = append(lines, "• [a]     Add new subscription (modal)")
 		lines = append(lines, "• [d]     Delete this subscription and its local file")
+		lines = append(lines, "• [enter] Apply this subscription")
 
 		rightContent = strings.Join(lines, "\n")
 	}
@@ -187,4 +188,3 @@ func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	// Center overlay
 	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
 }
-
