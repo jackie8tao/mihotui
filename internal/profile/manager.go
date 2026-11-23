@@ -43,7 +43,7 @@ func (m *Manager) ActiveProfile() string {
 	return m.appCfg.ActiveSubName
 }
 
-// SetActiveProfile updates the mihomo config.yaml symlink to point to subName and persists the configuration.
+// SetActiveProfile persists the active subscription name in appCfg.
 func (m *Manager) SetActiveProfile(subName string) error {
 	prevActive := m.appCfg.ActiveSubName
 	m.appCfg.ActiveSubName = subName
@@ -52,11 +52,6 @@ func (m *Manager) SetActiveProfile(subName string) error {
 		return fmt.Errorf("profile: %w", err)
 	}
 	return nil
-}
-
-// ListProfiles scans all .yaml/.yml in subsDir and correlates with subscriptions.
-func (m *Manager) ListProfiles() ([]Profile, error) {
-	return []Profile{}, nil
 }
 
 // ListSubscriptions returns the configured remote subscriptions from appCfg.
@@ -83,6 +78,10 @@ func (m *Manager) AddSubscription(ctx context.Context, subName, rawURL string) (
 		if existing.Name == subName {
 			return nil, fmt.Errorf("profile: subscription %q already exists", subName)
 		}
+	}
+
+	if err := os.MkdirAll(m.SubsDir(), 0755); err != nil {
+		return nil, fmt.Errorf("profile: create subscriptions dir %q: %w", m.SubsDir(), err)
 	}
 
 	targetFilename := m.genSubFilename(subName)
@@ -162,9 +161,14 @@ func (m *Manager) DeleteSubscription(subName string) error {
 	}
 
 	prevSubs := m.appCfg.Subscriptions
+	prevActive := m.appCfg.ActiveSubName
 	m.appCfg.Subscriptions = newSubs
+	if m.appCfg.ActiveSubName == subName {
+		m.appCfg.ActiveSubName = ""
+	}
 	if err := config.SaveConfig(m.appCfg); err != nil {
 		m.appCfg.Subscriptions = prevSubs
+		m.appCfg.ActiveSubName = prevActive
 		return fmt.Errorf("profile: %w", err)
 	}
 

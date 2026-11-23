@@ -54,7 +54,7 @@ func New(cli mihomo.Client, mgr *profile.Manager) *AppModel {
 			pages.NewOverviewModel(ctx, cli),
 			pages.NewProxiesModel(cli),
 			pages.NewConfigsModel(cli, mgr),
-			pages.NewSubscriptionsModel(mgr),
+			pages.NewSubscriptionsModel(cli, mgr),
 		},
 		width:     80,
 		height:    24,

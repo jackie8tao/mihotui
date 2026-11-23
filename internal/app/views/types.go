@@ -44,13 +44,16 @@ type ProxiesProps struct {
 	SelectedNodeIdx  int
 }
 
-// ConfigsProps contains the data needed to render the configs tab.
+// ConfigsProps contains the data needed to render the configs (override.yaml) tab.
 type ConfigsProps struct {
-	Width       int
-	Height      int
-	ConfigDir   string
-	Profiles    []profile.Profile
-	SelectedIdx int
+	Width            int
+	Height           int
+	OverridePath     string
+	MihomoConfigPath string
+	ActiveSubName    string
+	Tun              profile.TunOverride
+	SelectedIdx      int
+	Dirty            bool
 }
 
 // SubscriptionsProps contains the data needed to render the subscriptions tab.
@@ -58,6 +61,7 @@ type SubscriptionsProps struct {
 	Width            int
 	Height           int
 	Subscriptions    []config.Subscription
+	ActiveSubName    string
 	SelectedIdx      int
 	ModalActive      ModalType
 	SubNameInputView string

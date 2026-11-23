@@ -15,23 +15,27 @@ import (
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
+const tunOptionCount = 5
+
 type (
-	profilesLoadedMsg struct {
-		profiles []profile.Profile
-		err      error
+	overrideLoadedMsg struct {
+		tun profile.TunOverride
+		err error
 	}
-	profileAppliedMsg struct {
-		profileName string
-		err         error
+	overrideAppliedMsg struct {
+		reloaded  bool
+		activeSub string
+		err       error
 	}
 )
 
-// ConfigsModel encapsulates state, interactions, and rendering for the Configs tab.
+// ConfigsModel manages user system configuration overrides stored in override.yaml.
 type ConfigsModel struct {
 	client      mihomo.Client
 	profileMgr  *profile.Manager
-	profiles    []profile.Profile
+	tun         profile.TunOverride
 	selectedIdx int
+	dirty       bool
 }
 
 // NewConfigsModel initializes a self-contained ConfigsModel.
@@ -45,6 +49,7 @@ func NewConfigsModel(cli mihomo.Client, mgr *profile.Manager) *ConfigsModel {
 	return &ConfigsModel{
 		client:     cli,
 		profileMgr: mgr,
+		tun:        profile.DefaultTunOverride(),
 	}
 }
 
@@ -55,7 +60,7 @@ func (m *ConfigsModel) Title() string {
 
 // Help returns the keybinding hints displayed in the footer for the Configs page.
 func (m *ConfigsModel) Help() string {
-	return "[↑/↓] Move | [Enter] Apply Profile"
+	return "[↑/↓] Move | [←/→] Change | [Enter] Save & Apply"
 }
 
 // CapturingInput reports whether the Configs page is currently capturing raw keyboard input.
@@ -63,40 +68,34 @@ func (m *ConfigsModel) CapturingInput() bool {
 	return false
 }
 
-// Init triggers the initial scan of local configuration profiles.
+// Init loads the current override.yaml settings from disk.
 func (m *ConfigsModel) Init() tea.Cmd {
-	return m.fetchProfilesCmd()
+	return m.loadOverrideCmd()
 }
 
-// Update handles profile list loading, hot-reload results, subscription change events, and keyboard navigation.
+// Update handles override loading, save & merge results, and keyboard navigation.
 func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
-	case profilesLoadedMsg:
+	case overrideLoadedMsg:
 		if msg.err != nil {
-			return events.StatusCmd(fmt.Sprintf("Load profiles error: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Load override.yaml failed: %v", msg.err), true)
 		}
-		m.profiles = msg.profiles
-		if len(m.profiles) == 0 {
-			m.selectedIdx = 0
-		} else if m.selectedIdx >= len(m.profiles) {
-			m.selectedIdx = len(m.profiles) - 1
-		}
+		m.tun = msg.tun
+		m.dirty = false
 		return nil
 
-	case profileAppliedMsg:
+	case overrideAppliedMsg:
 		if msg.err != nil {
-			return events.StatusCmd(fmt.Sprintf("Hot-reload profile failed: %v", msg.err), true)
+			return events.StatusCmd(fmt.Sprintf("Apply override failed: %v", msg.err), true)
 		}
-		for i := range m.profiles {
-			m.profiles[i].IsActive = m.profiles[i].SubName == msg.profileName
+		m.dirty = false
+		if !msg.reloaded {
+			return events.StatusCmd("Saved override.yaml (no active subscription to reload)", false)
 		}
 		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Applied profile [%s] & hot-reloaded successfully!", msg.profileName), false),
+			events.StatusCmd(fmt.Sprintf("Saved override.yaml & hot-reloaded with [%s]!", msg.activeSub), false),
 			events.ProfileAppliedCmd(),
 		)
-
-	case events.SubChangedMsg:
-		return m.fetchProfilesCmd()
 
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
@@ -105,21 +104,17 @@ func (m *ConfigsModel) Update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (m *ConfigsModel) fetchProfilesCmd() tea.Cmd {
-	return func() tea.Msg {
-		profiles, err := m.profileMgr.ListProfiles()
-		return profilesLoadedMsg{profiles: profiles, err: err}
-	}
-}
-
 // View renders the Configs page within the given terminal dimensions.
 func (m *ConfigsModel) View(width, height int) string {
 	return views.RenderConfigs(views.ConfigsProps{
-		Width:       width,
-		Height:      height,
-		ConfigDir:   m.profileMgr.SubsDir(),
-		Profiles:    m.profiles,
-		SelectedIdx: m.selectedIdx,
+		Width:            width,
+		Height:           height,
+		OverridePath:     m.profileMgr.OverridePath(),
+		MihomoConfigPath: m.profileMgr.MihomoConfigPath(),
+		ActiveSubName:    m.profileMgr.ActiveProfile(),
+		Tun:              m.tun,
+		SelectedIdx:      m.selectedIdx,
+		Dirty:            m.dirty,
 	})
 }
 
@@ -130,48 +125,86 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.selectedIdx--
 		}
 	case key.Matches(msg, keymaps.Down):
-		if m.selectedIdx < len(m.profiles)-1 {
+		if m.selectedIdx < tunOptionCount-1 {
 			m.selectedIdx++
 		}
+	case key.Matches(msg, keymaps.Left):
+		m.adjustSelected(-1)
+	case key.Matches(msg, keymaps.Right):
+		m.adjustSelected(1)
 	case key.Matches(msg, keymaps.Enter):
-		p := m.currentProfile()
-		if p == nil {
-			return nil
-		}
 		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Applying profile [%s] to Mihomo...", p.SubName), false),
-			m.applyProfileCmd(p),
+			events.StatusCmd("Saving override.yaml and merging Mihomo config...", false),
+			m.saveAndApplyCmd(m.tun),
 		)
 	}
 
 	return nil
 }
 
-func (m *ConfigsModel) currentProfile() *profile.Profile {
-	if len(m.profiles) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.profiles) {
-		return nil
+func (m *ConfigsModel) adjustSelected(delta int) {
+	switch m.selectedIdx {
+	case 0:
+		m.tun.Enable = !m.tun.Enable
+	case 1:
+		m.tun.Stack = cycleStack(m.tun.Stack, delta)
+	case 2:
+		m.tun.AutoRoute = !m.tun.AutoRoute
+	case 3:
+		m.tun.AutoDetectInterface = !m.tun.AutoDetectInterface
+	case 4:
+		m.tun.DNSHijack = !m.tun.DNSHijack
+	default:
+		return
 	}
-	return &m.profiles[m.selectedIdx]
+	m.dirty = true
 }
 
-func (m *ConfigsModel) applyProfileCmd(p *profile.Profile) tea.Cmd {
+func cycleStack(current string, delta int) string {
+	stacks := profile.ValidTunStacks
+	idx := 0
+	for i, s := range stacks {
+		if s == current {
+			idx = i
+			break
+		}
+	}
+	next := (idx + delta) % len(stacks)
+	if next < 0 {
+		next += len(stacks)
+	}
+	return stacks[next]
+}
+
+func (m *ConfigsModel) loadOverrideCmd() tea.Cmd {
 	return func() tea.Msg {
-		prevActive := m.profileMgr.ActiveProfile()
-		if err := m.profileMgr.SetActiveProfile(p.SubName); err != nil {
-			return profileAppliedMsg{profileName: p.SubName, err: err}
+		tun, err := m.profileMgr.LoadTunOverride()
+		return overrideLoadedMsg{tun: tun, err: err}
+	}
+}
+
+func (m *ConfigsModel) saveAndApplyCmd(tun profile.TunOverride) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.profileMgr.SaveTunOverride(tun); err != nil {
+			return overrideAppliedMsg{err: err}
+		}
+
+		activeSub := m.profileMgr.ActiveProfile()
+		if activeSub == "" {
+			return overrideAppliedMsg{reloaded: false}
+		}
+
+		mihomoCfgPath, err := m.profileMgr.BuildMihomoConfig(activeSub)
+		if err != nil {
+			return overrideAppliedMsg{activeSub: activeSub, err: err}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
-
-		err := m.client.ReloadConfig(ctx, p.FullPath, true)
-		if err == nil || prevActive == "" || prevActive == p.SubName {
-			return profileAppliedMsg{profileName: p.SubName, err: err}
+		if err := m.client.ReloadConfig(ctx, mihomoCfgPath, true); err != nil {
+			return overrideAppliedMsg{activeSub: activeSub, err: err}
 		}
 
-		if rbErr := m.profileMgr.SetActiveProfile(prevActive); rbErr != nil {
-			err = fmt.Errorf("%w (rollback to %q failed: %v)", err, prevActive, rbErr)
-		}
-		return profileAppliedMsg{profileName: p.SubName, err: err}
+		return overrideAppliedMsg{reloaded: true, activeSub: activeSub}
 	}
 }

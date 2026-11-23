@@ -18,8 +18,6 @@ type (
 		NewMode string
 		Err     error
 	}
-	// SubChangedMsg notifies pages that the subscription list or files changed.
-	SubChangedMsg struct{}
 	// ProfileAppliedMsg notifies pages that a configuration profile was hot-reloaded.
 	ProfileAppliedMsg struct{}
 )
@@ -35,13 +33,6 @@ func StatusCmd(text string, isError bool) tea.Cmd {
 func ModeSyncedCmd(mode string) tea.Cmd {
 	return func() tea.Msg {
 		return ModeSyncedMsg{Mode: mode}
-	}
-}
-
-// SubChangedCmd returns a command that emits a SubChangedMsg.
-func SubChangedCmd() tea.Cmd {
-	return func() tea.Msg {
-		return SubChangedMsg{}
 	}
 }
 

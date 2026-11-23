@@ -4,14 +4,46 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jackie8tao/mihotui/internal/app/theme"
-	"github.com/jackie8tao/mihotui/internal/profile"
-	"github.com/jackie8tao/mihotui/pkg/mihomo"
-
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/jackie8tao/mihotui/internal/app/theme"
 )
 
-// RenderConfigs renders the local configuration profiles view.
+type configItemMeta struct {
+	label string
+	key   string
+	desc  string
+}
+
+var tunItemsMeta = []configItemMeta{
+	{
+		label: "TUN Mode",
+		key:   "tun.enable",
+		desc:  "Enable or disable Mihomo virtual TUN interface to capture system-wide traffic.",
+	},
+	{
+		label: "Network Stack",
+		key:   "tun.stack",
+		desc:  "TCP/IP stack implementation: mixed (recommended), system (native OS), or gvisor (userspace).",
+	},
+	{
+		label: "Auto Route",
+		key:   "tun.auto-route",
+		desc:  "Automatically configure system routing table to direct traffic into the TUN interface.",
+	},
+	{
+		label: "Auto Detect Iface",
+		key:   "tun.auto-detect-interface",
+		desc:  "Automatically bind outbound traffic to the default physical network interface.",
+	},
+	{
+		label: "DNS Hijack",
+		key:   "tun.dns-hijack",
+		desc:  "Intercept outbound DNS queries (any:53) through Mihomo DNS to prevent DNS leaks.",
+	},
+}
+
+// RenderConfigs renders the override.yaml system configuration view.
 func RenderConfigs(p ConfigsProps) string {
 	width := p.Width - 4
 	if width < 50 {
@@ -22,119 +54,102 @@ func RenderConfigs(p ConfigsProps) string {
 		height = 10
 	}
 
-	leftWidth := 34
+	leftWidth := 36
 	rightWidth := width - leftWidth - 5
-	if rightWidth < 25 {
-		rightWidth = 25
+	if rightWidth < 28 {
+		rightWidth = 28
 	}
 
-	// 1. Render Left Column: Profiles List with scrolling viewport
+	// 1. Render Left Column: TUN Override Options
+	values := []string{
+		renderBoolBadge(p.Tun.Enable),
+		lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render(fmt.Sprintf("< %s >", p.Tun.Stack)),
+		renderBoolBadge(p.Tun.AutoRoute),
+		renderBoolBadge(p.Tun.AutoDetectInterface),
+		renderBoolBadge(p.Tun.DNSHijack),
+	}
+
 	var listLines []string
-	if len(p.Profiles) == 0 {
-		listLines = append(listLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No config profiles found"))
-	} else {
-		visibleRows := height - 4
-		if visibleRows < 5 {
-			visibleRows = 5
+	listLines = append(listLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── TUN Settings ───"))
+	listLines = append(listLines, "")
+
+	for i, item := range tunItemsMeta {
+		row := fmt.Sprintf("%-18s %s", item.label, values[i])
+		if i == p.SelectedIdx {
+			row = theme.SelectedRowStyle.Render("▶ " + row)
+		} else {
+			row = "  " + row
 		}
-
-		startIdx := 0
-		if p.SelectedIdx >= visibleRows {
-			startIdx = p.SelectedIdx - visibleRows + 1
-		}
-		endIdx := startIdx + visibleRows
-		if endIdx > len(p.Profiles) {
-			endIdx = len(p.Profiles)
-		}
-
-		for i := startIdx; i < endIdx; i++ {
-			prof := p.Profiles[i]
-			name := prof.SubName
-			maxNameLen := leftWidth - 10
-			if len(name) > maxNameLen {
-				name = name[:maxNameLen-3] + "..."
-			}
-
-			tag := ""
-			if prof.Subscription != nil {
-				tag = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("[SUB] ")
-			}
-
-			activeMark := "  "
-			if prof.IsActive {
-				activeMark = theme.ActiveIndicatorStyle.Render("✔ ")
-			}
-
-			line := fmt.Sprintf("%s%s%s", activeMark, tag, name)
-			if i == p.SelectedIdx {
-				line = theme.SelectedRowStyle.Render("▶ " + line[2:])
-			}
-
-			listLines = append(listLines, line)
-		}
+		listLines = append(listLines, row)
 	}
 
+	leftHeader := "⚙️ System Override"
+	if p.Dirty {
+		leftHeader += " " + lipgloss.NewStyle().Foreground(theme.ColorWarning).Bold(true).Render("[Modified]")
+	}
 	leftPanel := theme.CardBoxActiveStyle.Width(leftWidth).Height(height).Render(
-		fmt.Sprintf("📁 Local Profiles (%d)\n\n%s", len(p.Profiles), strings.Join(listLines, "\n")),
+		leftHeader + "\n\n" + strings.Join(listLines, "\n"),
 	)
 
-	// 2. Render Right Column: Profile Details
-	var curr *profile.Profile
-	if len(p.Profiles) > 0 && p.SelectedIdx >= 0 && p.SelectedIdx < len(p.Profiles) {
-		curr = &p.Profiles[p.SelectedIdx]
+	// 2. Render Right Column: Paths, Selected Description, and Live YAML Preview
+	maxValWidth := rightWidth - 16
+	if maxValWidth < 15 {
+		maxValWidth = 15
 	}
 
-	var rightContent string
-	if curr == nil {
-		rightContent = lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("Select a profile to view details")
-	} else {
-		var lines []string
-
-		// Status Badge
-		statusBadge := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[INACTIVE]")
-		if curr.IsActive {
-			statusBadge = theme.ActiveIndicatorStyle.Render("[CURRENTLY ACTIVE]")
-		}
-
-		maxValWidth := rightWidth - 18
-		if maxValWidth < 15 {
-			maxValWidth = 15
-		}
-
-		nameDisplay := truncateStr(curr.SubName, maxValWidth-10)
-		fileDisplay := truncateStr(curr.FileName, maxValWidth)
-		pathDisplay := truncateStr(curr.FullPath, maxValWidth)
-
-		lines = append(lines, fmt.Sprintf("Profile Name : %s  %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay), statusBadge))
-		lines = append(lines, fmt.Sprintf("File Name    : %s", fileDisplay))
-		lines = append(lines, fmt.Sprintf("Full Path    : %s", pathDisplay))
-		lines = append(lines, fmt.Sprintf("File Size    : %s", mihomo.FormatBytes(curr.Size)))
-		lines = append(lines, fmt.Sprintf("Last Modified: %s", curr.ModTime.Format("2006-01-02 15:04:05")))
-
-		if curr.Subscription != nil {
-			subName := truncateStr(curr.Subscription.Name, maxValWidth-12)
-			lines = append(lines, "")
-			lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(
-				fmt.Sprintf("ℹ️ Linked to [%s] (see '4. Subs' tab)", subName),
-			))
-		}
-
-		// Actions helper
-		lines = append(lines, "")
-		lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
-		lines = append(lines, "• [Enter] Apply & Hot-reload this profile to Mihomo")
-		lines = append(lines, "• [r]     Refresh profile list from disk")
-		lines = append(lines, "• [Tab]   Switch to other tabs")
-
-		rightContent = strings.Join(lines, "\n")
+	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
+	if p.ActiveSubName != "" {
+		activeSubDisplay = theme.ActiveIndicatorStyle.Render(truncateStr(p.ActiveSubName, maxValWidth))
 	}
 
-	headerTitle := fmt.Sprintf("⚙️ Profile Details (Dir: %s)", truncateStr(p.ConfigDir, rightWidth-24))
+	var rightLines []string
+	rightLines = append(rightLines, fmt.Sprintf("Override File : %s", truncateStr(p.OverridePath, maxValWidth)))
+	rightLines = append(rightLines, fmt.Sprintf("Active Sub    : %s", activeSubDisplay))
+	rightLines = append(rightLines, fmt.Sprintf("Merged Output : %s", truncateStr(p.MihomoConfigPath, maxValWidth)))
+
+	if p.SelectedIdx >= 0 && p.SelectedIdx < len(tunItemsMeta) {
+		meta := tunItemsMeta[p.SelectedIdx]
+		rightLines = append(rightLines, "")
+		rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Selected Option ───"))
+		rightLines = append(rightLines, fmt.Sprintf("Key  : %s", lipgloss.NewStyle().Bold(true).Render(meta.key)))
+		rightLines = append(rightLines, lipgloss.NewStyle().Width(rightWidth-4).Foreground(theme.ColorLight).Render(meta.desc))
+	}
+
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── override.yaml Preview ───"))
+	rightLines = append(rightLines, renderTunYAMLPreview(p))
+
+	rightLines = append(rightLines, "")
+	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
+	rightLines = append(rightLines, "• [←/→]   Toggle or cycle selected option")
+	rightLines = append(rightLines, "• [Enter] Save override.yaml, merge with active sub & reload Mihomo")
+
 	rightPanel := theme.CardBoxStyle.Width(rightWidth).Height(height).Render(
-		headerTitle + "\n\n" + rightContent,
+		"📄 Override Details\n\n" + strings.Join(rightLines, "\n"),
 	)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, "  ", rightPanel)
+}
+
+func renderBoolBadge(v bool) string {
+	if v {
+		return theme.ActiveIndicatorStyle.Render("[ON]")
+	}
+	return lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[OFF]")
+}
+
+func renderTunYAMLPreview(p ConfigsProps) string {
+	var lines []string
+	lines = append(lines, "tun:")
+	lines = append(lines, fmt.Sprintf("  enable: %v", p.Tun.Enable))
+	lines = append(lines, fmt.Sprintf("  stack: %s", p.Tun.Stack))
+	lines = append(lines, fmt.Sprintf("  auto-route: %v", p.Tun.AutoRoute))
+	lines = append(lines, fmt.Sprintf("  auto-detect-interface: %v", p.Tun.AutoDetectInterface))
+	if p.Tun.DNSHijack {
+		lines = append(lines, "  dns-hijack:")
+		lines = append(lines, "    - any:53")
+	}
+	return lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(strings.Join(lines, "\n"))
 }
 
 func truncateStr(s string, maxLen int) string {

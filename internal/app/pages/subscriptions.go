@@ -15,12 +15,14 @@ import (
 	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/config"
 	"github.com/jackie8tao/mihotui/internal/profile"
+	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
 
 type (
 	subUpdatedMsg struct {
-		name string
-		err  error
+		name     string
+		reloaded bool
+		err      error
 	}
 	subAddedMsg struct {
 		name string
@@ -38,6 +40,7 @@ type (
 
 // SubscriptionsModel encapsulates state, interactions, and rendering for the Subscriptions tab.
 type SubscriptionsModel struct {
+	client        mihomo.Client
 	profileMgr    *profile.Manager
 	subscriptions []config.Subscription
 	selectedIdx   int
@@ -49,7 +52,10 @@ type SubscriptionsModel struct {
 }
 
 // NewSubscriptionsModel initializes a self-contained SubscriptionsModel.
-func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
+func NewSubscriptionsModel(cli mihomo.Client, mgr *profile.Manager) *SubscriptionsModel {
+	if cli == nil {
+		panic("pages: nil mihomo client")
+	}
 	if mgr == nil {
 		panic("pages: nil profile manager")
 	}
@@ -64,6 +70,7 @@ func NewSubscriptionsModel(mgr *profile.Manager) *SubscriptionsModel {
 	urlInput.Width = 46
 
 	return &SubscriptionsModel{
+		client:      cli,
 		profileMgr:  mgr,
 		modalActive: views.ModalNone,
 		nameInput:   nameInput,
@@ -79,7 +86,7 @@ func (m *SubscriptionsModel) Title() string {
 
 // Help returns the keybinding hints displayed in the footer for the Subscriptions page.
 func (m *SubscriptionsModel) Help() string {
-	return "[↑/↓] Move | [u] Update | [U] Update All | [a] Add Sub | [d] Delete"
+	return "[↑/↓] Move | [Enter] Apply | [u] Update | [U] Update All | [a] Add Sub | [d] Delete"
 }
 
 // CapturingInput reports whether the add-subscription modal is currently active and capturing keyboard input.
@@ -101,37 +108,36 @@ func (m *SubscriptionsModel) Update(msg tea.Msg) tea.Cmd {
 			return events.StatusCmd(fmt.Sprintf("Update sub failed: %v", msg.err), true)
 		}
 		m.reload()
-		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false),
-			events.SubChangedCmd(),
-		)
+		if msg.reloaded {
+			return tea.Batch(
+				events.StatusCmd(fmt.Sprintf("Subscription [%s] updated & hot-reloaded!", msg.name), false),
+				events.ProfileAppliedCmd(),
+			)
+		}
+		return events.StatusCmd(fmt.Sprintf("Subscription [%s] updated successfully!", msg.name), false)
 
 	case subAddedMsg:
 		if msg.err != nil {
 			return events.StatusCmd(fmt.Sprintf("Add subscription failed: %v", msg.err), true)
 		}
 		m.reload()
-		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false),
-			events.SubChangedCmd(),
-		)
+		return events.StatusCmd(fmt.Sprintf("Subscription [%s] added and downloaded!", msg.name), false)
 
 	case subDeletedMsg:
 		if msg.err != nil {
 			return events.StatusCmd(fmt.Sprintf("Delete sub failed: %v", msg.err), true)
 		}
 		m.reload()
-		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false),
-			events.SubChangedCmd(),
-		)
+		return events.StatusCmd(fmt.Sprintf("Subscription [%s] deleted!", msg.name), false)
+
 	case subAppliedMsg:
 		if msg.err != nil {
 			return events.StatusCmd(fmt.Sprintf("Apply subscription failed: %v", msg.err), true)
 		}
 		m.reload()
 		return tea.Batch(
-			events.StatusCmd(fmt.Sprintf("Subscription [%s] applied successfully!", msg.name), false),
+			events.StatusCmd(fmt.Sprintf("Applied subscription [%s] & hot-reloaded successfully!", msg.name), false),
+			events.ProfileAppliedCmd(),
 		)
 
 	case tea.KeyMsg:
@@ -171,6 +177,7 @@ func (m *SubscriptionsModel) View(width, height int) string {
 		Width:            width,
 		Height:           height,
 		Subscriptions:    m.subscriptions,
+		ActiveSubName:    m.profileMgr.ActiveProfile(),
 		SelectedIdx:      m.selectedIdx,
 		ModalActive:      m.modalActive,
 		SubNameInputView: m.nameInput.View(),
@@ -285,11 +292,17 @@ func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 		defer cancel()
-		_, err := m.profileMgr.UpdateSubscription(ctx, name)
-		return subUpdatedMsg{
-			name: name,
-			err:  err,
+		if _, err := m.profileMgr.UpdateSubscription(ctx, name); err != nil {
+			return subUpdatedMsg{name: name, err: err}
 		}
+
+		if m.profileMgr.ActiveProfile() == name {
+			if err := m.mergeAndReload(ctx, name); err != nil {
+				return subUpdatedMsg{name: name, err: err}
+			}
+			return subUpdatedMsg{name: name, reloaded: true}
+		}
+		return subUpdatedMsg{name: name}
 	}
 }
 
@@ -298,17 +311,19 @@ func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
-		var err error
 		for _, s := range m.profileMgr.ListSubscriptions() {
-			_, err = m.profileMgr.UpdateSubscription(ctx, s.Name)
-			if err != nil {
-				break
+			if _, err := m.profileMgr.UpdateSubscription(ctx, s.Name); err != nil {
+				return subUpdatedMsg{name: "All", err: err}
 			}
 		}
-		return subUpdatedMsg{
-			name: "All",
-			err:  err,
+
+		if active := m.profileMgr.ActiveProfile(); active != "" {
+			if err := m.mergeAndReload(ctx, active); err != nil {
+				return subUpdatedMsg{name: "All", err: err}
+			}
+			return subUpdatedMsg{name: "All", reloaded: true}
 		}
+		return subUpdatedMsg{name: "All"}
 	}
 }
 
@@ -335,9 +350,23 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 
 func (m *SubscriptionsModel) applySubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		return subAppliedMsg{
-			name: name,
-			err:  m.profileMgr.SetActiveProfile(name),
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+
+		if err := m.mergeAndReload(ctx, name); err != nil {
+			return subAppliedMsg{name: name, err: err}
 		}
+		if err := m.profileMgr.SetActiveProfile(name); err != nil {
+			return subAppliedMsg{name: name, err: err}
+		}
+		return subAppliedMsg{name: name}
 	}
+}
+
+func (m *SubscriptionsModel) mergeAndReload(ctx context.Context, subName string) error {
+	mihomoCfgPath, err := m.profileMgr.BuildMihomoConfig(subName)
+	if err != nil {
+		return err
+	}
+	return m.client.ReloadConfig(ctx, mihomoCfgPath, true)
 }

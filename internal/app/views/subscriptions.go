@@ -51,17 +51,24 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 		for i := startIdx; i < endIdx; i++ {
 			sub := p.Subscriptions[i]
 			name := sub.Name
-			maxNameLen := leftWidth - 10
+			maxNameLen := leftWidth - 12
 			if len(name) > maxNameLen {
 				name = name[:maxNameLen-3] + "..."
 			}
 
-			tag := lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("[SUB] ")
-			line := fmt.Sprintf("%s%s", tag, name)
+			activeMark := "  "
+			if sub.Name == p.ActiveSubName {
+				activeMark = theme.ActiveIndicatorStyle.Render("✔ ")
+			}
+			cursor := "  "
 			if i == p.SelectedIdx {
-				line = theme.SelectedRowStyle.Render("▶ " + line)
-			} else {
-				line = "  " + line
+				cursor = "▶ "
+			}
+
+			tag := lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("[SUB] ")
+			line := fmt.Sprintf("%s%s%s%s", cursor, activeMark, tag, name)
+			if i == p.SelectedIdx {
+				line = theme.SelectedRowStyle.Render(line)
 			}
 
 			listLines = append(listLines, line)
@@ -89,10 +96,15 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 			maxValWidth = 15
 		}
 
-		nameDisplay := truncateStr(curr.Name, maxValWidth)
+		statusBadge := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[INACTIVE]")
+		if curr.Name == p.ActiveSubName {
+			statusBadge = theme.ActiveIndicatorStyle.Render("[ACTIVE]")
+		}
+
+		nameDisplay := truncateStr(curr.Name, maxValWidth-10)
 		urlDisplay := truncateStr(curr.URL, maxValWidth)
 
-		lines = append(lines, fmt.Sprintf("Subscription : %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay)))
+		lines = append(lines, fmt.Sprintf("Subscription : %s  %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay), statusBadge))
 		lines = append(lines, fmt.Sprintf("Remote URL   : %s", urlDisplay))
 		lines = append(lines, fmt.Sprintf("Last Updated : %s", curr.UpdatedAt.Format("2006-01-02 15:04:05")))
 
