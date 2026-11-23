@@ -15,9 +15,9 @@ func RenderConfigs(p ConfigsProps) string {
 	if width < 56 {
 		width = 56
 	}
-	height := p.Height - 8
-	if height < 12 {
-		height = 12
+	height := p.Height - 2
+	if height < 6 {
+		height = 6
 	}
 
 	leftWidth := 26
@@ -142,5 +142,5 @@ func renderConfigEditModal(p ConfigsProps) string {
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", desc, "\n", inputField, "\n", help)
 	modal := modalStyle.Render(content)
 
-	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
+	return lipgloss.Place(p.Width, p.Height, lipgloss.Center, lipgloss.Center, modal)
 }

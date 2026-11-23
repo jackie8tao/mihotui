@@ -18,9 +18,9 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	if width < 50 {
 		width = 50
 	}
-	height := p.Height - 8
-	if height < 10 {
-		height = 10
+	height := p.Height - 2
+	if height < 6 {
+		height = 6
 	}
 
 	leftWidth := 34
@@ -34,9 +34,9 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	if len(p.Subscriptions) == 0 {
 		listLines = append(listLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No subscriptions added yet.\nPress 'a' to add one."))
 	} else {
-		visibleRows := height - 4
-		if visibleRows < 5 {
-			visibleRows = 5
+		visibleRows := height - 2
+		if visibleRows < 3 {
+			visibleRows = 3
 		}
 
 		startIdx := 0
@@ -194,5 +194,5 @@ func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	modal := modalStyle.Render(content)
 
 	// Center overlay
-	return lipgloss.Place(p.Width, p.Height-4, lipgloss.Center, lipgloss.Center, modal)
+	return lipgloss.Place(p.Width, p.Height, lipgloss.Center, lipgloss.Center, modal)
 }

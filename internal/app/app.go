@@ -14,6 +14,7 @@ import (
 	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/pages"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
+	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -207,31 +208,48 @@ func (m *AppModel) View() string {
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabBar, "  ", modeBadge)
 
 	active := m.pages[m.activePage]
-	body := active.View(m.width, m.height)
 
+	// Render single-line status message so long errors never wrap over or push out the help bar.
+	statusText := strings.Join(strings.Fields(m.statusMsg), " ")
+	if m.width > 2 {
+		statusText = views.TruncateVisual(statusText, m.width-2)
+	}
 	statusColor := theme.ColorMuted
 	if m.isError {
 		statusColor = theme.ColorError
 	}
-	status := lipgloss.NewStyle().Foreground(statusColor).Render(" " + m.statusMsg)
+	status := lipgloss.NewStyle().Foreground(statusColor).MaxHeight(1).Render(" " + statusText)
 
-	helpText := "[Tab] Switch View | [m] Mode | [r] Refresh | [q] Quit"
-	if pageHelp := active.Help(); pageHelp != "" {
-		helpText = pageHelp + " | " + helpText
+	var helpText string
+	if active.CapturingInput() {
+		helpText = active.Help()
+	} else {
+		helpText = "[Tab] Switch View | [m] Mode | [r] Refresh | [q] Quit"
+		if pageHelp := active.Help(); pageHelp != "" {
+			helpText = pageHelp + " | " + helpText
+		}
 	}
-	helpBar := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(helpText)
+	helpStyle := lipgloss.NewStyle().Foreground(theme.ColorMuted)
+	if m.width > 2 {
+		helpStyle = helpStyle.Width(m.width - 1)
+	}
+	helpBar := helpStyle.Render(" " + helpText)
 
 	footer := lipgloss.JoinVertical(lipgloss.Left, status, helpBar)
-	fullView := lipgloss.JoinVertical(lipgloss.Left, header, "\n", body, "\n", footer)
 
-	// Ensure view height never exceeds terminal height to guarantee top header stays visible
+	// Allocate exact remaining height to the page body so header and footer (status + shortcuts)
+	// are always pinned and never clipped or overwritten.
+	bodyHeight := 16
 	if m.height > 0 {
-		lines := strings.Split(fullView, "\n")
-		if len(lines) > m.height {
-			lines = lines[:m.height]
-			return strings.Join(lines, "\n")
+		reserved := lipgloss.Height(header) + lipgloss.Height(footer) + 2
+		bodyHeight = m.height - reserved
+		if bodyHeight < 6 {
+			bodyHeight = 6
 		}
 	}
 
-	return fullView
+	body := active.View(m.width, bodyHeight)
+	body = lipgloss.NewStyle().Height(bodyHeight).MaxHeight(bodyHeight).Render(body)
+
+	return lipgloss.JoinVertical(lipgloss.Left, header, "", body, "", footer)
 }

@@ -6,9 +6,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// truncateStr truncates s to at most maxWidth terminal display columns,
+// TruncateVisual truncates s to at most maxWidth terminal display columns,
 // preserving multi-byte UTF-8 runes and regional-indicator flag pairs.
-func truncateStr(s string, maxWidth int) string {
+func TruncateVisual(s string, maxWidth int) string {
 	if maxWidth <= 0 {
 		return ""
 	}
@@ -36,6 +36,10 @@ func truncateStr(s string, maxWidth int) string {
 		}
 	}
 	return string(runes[:end]) + "..."
+}
+
+func truncateStr(s string, maxWidth int) string {
+	return TruncateVisual(s, maxWidth)
 }
 
 // padRightVisual truncates s to width display columns and right-pads with spaces

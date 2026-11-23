@@ -86,6 +86,9 @@ func (m *SubscriptionsModel) Title() string {
 
 // Help returns the keybinding hints displayed in the footer for the Subscriptions page.
 func (m *SubscriptionsModel) Help() string {
+	if m.modalActive == views.ModalAddSub {
+		return "[↑/↓] Switch Field | [Enter] Confirm & Download | [Esc] Cancel"
+	}
 	return "[↑/↓] Move | [Enter] Apply | [u] Update | [U] Update All | [a] Add Sub | [d] Delete"
 }
 

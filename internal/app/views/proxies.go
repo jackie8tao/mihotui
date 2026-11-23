@@ -16,9 +16,9 @@ func RenderProxies(p ProxiesProps) string {
 	if width < 50 {
 		width = 50
 	}
-	height := p.Height - 8
-	if height < 10 {
-		height = 10
+	height := p.Height - 2
+	if height < 6 {
+		height = 6
 	}
 
 	leftWidth := 28
@@ -67,10 +67,10 @@ func RenderProxies(p ProxiesProps) string {
 	if currGroup == nil || len(currGroup.All) == 0 {
 		rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No nodes in this group"))
 	} else {
-		// Calculate visible window for scrolling
-		visibleRows := height - 4
-		if visibleRows < 5 {
-			visibleRows = 5
+		// Calculate visible window for scrolling (2 lines reserved for header + blank line)
+		visibleRows := height - 2
+		if visibleRows < 3 {
+			visibleRows = 3
 		}
 
 		startIdx := 0
