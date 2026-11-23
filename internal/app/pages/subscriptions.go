@@ -296,7 +296,7 @@ func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 
 func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
-		err := m.profileMgr.DeleteSubscription(name, true)
+		err := m.profileMgr.DeleteSubscription(name)
 		return subDeletedMsg{name: name, err: err}
 	}
 }

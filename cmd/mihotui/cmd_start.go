@@ -40,19 +40,18 @@ func runTUI(cfgPath string) error {
 	if cfgPath == "" {
 		cfgPath = filepath.Join(appPaths.AppEtcDir(), "config.yaml")
 	}
-	cfg, err := config.LoadConfig(cfgPath)
+	appCfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		return err
 	}
 
-	subsDir := filepath.Join(appPaths.AppEtcDir(), "subscriptions")
-	profileMgr, err := profile.NewManager(subsDir, appPaths.MihomoEtcDir(), cfg)
+	profileMgr, err := profile.NewManager(appCfg, appPaths)
 	if err != nil {
 		return err
 	}
 
-	mihoCli, err := mihomo.New(cfg.ApiURL,
-		mihomo.WithSecret(cfg.Secret),
+	mihoCli, err := mihomo.New(appCfg.ApiURL,
+		mihomo.WithSecret(appCfg.Secret),
 	)
 	if err != nil {
 		return err
