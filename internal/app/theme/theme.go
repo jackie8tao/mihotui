@@ -19,10 +19,23 @@ var (
 	TitleStyle           = lipgloss.NewStyle().Bold(true).Foreground(ColorLight).Background(ColorPrimary).Padding(0, 1)
 	TabActiveStyle       = lipgloss.NewStyle().Bold(true).Foreground(ColorLight).Background(ColorPrimary).Padding(0, 1)
 	TabInactiveStyle     = lipgloss.NewStyle().Foreground(ColorMuted).Padding(0, 1)
+	ModeBadgeStyle       = lipgloss.NewStyle().Bold(true).Foreground(ColorDark).Background(ColorSecondary).Padding(0, 1)
 	CardBoxStyle         = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(ColorMuted).Padding(0, 1)
 	CardBoxActiveStyle   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(ColorPrimary).Padding(0, 1)
 	SelectedRowStyle     = lipgloss.NewStyle().Bold(true).Foreground(ColorLight).Background(lipgloss.Color("#44475A"))
 	ActiveIndicatorStyle = lipgloss.NewStyle().Bold(true).Foreground(ColorSecondary)
 	SpeedUpStyle         = lipgloss.NewStyle().Bold(true).Foreground(ColorWarning)
 	SpeedDownStyle       = lipgloss.NewStyle().Bold(true).Foreground(ColorSecondary)
+)
+
+// Common text styles shared across views.
+var (
+	TextStyle       = lipgloss.NewStyle().Foreground(ColorLight)
+	BoldStyle       = lipgloss.NewStyle().Bold(true)
+	MutedStyle      = lipgloss.NewStyle().Foreground(ColorMuted)
+	HighlightStyle  = lipgloss.NewStyle().Bold(true).Foreground(ColorHighlight)
+	SuccessStyle    = lipgloss.NewStyle().Foreground(ColorSecondary)
+	WarningStyle    = lipgloss.NewStyle().Foreground(ColorWarning)
+	ErrorStyle      = lipgloss.NewStyle().Foreground(ColorError)
+	ModalTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(ColorLight)
 )

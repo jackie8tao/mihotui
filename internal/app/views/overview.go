@@ -25,7 +25,7 @@ func RenderOverview(p OverviewProps) string {
 	upSpeedStr := mihomo.FormatSpeed(p.Traffic.Up)
 	downSpeedStr := mihomo.FormatSpeed(p.Traffic.Down)
 
-	trafficHeader := lipgloss.NewStyle().Bold(true).Render("Real-time Bandwidth")
+	trafficHeader := theme.BoldStyle.Render("Real-time Bandwidth")
 	trafficContent := fmt.Sprintf(
 		"▲ Upload   : %s\n▼ Download : %s\n\nTotal Up   : %s\nTotal Down : %s",
 		theme.SpeedUpStyle.Render(upSpeedStr),
@@ -43,11 +43,11 @@ func RenderOverview(p OverviewProps) string {
 		if mode == currMode {
 			modeStrs = append(modeStrs, theme.ActiveIndicatorStyle.Render(fmt.Sprintf("● [%s]", strings.ToUpper(mode))))
 		} else {
-			modeStrs = append(modeStrs, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(fmt.Sprintf("○  %s", strings.ToUpper(mode))))
+			modeStrs = append(modeStrs, theme.MutedStyle.Render(fmt.Sprintf("○  %s", strings.ToUpper(mode))))
 		}
 	}
-	modeHeader := lipgloss.NewStyle().Bold(true).Render("Outbound Mode")
-	modeHelp := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(Press 'm' to cycle mode)")
+	modeHeader := theme.BoldStyle.Render("Outbound Mode")
+	modeHelp := theme.MutedStyle.Render("(Press 'm' to cycle mode)")
 	modeBox := theme.CardBoxStyle.Width(rightWidth).Height(topBoxHeight).Render(
 		modeHeader + "\n\n" + strings.Join(modeStrs, "\n") + "\n\n" + modeHelp,
 	)
@@ -88,7 +88,7 @@ func RenderOverview(p OverviewProps) string {
 		p.Config.LogLevel,
 		memStr,
 	)
-	sysHeader := lipgloss.NewStyle().Bold(true).Render("Runtime Information")
+	sysHeader := theme.BoldStyle.Render("Runtime Information")
 	sysBox := theme.CardBoxStyle.Width(width).Render(sysHeader + "\n\n" + sysContent)
 
 	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", sysBox)

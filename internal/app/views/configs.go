@@ -29,7 +29,7 @@ func RenderConfigs(p ConfigsProps) string {
 	// 1. Render Left Column: Configuration Sections
 	var secLines []string
 	for i, sec := range p.Sections {
-		badge := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(fmt.Sprintf("(%d)", sec.OverrideCount))
+		badge := theme.MutedStyle.Render(fmt.Sprintf("(%d)", sec.OverrideCount))
 		if sec.OverrideCount > 0 {
 			badge = theme.ActiveIndicatorStyle.Render(fmt.Sprintf("(%d)", sec.OverrideCount))
 		}
@@ -40,7 +40,7 @@ func RenderConfigs(p ConfigsProps) string {
 			if p.FocusPane == ConfigPaneSections {
 				line = theme.SelectedRowStyle.Render("▶ " + label)
 			} else {
-				line = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("● " + label)
+				line = theme.HighlightStyle.Render("● " + label)
 			}
 		} else {
 			line = "  " + label
@@ -52,7 +52,7 @@ func RenderConfigs(p ConfigsProps) string {
 	if p.FocusPane == ConfigPaneSections {
 		leftBoxStyle = theme.CardBoxActiveStyle
 	}
-	leftHeader := lipgloss.NewStyle().Bold(true).Render("Sections")
+	leftHeader := theme.BoldStyle.Render("Sections")
 	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
 		leftHeader + "\n\n" + strings.Join(secLines, "\n"),
 	)
@@ -68,11 +68,11 @@ func RenderConfigs(p ConfigsProps) string {
 		valText := TruncateVisual(f.DisplayValue, maxValWidth)
 		var styledVal string
 		if !f.IsOverridden {
-			styledVal = lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(valText)
+			styledVal = theme.MutedStyle.Render(valText)
 		} else if valText == "[ON]" {
 			styledVal = theme.ActiveIndicatorStyle.Render(valText)
 		} else {
-			styledVal = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render(valText)
+			styledVal = theme.HighlightStyle.Render(valText)
 		}
 
 		row := fmt.Sprintf("%-20s %s", TruncateVisual(f.Label, 20), styledVal)
@@ -87,20 +87,20 @@ func RenderConfigs(p ConfigsProps) string {
 	if p.SelectedFieldIdx >= 0 && p.SelectedFieldIdx < len(p.Fields) {
 		curr := p.Fields[p.SelectedFieldIdx]
 		rightLines = append(rightLines, "")
-		rightLines = append(rightLines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Field Info ───"))
+		rightLines = append(rightLines, theme.HighlightStyle.Render("─── Field Info ───"))
 		rightLines = append(rightLines, fmt.Sprintf("Key  : %s  %s",
-			lipgloss.NewStyle().Bold(true).Render(curr.YAMLPath),
-			lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("["+curr.KindHint+"]"),
+			theme.BoldStyle.Render(curr.YAMLPath),
+			theme.MutedStyle.Render("["+curr.KindHint+"]"),
 		))
-		rightLines = append(rightLines, lipgloss.NewStyle().Width(rightWidth-4).Foreground(theme.ColorLight).Render(curr.Description))
+		rightLines = append(rightLines, theme.TextStyle.Width(rightWidth-4).Render(curr.Description))
 	}
 
-	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
+	activeSubDisplay := theme.MutedStyle.Render("(none)")
 	if p.ActiveSubName != "" {
 		activeSubDisplay = theme.ActiveIndicatorStyle.Render(TruncateVisual(p.ActiveSubName, rightWidth-24))
 	}
 	rightLines = append(rightLines, "")
-	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(
+	rightLines = append(rightLines, theme.MutedStyle.Render(
 		fmt.Sprintf("Active Sub: %s | Override: %s", activeSubDisplay, TruncateVisual(p.OverridePath, rightWidth-36)),
 	))
 
@@ -108,9 +108,9 @@ func RenderConfigs(p ConfigsProps) string {
 	if p.FocusPane == ConfigPaneFields {
 		rightBoxStyle = theme.CardBoxActiveStyle
 	}
-	rightHeader := lipgloss.NewStyle().Bold(true).Render(p.ActiveSecTitle)
+	rightHeader := theme.BoldStyle.Render(p.ActiveSecTitle)
 	if p.Dirty {
-		rightHeader += " " + lipgloss.NewStyle().Foreground(theme.ColorWarning).Bold(true).Render("[Modified]")
+		rightHeader += " " + theme.WarningStyle.Bold(true).Render("[Modified]")
 	}
 	rightPanel := rightBoxStyle.Width(rightWidth).Height(height).Render(
 		rightHeader + "\n\n" + strings.Join(rightLines, "\n"),
@@ -136,12 +136,12 @@ func renderConfigEditModal(p ConfigsProps, baseView string) string {
 		descWidth = 16
 	}
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render(
+	title := theme.ModalTitleStyle.Render(
 		fmt.Sprintf("Edit %s (%s)", curr.Label, curr.YAMLPath),
 	)
-	desc := lipgloss.NewStyle().Width(descWidth).Foreground(theme.ColorMuted).Render(curr.Description)
+	desc := theme.MutedStyle.Width(descWidth).Render(curr.Description)
 	inputField := fmt.Sprintf("Value:\n%s", p.EditInputView)
-	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Enter] Confirm | [Esc] Cancel")
+	help := theme.MutedStyle.Render("[Enter] Confirm | [Esc] Cancel")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", desc, "\n", inputField, "\n", help)
 	return renderModalOverlay(baseView, p.Width, p.Height, modalWidth, content)

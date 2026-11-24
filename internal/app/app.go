@@ -201,12 +201,7 @@ func (m *AppModel) View() string {
 	}
 	tabBar := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 
-	modeBadge := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(theme.ColorDark).
-		Background(theme.ColorSecondary).
-		Padding(0, 1).
-		Render(strings.ToUpper(m.mode))
+	modeBadge := theme.ModeBadgeStyle.Render(strings.ToUpper(m.mode))
 
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, "  ", tabBar, "  ", modeBadge)
 
@@ -217,11 +212,11 @@ func (m *AppModel) View() string {
 	if m.width > 2 {
 		statusText = views.TruncateVisual(statusText, m.width-2)
 	}
-	statusColor := theme.ColorMuted
+	statusStyle := theme.MutedStyle
 	if m.isError {
-		statusColor = theme.ColorError
+		statusStyle = theme.ErrorStyle
 	}
-	status := lipgloss.NewStyle().Foreground(statusColor).MaxHeight(1).Render(" " + statusText)
+	status := statusStyle.MaxHeight(1).Render(" " + statusText)
 
 	var helpText string
 	if active.CapturingInput() {
@@ -232,7 +227,7 @@ func (m *AppModel) View() string {
 			helpText = pageHelp + " | " + helpText
 		}
 	}
-	helpStyle := lipgloss.NewStyle().Foreground(theme.ColorMuted)
+	helpStyle := theme.MutedStyle
 	if m.width > 2 {
 		helpStyle = helpStyle.Width(m.width - 1)
 	}

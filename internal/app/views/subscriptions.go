@@ -32,7 +32,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	// 1. Render Left Column: Subscriptions List with scrolling viewport
 	var listLines []string
 	if len(p.Subscriptions) == 0 {
-		listLines = append(listLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No subscriptions added yet.\nPress 'a' to add one."))
+		listLines = append(listLines, theme.MutedStyle.Render("No subscriptions added yet.\nPress 'a' to add one."))
 	} else {
 		visibleRows := height - 2
 		if visibleRows < 3 {
@@ -61,7 +61,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 				cursor = "▶ "
 			}
 
-			tag := lipgloss.NewStyle().Foreground(theme.ColorWarning).Render("[SUB] ")
+			tag := theme.WarningStyle.Render("[SUB] ")
 			line := fmt.Sprintf("%s%s%s%s", cursor, activeMark, tag, name)
 			if i == p.SelectedIdx {
 				line = theme.SelectedRowStyle.Render(line)
@@ -83,7 +83,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 
 	var rightContent string
 	if curr == nil {
-		rightContent = lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("Select a subscription to view details, or press 'a' to add a new subscription.")
+		rightContent = theme.MutedStyle.Render("Select a subscription to view details, or press 'a' to add a new subscription.")
 	} else {
 		var lines []string
 
@@ -92,7 +92,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 			maxValWidth = 15
 		}
 
-		statusBadge := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[INACTIVE]")
+		statusBadge := theme.MutedStyle.Render("[INACTIVE]")
 		if curr.Name == p.ActiveSubName {
 			statusBadge = theme.ActiveIndicatorStyle.Render("[ACTIVE]")
 		}
@@ -100,13 +100,13 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 		nameDisplay := TruncateVisual(curr.Name, maxValWidth-10)
 		urlDisplay := TruncateVisual(curr.URL, maxValWidth)
 
-		lines = append(lines, fmt.Sprintf("Subscription : %s  %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay), statusBadge))
+		lines = append(lines, fmt.Sprintf("Subscription : %s  %s", theme.BoldStyle.Render(nameDisplay), statusBadge))
 		lines = append(lines, fmt.Sprintf("Remote URL   : %s", urlDisplay))
 		lines = append(lines, fmt.Sprintf("Last Updated : %s", curr.UpdatedAt.Format("2006-01-02 15:04:05")))
 
 		// Quota and expiration
 		lines = append(lines, "")
-		lines = append(lines, lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("─── Traffic & Quota ───"))
+		lines = append(lines, theme.HighlightStyle.Render("─── Traffic & Quota ───"))
 
 		if curr.UserInfo != nil {
 			u := curr.UserInfo
@@ -139,17 +139,17 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 				days := int(remaining.Hours() / 24)
 				expireStr := fmt.Sprintf("%s (%d days left)", u.Expire.Format("2006-01-02"), days)
 				if days <= 7 {
-					expireStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(expireStr)
+					expireStr = theme.WarningStyle.Render(expireStr)
 				}
 				lines = append(lines, fmt.Sprintf("Expires On   : %s", expireStr))
 			}
 		} else {
-			lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(No quota header returned from subscription provider)"))
+			lines = append(lines, theme.MutedStyle.Render("(No quota header returned from subscription provider)"))
 		}
 
 		// Actions helper
 		lines = append(lines, "")
-		lines = append(lines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("─── Available Actions ───"))
+		lines = append(lines, theme.MutedStyle.Render("─── Available Actions ───"))
 		lines = append(lines, "• [u]     Update & re-download this subscription")
 		lines = append(lines, "• [U]     Batch update all subscriptions")
 		lines = append(lines, "• [a]     Add new subscription (modal)")
@@ -178,12 +178,12 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	modalWidth := clampModalWidth(56, p.Width)
 
-	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render("➕ Add New Subscription")
+	title := theme.ModalTitleStyle.Render("➕ Add New Subscription")
 
 	field1 := fmt.Sprintf("Subscription Name:\n%s", p.SubNameInputView)
 	field2 := fmt.Sprintf("Subscription URL:\n%s", p.SubURLInputView)
 
-	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[↑/↓] Switch Field | [Enter] Confirm & Download | [Esc] Cancel")
+	help := theme.MutedStyle.Render("[↑/↓] Switch Field | [Enter] Confirm & Download | [Esc] Cancel")
 
 	content := lipgloss.JoinVertical(lipgloss.Left, title, "\n", field1, "\n", field2, "\n", help)
 	return renderModalOverlay(baseView, p.Width, p.Height, modalWidth, content)

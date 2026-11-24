@@ -35,7 +35,7 @@ func RenderProxies(p ProxiesProps) string {
 	// 1. Render Left Column: Groups List (with visible window scrolling)
 	var groupLines []string
 	if len(p.Groups) == 0 {
-		groupLines = append(groupLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No proxy groups found"))
+		groupLines = append(groupLines, theme.MutedStyle.Render("No proxy groups found"))
 	} else {
 		startGroup := 0
 		if p.SelectedGroupIdx >= visibleRows {
@@ -58,7 +58,7 @@ func RenderProxies(p ProxiesProps) string {
 				if p.FocusPane == PaneGroups {
 					line = theme.SelectedRowStyle.Render("▶ " + line)
 				} else {
-					line = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render("● " + line)
+					line = theme.HighlightStyle.Render("● " + line)
 				}
 			} else {
 				line = "  " + line
@@ -71,7 +71,7 @@ func RenderProxies(p ProxiesProps) string {
 	if p.FocusPane == PaneGroups {
 		leftBoxStyle = theme.CardBoxActiveStyle
 	}
-	leftHeader := lipgloss.NewStyle().Bold(true).Render(TruncateVisual("Proxy Groups", leftWidth-2))
+	leftHeader := theme.BoldStyle.Render(TruncateVisual("Proxy Groups", leftWidth-2))
 	leftPanel := leftBoxStyle.Width(leftWidth).Height(height).Render(
 		leftHeader + "\n\n" + strings.Join(groupLines, "\n"),
 	)
@@ -84,7 +84,7 @@ func RenderProxies(p ProxiesProps) string {
 
 	var rightLines []string
 	if currGroup == nil || len(currGroup.All) == 0 {
-		rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("No nodes in this group"))
+		rightLines = append(rightLines, theme.MutedStyle.Render("No nodes in this group"))
 	} else {
 		startIdx := 0
 		if p.SelectedNodeIdx >= visibleRows {
@@ -109,19 +109,19 @@ func RenderProxies(p ProxiesProps) string {
 			delayStr := fmt.Sprintf("%10s", "-")
 			if exists {
 				if nodeItem.TestingDelay {
-					delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(fmt.Sprintf("%10s", "Testing..."))
+					delayStr = theme.WarningStyle.Render(fmt.Sprintf("%10s", "Testing..."))
 				} else if len(nodeItem.History) > 0 {
 					lastDelay := nodeItem.History[len(nodeItem.History)-1].Delay
 					delayFormatted := fmt.Sprintf("%10s", mihomo.FormatDelay(lastDelay))
 					switch {
 					case lastDelay <= 0:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(delayFormatted)
+						delayStr = theme.ErrorStyle.Render(delayFormatted)
 					case lastDelay < 120:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorSecondary).Render(delayFormatted)
+						delayStr = theme.SuccessStyle.Render(delayFormatted)
 					case lastDelay < 300:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorWarning).Render(delayFormatted)
+						delayStr = theme.WarningStyle.Render(delayFormatted)
 					default:
-						delayStr = lipgloss.NewStyle().Foreground(theme.ColorError).Render(delayFormatted)
+						delayStr = theme.ErrorStyle.Render(delayFormatted)
 					}
 				}
 			}
@@ -131,7 +131,7 @@ func RenderProxies(p ProxiesProps) string {
 			if exists && nodeItem.Type != "" {
 				nodeType = fmt.Sprintf("[%s]", nodeItem.Type)
 			}
-			styledType := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(padRightVisual(nodeType, 14))
+			styledType := theme.MutedStyle.Render(padRightVisual(nodeType, 14))
 
 			// Node name visual-width truncation & padding (handles CJK & Emoji accurately)
 			availNameWidth := rightWidth - 32
@@ -164,7 +164,7 @@ func RenderProxies(p ProxiesProps) string {
 	if currGroup != nil {
 		headerText = fmt.Sprintf("Nodes in [%s] (Selected: %s)", currGroup.Name, currGroup.Now)
 	}
-	headerTitle := lipgloss.NewStyle().Bold(true).Render(TruncateVisual(headerText, rightWidth-2))
+	headerTitle := theme.BoldStyle.Render(TruncateVisual(headerText, rightWidth-2))
 
 	rightPanel := rightBoxStyle.Width(rightWidth).Height(height).Render(
 		headerTitle + "\n\n" + strings.Join(rightLines, "\n"),
