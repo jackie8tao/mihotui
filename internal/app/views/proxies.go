@@ -53,7 +53,7 @@ func RenderProxies(p ProxiesProps) string {
 			if nameMax < 4 {
 				nameMax = 4
 			}
-			line := prefix + truncateStr(g.Name, nameMax)
+			line := prefix + TruncateVisual(g.Name, nameMax)
 			if i == p.SelectedGroupIdx {
 				if p.FocusPane == PaneGroups {
 					line = theme.SelectedRowStyle.Render("▶ " + line)

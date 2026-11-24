@@ -43,7 +43,6 @@ type FieldSpec struct {
 	Kind        FieldKind
 	Options     []string
 	Placeholder string
-	Validate    func(raw string) (any, error)
 }
 
 // SectionSpec groups related overrideable fields under a top-level configuration category.
@@ -109,10 +108,6 @@ func (f FieldSpec) FormatEditValue(val any) string {
 
 // ParseInput parses and validates raw text entered by the user into its typed YAML value.
 func (f FieldSpec) ParseInput(raw string) (any, error) {
-	if f.Validate != nil {
-		return f.Validate(raw)
-	}
-
 	trimmed := strings.TrimSpace(raw)
 	switch f.Kind {
 	case KindInt:
@@ -145,6 +140,7 @@ func (f FieldSpec) ParseInput(raw string) (any, error) {
 	}
 }
 
+// toStringSlice converts a YAML slice ([]string or []any) into a slice of formatted strings.
 func toStringSlice(val any) []string {
 	switch list := val.(type) {
 	case []string:
@@ -351,15 +347,6 @@ func (m *ConfigsModel) View(width, height int) string {
 		}
 	}
 
-	var editLabel, editPath, editDesc string
-	if m.editing {
-		if f := m.currentField(); f != nil {
-			editLabel = f.Label
-			editPath = f.YAMLPath()
-			editDesc = f.Description
-		}
-	}
-
 	return views.RenderConfigs(views.ConfigsProps{
 		Width:            width,
 		Height:           height,
@@ -370,17 +357,14 @@ func (m *ConfigsModel) View(width, height int) string {
 		Fields:           fieldViews,
 		SelectedFieldIdx: m.fieldIdx,
 		OverridePath:     m.profileMgr.OverridePath(),
-		MihomoConfigPath: m.profileMgr.MihomoConfigPath(),
 		ActiveSubName:    m.profileMgr.ActiveProfile(),
 		Dirty:            m.dirty,
 		Editing:          m.editing,
-		EditLabel:        editLabel,
-		EditYAMLPath:     editPath,
-		EditDescription:  editDesc,
 		EditInputView:    m.editInput.View(),
 	})
 }
 
+// currentSection returns the currently selected configuration section, or nil if out of range.
 func (m *ConfigsModel) currentSection() *SectionSpec {
 	if len(mihomoCfgSections) == 0 || m.sectionIdx < 0 || m.sectionIdx >= len(mihomoCfgSections) {
 		return nil
@@ -388,6 +372,7 @@ func (m *ConfigsModel) currentSection() *SectionSpec {
 	return &mihomoCfgSections[m.sectionIdx]
 }
 
+// currentField returns the currently selected field within the active section, or nil if out of range.
 func (m *ConfigsModel) currentField() *FieldSpec {
 	sec := m.currentSection()
 	if sec == nil || len(sec.Fields) == 0 || m.fieldIdx < 0 || m.fieldIdx >= len(sec.Fields) {
@@ -396,6 +381,7 @@ func (m *ConfigsModel) currentField() *FieldSpec {
 	return &sec.Fields[m.fieldIdx]
 }
 
+// handleKeyMsg processes navigation, field reset, edit activation, and save shortcuts in normal mode.
 func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Left):
@@ -456,6 +442,7 @@ func (m *ConfigsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// triggerFieldEdit toggles bools, cycles select options, or opens the edit modal for text/numeric/list fields.
 func (m *ConfigsModel) triggerFieldEdit() tea.Cmd {
 	field := m.currentField()
 	if field == nil {
@@ -511,6 +498,7 @@ func (m *ConfigsModel) triggerFieldEdit() tea.Cmd {
 	return nil
 }
 
+// updateEditModal processes keyboard input while the text/numeric/list field edit modal is open.
 func (m *ConfigsModel) updateEditModal(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Esc):
@@ -541,6 +529,7 @@ func (m *ConfigsModel) updateEditModal(msg tea.KeyMsg) tea.Cmd {
 	}
 }
 
+// loadOverrideCmd asynchronously reads override.yaml from disk.
 func (m *ConfigsModel) loadOverrideCmd() tea.Cmd {
 	return func() tea.Msg {
 		doc, err := m.profileMgr.LoadOverride()
@@ -548,6 +537,7 @@ func (m *ConfigsModel) loadOverrideCmd() tea.Cmd {
 	}
 }
 
+// saveAndApplyCmd persists doc to override.yaml, merges it with the active subscription, and hot-reloads Mihomo.
 func (m *ConfigsModel) saveAndApplyCmd(doc *profile.OverrideDoc) tea.Cmd {
 	return func() tea.Msg {
 		if err := m.profileMgr.SaveOverride(doc); err != nil {

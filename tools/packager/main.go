@@ -15,6 +15,7 @@ import (
 	"time"
 )
 
+// Target describes a cross-compilation OS/architecture release target.
 type Target struct {
 	OS     string
 	Arch   string
@@ -22,6 +23,7 @@ type Target struct {
 	Suffix string
 }
 
+// TarEntry describes a source file to include in the release tarball.
 type TarEntry struct {
 	Src      string
 	Dst      string
@@ -155,6 +157,7 @@ func main() {
 	}
 }
 
+// getReleaseEntries builds the ordered list of files packaged into each suite tarball.
 func getReleaseEntries(binPath string) []TarEntry {
 	return []TarEntry{
 		// 1. Suite binary (required)
@@ -169,6 +172,7 @@ func getReleaseEntries(binPath string) []TarEntry {
 	}
 }
 
+// createTarGz packages entries into a gzip-compressed tar archive at tarGzPath.
 func createTarGz(tarGzPath string, entries []TarEntry) error {
 	tarFile, err := os.Create(tarGzPath)
 	if err != nil {
@@ -197,6 +201,7 @@ func createTarGz(tarGzPath string, entries []TarEntry) error {
 	return nil
 }
 
+// addFileToTar writes a single file from srcPath into tw under tarName with the specified mode.
 func addFileToTar(tw *tar.Writer, srcPath, tarName string, mode int64) error {
 	info, err := os.Stat(srcPath)
 	if err != nil {
@@ -225,6 +230,7 @@ func addFileToTar(tw *tar.Writer, srcPath, tarName string, mode int64) error {
 	return err
 }
 
+// fileSHA256 computes and returns the lowercase hex-encoded SHA-256 digest of filePath.
 func fileSHA256(filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {

@@ -164,11 +164,13 @@ func (m *ProxiesModel) View(width, height int) string {
 	})
 }
 
+// applyLoadedProxies replaces the cached proxies map and rebuilds the sorted group list.
 func (m *ProxiesModel) applyLoadedProxies(proxies map[string]mihomo.ProxyItem) {
 	m.proxies = proxies
 	m.rebuildGroups(false)
 }
 
+// rebuildGroups derives visible proxy groups for the active outbound mode and clamps cursor indices.
 func (m *ProxiesModel) rebuildGroups(focusGlobal bool) {
 	prevGroupName := ""
 	if grp := m.currentGroup(); grp != nil {
@@ -237,6 +239,7 @@ func (m *ProxiesModel) rebuildGroups(focusGlobal bool) {
 	}
 }
 
+// filterConcreteNodes removes nested proxy groups from names, keeping only leaf outbound nodes.
 func (m *ProxiesModel) filterConcreteNodes(names []string) []string {
 	filtered := make([]string, 0, len(names))
 	for _, name := range names {
@@ -248,6 +251,7 @@ func (m *ProxiesModel) filterConcreteNodes(names []string) []string {
 	return filtered
 }
 
+// clearTestingFlags resets the in-progress latency testing indicator on all cached proxies.
 func (m *ProxiesModel) clearTestingFlags() {
 	for name, item := range m.proxies {
 		if item.TestingDelay {
@@ -257,6 +261,7 @@ func (m *ProxiesModel) clearTestingFlags() {
 	}
 }
 
+// currentGroup returns the currently selected proxy group, or nil if none is selected.
 func (m *ProxiesModel) currentGroup() *mihomo.ProxyItem {
 	if len(m.groups) == 0 || m.selectedGroupIdx < 0 || m.selectedGroupIdx >= len(m.groups) {
 		return nil
@@ -264,6 +269,7 @@ func (m *ProxiesModel) currentGroup() *mihomo.ProxyItem {
 	return &m.groups[m.selectedGroupIdx]
 }
 
+// currentSelectedNode returns the name of the currently selected node in the active group.
 func (m *ProxiesModel) currentSelectedNode() string {
 	grp := m.currentGroup()
 	if grp == nil || len(grp.All) == 0 || m.selectedNodeIdx < 0 || m.selectedNodeIdx >= len(grp.All) {
@@ -272,6 +278,7 @@ func (m *ProxiesModel) currentSelectedNode() string {
 	return grp.All[m.selectedNodeIdx]
 }
 
+// handleKeyMsg processes pane focus switching, list navigation, proxy selection, and latency test shortcuts.
 func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Left):
@@ -349,6 +356,7 @@ func (m *ProxiesModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// fetchProxiesCmd asynchronously fetches all proxy groups and nodes from Mihomo.
 func (m *ProxiesModel) fetchProxiesCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -361,6 +369,7 @@ func (m *ProxiesModel) fetchProxiesCmd() tea.Cmd {
 	}
 }
 
+// selectProxyCmd sends an asynchronous request to switch the active node in groupName.
 func (m *ProxiesModel) selectProxyCmd(groupName, nodeName string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -370,6 +379,7 @@ func (m *ProxiesModel) selectProxyCmd(groupName, nodeName string) tea.Cmd {
 	}
 }
 
+// testDelayCmd asynchronously measures the latency of a single proxy node.
 func (m *ProxiesModel) testDelayCmd(nodeName string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(defaultTestTimeoutMs+1000)*time.Millisecond)
@@ -379,6 +389,7 @@ func (m *ProxiesModel) testDelayCmd(nodeName string) tea.Cmd {
 	}
 }
 
+// testAllCmd concurrently measures latency for all nodes in groupName with bounded parallelism.
 func (m *ProxiesModel) testAllCmd(groupName string, nodes []string) tea.Cmd {
 	return func() tea.Msg {
 		var wg sync.WaitGroup

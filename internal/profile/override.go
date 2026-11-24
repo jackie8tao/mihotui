@@ -72,6 +72,7 @@ func (d *OverrideDoc) Delete(path ...string) bool {
 	return deleteNestedKey(d.data, path)
 }
 
+// deleteNestedKey recursively deletes the leaf key along path and removes ancestor maps that become empty.
 func deleteNestedKey(cur map[string]any, path []string) bool {
 	key := path[0]
 	if len(path) == 1 {
@@ -103,6 +104,7 @@ func (d *OverrideDoc) Clone() *OverrideDoc {
 	}
 }
 
+// deepCopyMap returns a recursive deep copy of src.
 func deepCopyMap(src map[string]any) map[string]any {
 	dst := make(map[string]any, len(src))
 	for k, v := range src {
@@ -111,6 +113,7 @@ func deepCopyMap(src map[string]any) map[string]any {
 	return dst
 }
 
+// deepCopyValue deep-copies nested maps and slices ([]any and []string), returning scalars unchanged.
 func deepCopyValue(v any) any {
 	switch val := v.(type) {
 	case map[string]any:

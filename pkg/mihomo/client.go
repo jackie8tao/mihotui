@@ -74,6 +74,7 @@ func New(baseURL string, opts ...Option) (Client, error) {
 	}, nil
 }
 
+// do executes an authenticated JSON HTTP request against the Mihomo External Controller API.
 func (c *clientImpl) do(ctx context.Context, method, path string, body any, out any) error {
 	var bodyReader io.Reader
 	if body != nil {
@@ -136,6 +137,7 @@ func (c *clientImpl) do(ctx context.Context, method, path string, body any, out 
 	return nil
 }
 
+// GetVersion fetches the Mihomo core version information.
 func (c *clientImpl) GetVersion(ctx context.Context) (*Version, error) {
 	var v Version
 	if err := c.do(ctx, http.MethodGet, "/version", nil, &v); err != nil {
@@ -144,6 +146,7 @@ func (c *clientImpl) GetVersion(ctx context.Context) (*Version, error) {
 	return &v, nil
 }
 
+// GetConfig retrieves the current Mihomo runtime configuration.
 func (c *clientImpl) GetConfig(ctx context.Context) (*Config, error) {
 	var cfg Config
 	if err := c.do(ctx, http.MethodGet, "/configs", nil, &cfg); err != nil {
@@ -152,11 +155,13 @@ func (c *clientImpl) GetConfig(ctx context.Context) (*Config, error) {
 	return &cfg, nil
 }
 
+// UpdateMode switches the Mihomo outbound routing mode (e.g. rule, global, direct).
 func (c *clientImpl) UpdateMode(ctx context.Context, mode string) error {
 	payload := map[string]string{"mode": strings.ToLower(mode)}
 	return c.do(ctx, http.MethodPatch, "/configs", payload, nil)
 }
 
+// ReloadConfig instructs Mihomo to hot-reload its configuration from configPath.
 func (c *clientImpl) ReloadConfig(ctx context.Context, configPath string, force bool) error {
 	path := "/configs"
 	if force {
@@ -166,6 +171,7 @@ func (c *clientImpl) ReloadConfig(ctx context.Context, configPath string, force 
 	return c.do(ctx, http.MethodPut, path, payload, nil)
 }
 
+// GetMemory fetches the current Mihomo memory usage statistics.
 func (c *clientImpl) GetMemory(ctx context.Context) (*Memory, error) {
 	var m Memory
 	if err := c.do(ctx, http.MethodGet, "/memory", nil, &m); err != nil {
@@ -174,6 +180,7 @@ func (c *clientImpl) GetMemory(ctx context.Context) (*Memory, error) {
 	return &m, nil
 }
 
+// GetProxies returns all configured proxy groups and outbound nodes.
 func (c *clientImpl) GetProxies(ctx context.Context) (*ProxiesResponse, error) {
 	var res ProxiesResponse
 	if err := c.do(ctx, http.MethodGet, "/proxies", nil, &res); err != nil {
@@ -182,12 +189,14 @@ func (c *clientImpl) GetProxies(ctx context.Context) (*ProxiesResponse, error) {
 	return &res, nil
 }
 
+// SelectProxy sets the active outbound node proxyName for the selector group groupName.
 func (c *clientImpl) SelectProxy(ctx context.Context, groupName, proxyName string) error {
 	path := fmt.Sprintf("/proxies/%s", url.PathEscape(groupName))
 	payload := map[string]string{"name": proxyName}
 	return c.do(ctx, http.MethodPut, path, payload, nil)
 }
 
+// TestDelay measures the latency in milliseconds for proxyName using testURL and timeoutMs.
 func (c *clientImpl) TestDelay(ctx context.Context, proxyName, testURL string, timeoutMs int) (int, error) {
 	path := fmt.Sprintf("/proxies/%s/delay?url=%s&timeout=%d",
 		url.PathEscape(proxyName),
@@ -202,6 +211,7 @@ func (c *clientImpl) TestDelay(ctx context.Context, proxyName, testURL string, t
 	return res.Delay, nil
 }
 
+// SubscribeTraffic streams real-time bandwidth statistics over WebSocket to trafficChan.
 func (c *clientImpl) SubscribeTraffic(ctx context.Context, trafficChan chan<- Traffic) error {
 	wsURL := c.baseURL
 	if strings.HasPrefix(wsURL, "http://") {
@@ -253,6 +263,7 @@ func (c *clientImpl) SubscribeTraffic(ctx context.Context, trafficChan chan<- Tr
 	}
 }
 
+// SubscribeLogs streams real-time Mihomo log entries at the given level over WebSocket to logChan.
 func (c *clientImpl) SubscribeLogs(ctx context.Context, level string, logChan chan<- LogMessage) error {
 	wsURL := c.baseURL
 	if strings.HasPrefix(wsURL, "http://") {

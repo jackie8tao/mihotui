@@ -29,17 +29,13 @@ func TruncateVisual(s string, maxWidth int) string {
 	return string(runes[:end]) + "..."
 }
 
-func truncateStr(s string, maxWidth int) string {
-	return TruncateVisual(s, maxWidth)
-}
-
 // padRightVisual sanitizes and truncates s to width display columns, then right-pads
 // with spaces so columns align accurately regardless of CJK or Emoji character widths.
 func padRightVisual(s string, width int) string {
 	if width <= 0 {
 		return ""
 	}
-	s = truncateStr(s, width)
+	s = TruncateVisual(s, width)
 	if pad := width - lipgloss.Width(s); pad > 0 {
 		return s + strings.Repeat(" ", pad)
 	}
@@ -75,6 +71,7 @@ func sanitizeDisplayText(s string) string {
 	return b.String()
 }
 
+// isRegionalIndicator reports whether r is a Unicode Regional Indicator Symbol Letter (A-Z).
 func isRegionalIndicator(r rune) bool {
 	return r >= 0x1F1E6 && r <= 0x1F1FF
 }

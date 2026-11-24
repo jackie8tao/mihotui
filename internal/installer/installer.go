@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	defaultMihomoVersion = "v1.19.33"
-	defaultMihomoRepo    = "MetaCubeX/mihomo"
+	defaultMihomoRepo = "MetaCubeX/mihomo"
 )
 
 // Options represents parameters for installing Mihomo core.
@@ -59,6 +58,7 @@ func Install(ctx context.Context, opts Options) error {
 	return nil
 }
 
+// installMihomoBinary installs the Mihomo core binary from a local archive or GitHub release and marks it executable.
 func installMihomoBinary(ctx context.Context, opts Options) error {
 	mihomoBinPath := opts.AppPaths.MihomoBinPath()
 	if !opts.Force {
@@ -79,6 +79,7 @@ func installMihomoBinary(ctx context.Context, opts Options) error {
 	return chmodExecutable(mihomoBinPath)
 }
 
+// chmodExecutable sets executable permissions (0755) on the installed binary at path.
 func chmodExecutable(path string) error {
 	if err := os.Chmod(path, 0755); err != nil {
 		return fmt.Errorf("chmod %q: %w", path, err)
@@ -95,6 +96,8 @@ var assetTargets = map[string]string{
 	"darwin/amd64": "darwin-amd64-compatible",
 }
 
+// installRemoteArchive resolves the latest Mihomo release tag on GitHub, downloads the matching gzip archive,
+// and extracts the binary to targetBinPath.
 func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 	// Resolve the latest release tag via GitHub's /releases/latest HTTP redirect.
 	// GitHub responds with 302 Found and a Location header ending in /releases/tag/<version>.
@@ -159,6 +162,7 @@ func installRemoteArchive(ctx context.Context, targetBinPath string) error {
 	return extractGzip(downloadResp.Body, targetBinPath)
 }
 
+// installLocalArchive validates and extracts a local gzip-compressed Mihomo archive to targetBinPath.
 func installLocalArchive(archivePath, targetBinPath string) error {
 	info, err := os.Stat(archivePath)
 	if err != nil {
@@ -177,6 +181,7 @@ func installLocalArchive(archivePath, targetBinPath string) error {
 	return extractGzip(f, targetBinPath)
 }
 
+// extractGzip decompresses a gzip stream and atomically replaces targetBinPath via a temporary file.
 func extractGzip(r io.Reader, targetBinPath string) error {
 	// Mihomo releases for Linux/macOS are single gzip-compressed binaries.
 	gzReader, err := gzip.NewReader(r)

@@ -109,6 +109,7 @@ func renderMihomoServiceUnit(paths *config.AppPaths) ([]byte, error) {
 	return data, nil
 }
 
+// writeUnitFileAtomically writes a systemd unit file via a temporary file and atomic rename.
 func writeUnitFileAtomically(targetPath string, data []byte) error {
 	tmpPath := targetPath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
@@ -121,6 +122,7 @@ func writeUnitFileAtomically(targetPath string, data []byte) error {
 	return nil
 }
 
+// reloadSystemdDaemon connects to the system D-Bus and triggers a systemd daemon-reload.
 func reloadSystemdDaemon(ctx context.Context) error {
 	conn, err := dbus.NewSystemConnectionContext(ctx)
 	if err != nil {

@@ -113,6 +113,7 @@ func (m *Manager) AddSubscription(ctx context.Context, subName, rawURL string) (
 	return &subscription, nil
 }
 
+// genSubFilename converts a subscription name into its canonical YAML filename.
 func (m *Manager) genSubFilename(subName string) string {
 	return fmt.Sprintf("%s.yaml", strings.TrimSpace(subName))
 }

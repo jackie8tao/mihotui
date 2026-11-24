@@ -124,6 +124,7 @@ func (m *OverviewModel) View(width, height int) string {
 	})
 }
 
+// fetchOverviewCmd queries Mihomo version, runtime config, and memory statistics asynchronously.
 func (m *OverviewModel) fetchOverviewCmd(notifyStatus bool) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -148,6 +149,7 @@ func (m *OverviewModel) fetchOverviewCmd(notifyStatus bool) tea.Cmd {
 	}
 }
 
+// waitForTrafficCmd waits for the next bandwidth sample from the traffic stream channel.
 func (m *OverviewModel) waitForTrafficCmd() tea.Cmd {
 	return func() tea.Msg {
 		select {

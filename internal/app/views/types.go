@@ -78,13 +78,9 @@ type ConfigsProps struct {
 	Fields           []ConfigFieldView
 	SelectedFieldIdx int
 	OverridePath     string
-	MihomoConfigPath string
 	ActiveSubName    string
 	Dirty            bool
 	Editing          bool
-	EditLabel        string
-	EditYAMLPath     string
-	EditDescription  string
 	EditInputView    string
 }
 

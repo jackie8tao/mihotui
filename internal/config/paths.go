@@ -13,20 +13,19 @@ type AppPaths struct {
 	EtcDir  string // <bundle_root>/etc
 }
 
+// MihomoBinPath returns the path to the bundled Mihomo core binary.
 func (a AppPaths) MihomoBinPath() string {
 	return filepath.Join(a.BinDir, "mihomo")
 }
 
+// MihomoEtcDir returns the configuration directory for the Mihomo core.
 func (a AppPaths) MihomoEtcDir() string {
 	return filepath.Join(a.EtcDir, "mihomo")
 }
 
+// AppEtcDir returns the configuration directory for mihotui itself.
 func (a AppPaths) AppEtcDir() string {
 	return filepath.Join(a.EtcDir, "mihotui")
-}
-
-func (a AppPaths) AppBinPath() string {
-	return filepath.Join(a.BinDir, "mihotui")
 }
 
 // NewAppPaths constructs standard AppPaths for any given suite root directory.

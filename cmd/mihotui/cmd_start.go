@@ -31,6 +31,7 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
+// runTUI resolves suite paths, loads configuration, initializes dependencies, and runs the Bubble Tea program.
 func runTUI(cfgPath string) error {
 	appPaths, err := config.ResolveAppPaths()
 	if err != nil {

@@ -74,6 +74,7 @@ func (m *AppModel) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+// updateModeCmd sends an asynchronous outbound mode change request to Mihomo.
 func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -83,6 +84,7 @@ func (m *AppModel) updateModeCmd(mode string) tea.Cmd {
 	}
 }
 
+// handleGlobalKeys handles application-wide shortcuts (quit, tab switching, refresh, and mode cycling).
 func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 	switch {
 	case key.Matches(msg, keymaps.Quit):
@@ -124,6 +126,7 @@ func (m *AppModel) handleGlobalKeys(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
+// broadcast forwards a Bubble Tea message to every registered page sub-model and batches resulting commands.
 func (m *AppModel) broadcast(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 	for _, p := range m.pages {

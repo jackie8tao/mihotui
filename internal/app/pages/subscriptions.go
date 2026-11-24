@@ -188,6 +188,7 @@ func (m *SubscriptionsModel) View(width, height int) string {
 	})
 }
 
+// currentSubscription returns the currently selected subscription, or nil if the list is empty.
 func (m *SubscriptionsModel) currentSubscription() *config.Subscription {
 	if len(m.subscriptions) == 0 || m.selectedIdx < 0 || m.selectedIdx >= len(m.subscriptions) {
 		return nil
@@ -195,6 +196,7 @@ func (m *SubscriptionsModel) currentSubscription() *config.Subscription {
 	return &m.subscriptions[m.selectedIdx]
 }
 
+// updateAddSubModal handles keyboard input while the add-subscription modal is open.
 func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Esc):
@@ -239,6 +241,7 @@ func (m *SubscriptionsModel) updateAddSubModal(msg tea.KeyMsg) tea.Cmd {
 	}
 }
 
+// handleKeyMsg processes subscription list navigation and CRUD/apply shortcuts.
 func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Matches(msg, keymaps.Up):
@@ -291,6 +294,7 @@ func (m *SubscriptionsModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// updateSubCmd re-downloads a single subscription and reloads Mihomo if it is currently active.
 func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
@@ -309,6 +313,7 @@ func (m *SubscriptionsModel) updateSubCmd(name string) tea.Cmd {
 	}
 }
 
+// updateAllSubsCmd sequentially updates all configured subscriptions and reloads Mihomo if one is active.
 func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -330,6 +335,7 @@ func (m *SubscriptionsModel) updateAllSubsCmd() tea.Cmd {
 	}
 }
 
+// addSubCmd asynchronously downloads and registers a new subscription.
 func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
@@ -342,6 +348,7 @@ func (m *SubscriptionsModel) addSubCmd(name, url string) tea.Cmd {
 	}
 }
 
+// deleteSubCmd asynchronously deletes a subscription record and its local YAML file.
 func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		return subDeletedMsg{
@@ -351,6 +358,7 @@ func (m *SubscriptionsModel) deleteSubCmd(name string) tea.Cmd {
 	}
 }
 
+// applySubCmd merges the subscription with override.yaml, reloads Mihomo, and persists it as active.
 func (m *SubscriptionsModel) applySubCmd(name string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
@@ -366,6 +374,7 @@ func (m *SubscriptionsModel) applySubCmd(name string) tea.Cmd {
 	}
 }
 
+// mergeAndReload builds the merged Mihomo config.yaml for subName and triggers a forced core reload.
 func (m *SubscriptionsModel) mergeAndReload(ctx context.Context, subName string) error {
 	mihomoCfgPath, err := m.profileMgr.BuildMihomoConfig(subName)
 	if err != nil {

@@ -18,6 +18,7 @@ type APIError struct {
 	Message    string
 }
 
+// Error implements the error interface for APIError.
 func (e *APIError) Error() string {
 	if e.Message != "" {
 		return fmt.Sprintf("mihomo api error (status %d): %s", e.StatusCode, e.Message)

@@ -50,7 +50,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 
 		for i := startIdx; i < endIdx; i++ {
 			sub := p.Subscriptions[i]
-			name := truncateStr(sub.Name, leftWidth-12)
+			name := TruncateVisual(sub.Name, leftWidth-12)
 
 			activeMark := "  "
 			if sub.Name == p.ActiveSubName {
@@ -97,8 +97,8 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 			statusBadge = theme.ActiveIndicatorStyle.Render("[ACTIVE]")
 		}
 
-		nameDisplay := truncateStr(curr.Name, maxValWidth-10)
-		urlDisplay := truncateStr(curr.URL, maxValWidth)
+		nameDisplay := TruncateVisual(curr.Name, maxValWidth-10)
+		urlDisplay := TruncateVisual(curr.URL, maxValWidth)
 
 		lines = append(lines, fmt.Sprintf("Subscription : %s  %s", lipgloss.NewStyle().Bold(true).Render(nameDisplay), statusBadge))
 		lines = append(lines, fmt.Sprintf("Remote URL   : %s", urlDisplay))
@@ -174,6 +174,7 @@ func RenderSubscriptions(p SubscriptionsProps) string {
 	return baseView
 }
 
+// renderAddSubModal renders the centered modal dialog for adding a new subscription over baseView.
 func renderAddSubModal(p SubscriptionsProps, baseView string) string {
 	modalWidth := clampModalWidth(56, p.Width)
 

@@ -114,9 +114,6 @@ func TestRenderConfigsEditModalOverlaysBaseView(t *testing.T) {
 		OverridePath:     "/etc/mihotui/override.yaml",
 		ActiveSubName:    "my-sub",
 		Editing:          true,
-		EditLabel:        "Device Name",
-		EditYAMLPath:     "tun.device",
-		EditDescription:  "Virtual interface name.",
 		EditInputView:    "> mihomo",
 	})
 

@@ -33,7 +33,7 @@ func RenderConfigs(p ConfigsProps) string {
 		if sec.OverrideCount > 0 {
 			badge = theme.ActiveIndicatorStyle.Render(fmt.Sprintf("(%d)", sec.OverrideCount))
 		}
-		label := fmt.Sprintf("%-14s %s", truncateStr(sec.Title, 14), badge)
+		label := fmt.Sprintf("%-14s %s", TruncateVisual(sec.Title, 14), badge)
 
 		var line string
 		if i == p.SelectedSecIdx {
@@ -65,7 +65,7 @@ func RenderConfigs(p ConfigsProps) string {
 	}
 
 	for i, f := range p.Fields {
-		valText := truncateStr(f.DisplayValue, maxValWidth)
+		valText := TruncateVisual(f.DisplayValue, maxValWidth)
 		var styledVal string
 		if !f.IsOverridden {
 			styledVal = lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(valText)
@@ -75,7 +75,7 @@ func RenderConfigs(p ConfigsProps) string {
 			styledVal = lipgloss.NewStyle().Bold(true).Foreground(theme.ColorHighlight).Render(valText)
 		}
 
-		row := fmt.Sprintf("%-20s %s", truncateStr(f.Label, 20), styledVal)
+		row := fmt.Sprintf("%-20s %s", TruncateVisual(f.Label, 20), styledVal)
 		if i == p.SelectedFieldIdx && p.FocusPane == ConfigPaneFields {
 			row = theme.SelectedRowStyle.Render("▶ " + row)
 		} else {
@@ -97,11 +97,11 @@ func RenderConfigs(p ConfigsProps) string {
 
 	activeSubDisplay := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("(none)")
 	if p.ActiveSubName != "" {
-		activeSubDisplay = theme.ActiveIndicatorStyle.Render(truncateStr(p.ActiveSubName, rightWidth-24))
+		activeSubDisplay = theme.ActiveIndicatorStyle.Render(TruncateVisual(p.ActiveSubName, rightWidth-24))
 	}
 	rightLines = append(rightLines, "")
 	rightLines = append(rightLines, lipgloss.NewStyle().Foreground(theme.ColorMuted).Render(
-		fmt.Sprintf("Active Sub: %s | Override: %s", activeSubDisplay, truncateStr(p.OverridePath, rightWidth-36)),
+		fmt.Sprintf("Active Sub: %s | Override: %s", activeSubDisplay, TruncateVisual(p.OverridePath, rightWidth-36)),
 	))
 
 	rightBoxStyle := theme.CardBoxStyle
@@ -123,7 +123,13 @@ func RenderConfigs(p ConfigsProps) string {
 	return baseView
 }
 
+// renderConfigEditModal renders the centered edit dialog for the currently selected field over baseView.
 func renderConfigEditModal(p ConfigsProps, baseView string) string {
+	if p.SelectedFieldIdx < 0 || p.SelectedFieldIdx >= len(p.Fields) {
+		return baseView
+	}
+	curr := p.Fields[p.SelectedFieldIdx]
+
 	modalWidth := clampModalWidth(58, p.Width)
 	descWidth := modalWidth - 6
 	if descWidth < 16 {
@@ -131,9 +137,9 @@ func renderConfigEditModal(p ConfigsProps, baseView string) string {
 	}
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorLight).Render(
-		fmt.Sprintf("Edit %s (%s)", p.EditLabel, p.EditYAMLPath),
+		fmt.Sprintf("Edit %s (%s)", curr.Label, curr.YAMLPath),
 	)
-	desc := lipgloss.NewStyle().Width(descWidth).Foreground(theme.ColorMuted).Render(p.EditDescription)
+	desc := lipgloss.NewStyle().Width(descWidth).Foreground(theme.ColorMuted).Render(curr.Description)
 	inputField := fmt.Sprintf("Value:\n%s", p.EditInputView)
 	help := lipgloss.NewStyle().Foreground(theme.ColorMuted).Render("[Enter] Confirm | [Esc] Cancel")
 
