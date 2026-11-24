@@ -551,15 +551,24 @@ func (m *ConfigsModel) saveAndApplyCmd(doc *profile.OverrideDoc) tea.Cmd {
 
 		mihomoCfgPath, err := m.profileMgr.BuildMihomoConfig(activeSub)
 		if err != nil {
-			return overrideAppliedMsg{activeSub: activeSub, err: err}
+			return overrideAppliedMsg{
+				activeSub: activeSub,
+				err:       err,
+			}
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 		defer cancel()
 		if err := m.client.ReloadConfig(ctx, mihomoCfgPath, true); err != nil {
-			return overrideAppliedMsg{activeSub: activeSub, err: err}
+			return overrideAppliedMsg{
+				activeSub: activeSub,
+				err:       err,
+			}
 		}
 
-		return overrideAppliedMsg{reloaded: true, activeSub: activeSub}
+		return overrideAppliedMsg{
+			reloaded:  true,
+			activeSub: activeSub,
+		}
 	}
 }
