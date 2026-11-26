@@ -32,6 +32,7 @@ const (
 // OverviewProps contains the data needed to render the overview tab.
 type OverviewProps struct {
 	Width     int
+	Height    int
 	Traffic   mihomo.Traffic
 	TotalUp   int64
 	TotalDown int64
@@ -65,6 +66,7 @@ type ConfigFieldView struct {
 	KindHint     string
 	DisplayValue string
 	IsOverridden bool
+	IsActive     bool
 }
 
 // ConfigsProps contains the data needed to render the configs (override.yaml) tab.

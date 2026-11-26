@@ -4,93 +4,120 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/jackie8tao/mihotui/internal/app/components"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
-
-	"github.com/charmbracelet/lipgloss"
 )
+
+const overviewTopPanelHeight = 9 // 2 border + 2 header + 5 content rows
 
 // RenderOverview renders the overview dashboard view.
 func RenderOverview(p OverviewProps) string {
-	width := p.Width - 4
-	if width < 44 {
-		width = 44
+	width := p.Width
+	if width < 24 {
+		width = 24
 	}
 
-	leftWidth := (width - 4) / 2
-	rightWidth := width - 4 - leftWidth
-	topBoxHeight := 7
-
-	// 1. Traffic & Speed Box
-	upSpeedStr := mihomo.FormatSpeed(p.Traffic.Up)
-	downSpeedStr := mihomo.FormatSpeed(p.Traffic.Down)
-
-	trafficHeader := theme.BoldStyle.Render("Real-time Bandwidth")
-	trafficContent := fmt.Sprintf(
-		"▲ Upload   : %s\n▼ Download : %s\n\nTotal Up   : %s\nTotal Down : %s",
-		theme.SpeedUpStyle.Render(upSpeedStr),
-		theme.SpeedDownStyle.Render(downSpeedStr),
-		mihomo.FormatBytes(p.TotalUp),
-		mihomo.FormatBytes(p.TotalDown),
+	leftW := (width - 2) / 2
+	topRow := components.SplitPane(width, overviewTopPanelHeight, leftW,
+		func(w, h int) string {
+			return renderTrafficPanel(p, w, h)
+		},
+		func(w, h int) string {
+			return renderModePanel(p, w, h)
+		},
 	)
-	trafficBox := theme.CardBoxStyle.Width(leftWidth).Height(topBoxHeight).Render(trafficHeader + "\n\n" + trafficContent)
 
-	// 2. Mode Box
-	modeList := []string{"rule", "global", "direct"}
-	var modeStrs []string
-	currMode := strings.ToLower(p.Config.Mode)
-	for _, mode := range modeList {
-		if mode == currMode {
-			modeStrs = append(modeStrs, theme.ActiveIndicatorStyle.Render(fmt.Sprintf("● [%s]", strings.ToUpper(mode))))
-		} else {
-			modeStrs = append(modeStrs, theme.MutedStyle.Render(fmt.Sprintf("○  %s", strings.ToUpper(mode))))
+	bottomHeight := 0
+	if p.Height > 0 {
+		bottomHeight = p.Height - overviewTopPanelHeight - 1
+		if bottomHeight < 5 {
+			bottomHeight = 5
 		}
 	}
-	modeHeader := theme.BoldStyle.Render("Outbound Mode")
-	modeHelp := theme.MutedStyle.Render("(Press 'm' to cycle mode)")
-	modeBox := theme.CardBoxStyle.Width(rightWidth).Height(topBoxHeight).Render(
-		modeHeader + "\n\n" + strings.Join(modeStrs, "\n") + "\n\n" + modeHelp,
-	)
 
-	topRow := lipgloss.JoinHorizontal(lipgloss.Top, trafficBox, "  ", modeBox)
-
-	// 3. System & Config Info Box
-	tunStatus := "Disabled"
-	if p.Config.Tun.Enable {
-		tunStatus = fmt.Sprintf("Enabled (dev: %s, stack: %s)", p.Config.Tun.Device, p.Config.Tun.Stack)
-	}
-
-	metaTag := ""
-	if p.Version.Meta {
-		metaTag = " (Meta)"
-	}
-
-	memStr := "N/A"
-	if p.Memory.Inuse > 0 {
-		memStr = fmt.Sprintf("%s (OS: %s)", mihomo.FormatBytes(p.Memory.Inuse), mihomo.FormatBytes(p.Memory.Osalloc))
-	}
-
-	sysContent := fmt.Sprintf(
-		"Core Version  : %s%s\n"+
-			"Mixed Port    : %d\n"+
-			"Socks5 Port   : %d\n"+
-			"Redir Port    : %d\n"+
-			"Tun Mode      : %s\n"+
-			"Allow LAN     : %v\n"+
-			"Log Level     : %s\n"+
-			"Memory Usage  : %s",
-		p.Version.Version, metaTag,
-		p.Config.MixedPort,
-		p.Config.SocksPort,
-		p.Config.RedirPort,
-		tunStatus,
-		p.Config.AllowLan,
-		p.Config.LogLevel,
-		memStr,
-	)
-	sysHeader := theme.BoldStyle.Render("Runtime Information")
-	sysBox := theme.CardBoxStyle.Width(width).Render(sysHeader + "\n\n" + sysContent)
-
+	sysBox := renderRuntimePanel(p, width, bottomHeight)
 	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", sysBox)
 }
 
+// renderTrafficPanel renders the real-time upload/download speed and cumulative totals card.
+func renderTrafficPanel(p OverviewProps, width, height int) string {
+	return components.Panel(components.PanelProps{
+		Title:  "Real-time Bandwidth",
+		Width:  width,
+		Height: height,
+	}, func(cw, _ int) string {
+		speeds := components.KVList([]components.KVItem{
+			{Key: "▲ Upload", Value: mihomo.FormatSpeed(p.Traffic.Up), ValueStyle: &theme.SpeedUpStyle},
+			{Key: "▼ Download", Value: mihomo.FormatSpeed(p.Traffic.Down), ValueStyle: &theme.SpeedDownStyle},
+		}, cw)
+		totals := components.KVList([]components.KVItem{
+			{Key: "Total Up", Value: mihomo.FormatBytes(p.TotalUp)},
+			{Key: "Total Down", Value: mihomo.FormatBytes(p.TotalDown)},
+		}, cw)
+		return speeds + "\n\n" + totals
+	})
+}
+
+// renderModePanel renders the outbound routing mode indicator card.
+func renderModePanel(p OverviewProps, width, height int) string {
+	return components.Panel(components.PanelProps{
+		Title:  "Outbound Mode",
+		Width:  width,
+		Height: height,
+	}, func(cw, _ int) string {
+		modes := []string{"rule", "global", "direct"}
+		currMode := strings.ToLower(p.Config.Mode)
+		lines := make([]string, 0, len(modes)+2)
+		for _, mode := range modes {
+			if mode == currMode {
+				lines = append(lines, theme.ActiveIndicatorStyle.Render(
+					components.TruncateVisual(fmt.Sprintf("● [%s]", strings.ToUpper(mode)), cw),
+				))
+				continue
+			}
+			lines = append(lines, theme.MutedStyle.Render(
+				components.TruncateVisual(fmt.Sprintf("○  %s", strings.ToUpper(mode)), cw),
+			))
+		}
+		lines = append(lines, "", theme.MutedStyle.Render(components.TruncateVisual("(Press 'm' to cycle mode)", cw)))
+		return strings.Join(lines, "\n")
+	})
+}
+
+// renderRuntimePanel renders the Mihomo core version, ports, TUN, and memory info card.
+func renderRuntimePanel(p OverviewProps, width, height int) string {
+	return components.Panel(components.PanelProps{
+		Title:  "Runtime Information",
+		Width:  width,
+		Height: height,
+	}, func(cw, _ int) string {
+		tunStatus := "Disabled"
+		if p.Config.Tun.Enable {
+			tunStatus = fmt.Sprintf("Enabled (dev: %s, stack: %s)", p.Config.Tun.Device, p.Config.Tun.Stack)
+		}
+
+		versionStr := p.Version.Version
+		if p.Version.Meta {
+			versionStr += " (Meta)"
+		}
+
+		memStr := "N/A"
+		if p.Memory.Inuse > 0 {
+			memStr = fmt.Sprintf("%s (OS: %s)", mihomo.FormatBytes(p.Memory.Inuse), mihomo.FormatBytes(p.Memory.Osalloc))
+		}
+
+		return components.KVList([]components.KVItem{
+			{Key: "Core Version", Value: versionStr},
+			{Key: "Mixed Port", Value: fmt.Sprintf("%d", p.Config.MixedPort)},
+			{Key: "Socks5 Port", Value: fmt.Sprintf("%d", p.Config.SocksPort)},
+			{Key: "Redir Port", Value: fmt.Sprintf("%d", p.Config.RedirPort)},
+			{Key: "Tun Mode", Value: tunStatus},
+			{Key: "Allow LAN", Value: fmt.Sprintf("%v", p.Config.AllowLan)},
+			{Key: "Log Level", Value: p.Config.LogLevel},
+			{Key: "Memory Usage", Value: memStr},
+		}, cw)
+	})
+}

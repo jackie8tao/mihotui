@@ -333,8 +333,12 @@ func (m *ConfigsModel) View(width, height int) string {
 		for i, f := range sec.Fields {
 			val, ok := m.doc.Get(f.Path...)
 			display := "(inherit)"
+			isActive := false
 			if ok {
 				display = f.FormatDisplay(val)
+				if b, isBool := val.(bool); isBool {
+					isActive = b
+				}
 			}
 			fieldViews[i] = views.ConfigFieldView{
 				Label:        f.Label,
@@ -343,6 +347,7 @@ func (m *ConfigsModel) View(width, height int) string {
 				KindHint:     f.KindHint(),
 				DisplayValue: display,
 				IsOverridden: ok,
+				IsActive:     isActive,
 			}
 		}
 	}

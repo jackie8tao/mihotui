@@ -115,6 +115,7 @@ func (m *OverviewModel) Update(msg tea.Msg) tea.Cmd {
 func (m *OverviewModel) View(width, height int) string {
 	return views.RenderOverview(views.OverviewProps{
 		Width:     width,
+		Height:    height,
 		Traffic:   m.traffic,
 		TotalUp:   m.totalUp,
 		TotalDown: m.totalDown,

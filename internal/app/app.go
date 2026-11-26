@@ -10,11 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/jackie8tao/mihotui/internal/app/components"
 	"github.com/jackie8tao/mihotui/internal/app/events"
 	"github.com/jackie8tao/mihotui/internal/app/keymaps"
 	"github.com/jackie8tao/mihotui/internal/app/pages"
 	"github.com/jackie8tao/mihotui/internal/app/theme"
-	"github.com/jackie8tao/mihotui/internal/app/views"
 	"github.com/jackie8tao/mihotui/internal/profile"
 	"github.com/jackie8tao/mihotui/pkg/mihomo"
 )
@@ -210,7 +210,7 @@ func (m *AppModel) View() string {
 	// Render single-line status message so long errors never wrap over or push out the help bar.
 	statusText := strings.Join(strings.Fields(m.statusMsg), " ")
 	if m.width > 2 {
-		statusText = views.TruncateVisual(statusText, m.width-2)
+		statusText = components.TruncateVisual(statusText, m.width-2)
 	}
 	statusStyle := theme.MutedStyle
 	if m.isError {

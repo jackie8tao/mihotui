@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/jackie8tao/mihotui/internal/app/components"
 	"github.com/jackie8tao/mihotui/internal/config"
 )
 
@@ -24,7 +25,7 @@ func TestOverlayCenterPreservesBackgroundAndCentersModal(t *testing.T) {
 		Width(20).
 		Render("HELLO MODAL")
 
-	out := overlayCenter(base, modal, 80, 20)
+	out := components.OverlayCenter(base, modal, 80, 20)
 
 	if strings.Contains(out, "\r") {
 		t.Fatalf("expected LF line endings only, found CR in output")
@@ -81,7 +82,7 @@ func TestOverlayCenterHandlesWideCharsAtEdges(t *testing.T) {
 		Width(19).
 		Render("MODAL")
 
-	out := overlayCenter(base, modal, 60, 12)
+	out := components.OverlayCenter(base, modal, 60, 12)
 	for i, line := range strings.Split(out, "\n") {
 		if w := lipgloss.Width(line); w > 60 {
 			t.Fatalf("line %d exceeded canvas width 60: got %d (%q)", i, w, ansi.Strip(line))
